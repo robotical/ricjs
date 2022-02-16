@@ -14,7 +14,8 @@
         "robotics"
     ],
     "publishConfig": {
-        "registry": "https://registry.npmjs.org/"
+        "registry": "https://registry.npmjs.org/",
+        "access": "public"
     },
     "main": "./dist/tsc/main.js",
     "types": "./dist/tsc/main.d.ts",
