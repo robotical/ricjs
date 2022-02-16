@@ -13,6 +13,9 @@
         "Robotical",
         "robotics"
     ],
+    "publishConfig": {
+        "robotical:registry": "https://npm.pkg.github.com"
+    },
     "main": "./dist/tsc/main.js",
     "types": "./dist/tsc/main.d.ts",
     "scripts": {
