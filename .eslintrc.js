@@ -8,4 +8,8 @@ module.exports = {
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
   ],
+  "rules": {
+    "no-loss-of-precision": "off",
+    "@typescript-eslint/no-loss-of-precision": ["off"]
+  },
 };
