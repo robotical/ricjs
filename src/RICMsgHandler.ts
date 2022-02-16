@@ -331,6 +331,9 @@ export default class RICMsgHandler {
     );
   }
 
+  // TODO - Investigate whether these lint errors are actually an issue
+  /* eslint-disable no-async-promise-executor */
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   async sendCommsMsg<T>(
     msgPayload: Uint8Array,
     msgDirection: CommsMsgTypeCode,
@@ -390,6 +393,8 @@ export default class RICMsgHandler {
     });
     return promise;
   }
+  /* eslint-enable no-async-promise-executor */
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   msgTrackingTxCmdMsg<T>(
     msgFrame: Uint8Array,
