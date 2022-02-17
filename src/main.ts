@@ -15,3 +15,7 @@ import {} from './RICUtils'
 export {} from './RICMsgHandler'
 export {} from './RICTypes';
 export {} from './RICUtils';
+
+export function linktest(str: string): void {
+    console.log("Hello World linktest " + str);
+}
