@@ -9,9 +9,9 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import RICLog from "./RICLog";
+import { RICLog } from "./RICLog";
 
-export default class RICUtils {
+export class RICUtils {
   static _isEndianSet = false;
   static _isLittleEndian = false;
 
@@ -110,11 +110,11 @@ export default class RICUtils {
    * @param pos - position (offset in buf) to get from
    * @returns int16
    */
-     static getBEUint32FromBuf(buf: Uint8Array, bufPos: number): number {
-      if (RICUtils.isLittleEndian()) return (buf[bufPos] << 24) + (buf[bufPos + 1] << 16) + (buf[bufPos + 2] << 8) + buf[bufPos + 3];
-      return (buf[bufPos + 3] << 24) + (buf[bufPos + 2] << 16) + (buf[bufPos + 1] << 8) + buf[bufPos];
-    }
-  
+  static getBEUint32FromBuf(buf: Uint8Array, bufPos: number): number {
+    if (RICUtils.isLittleEndian()) return (buf[bufPos] << 24) + (buf[bufPos + 1] << 16) + (buf[bufPos + 2] << 8) + buf[bufPos + 3];
+    return (buf[bufPos + 3] << 24) + (buf[bufPos + 2] << 16) + (buf[bufPos + 1] << 8) + buf[bufPos];
+  }
+
   /**
    *
    * Extract a big-endian int16 from a uint8array
@@ -373,17 +373,17 @@ export default class RICUtils {
   }
 
   static padStartFn(inStr: string, targetLength: number, padString: string): string {
-    targetLength = targetLength>>0; //truncate if number or convert non-number to 0;
+    targetLength = targetLength >> 0; //truncate if number or convert non-number to 0;
     padString = String((typeof padString !== 'undefined' ? padString : ' '));
     if (inStr.length > targetLength) {
       return String(inStr);
     }
     else {
-      targetLength = targetLength-inStr.length;
+      targetLength = targetLength - inStr.length;
       if (targetLength > padString.length) {
-        padString += padString.repeat(targetLength/padString.length); //append to original to ensure we are longer than needed
+        padString += padString.repeat(targetLength / padString.length); //append to original to ensure we are longer than needed
       }
-      return padString.slice(0,targetLength) + String(inStr);
+      return padString.slice(0, targetLength) + String(inStr);
     }
-  }  
+  }
 }

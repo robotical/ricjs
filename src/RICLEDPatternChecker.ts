@@ -9,22 +9,22 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import RICLog from './RICLog'
-import RICMsgHandler from './RICMsgHandler';
+import { RICLog } from './RICLog'
+import { RICMsgHandler } from './RICMsgHandler';
 import { RICOKFail } from './RICTypes';
 
 export type RICLEDPatternCheckerColour = {
-    led: string;
-    lcd: string;
+  led: string;
+  lcd: string;
 }
 
-export default class RICLEDPatternChecker {
+export class RICLEDPatternChecker {
 
   // Verification of correct device
   _ledColours: Array<string> = new Array<string>();
   _lcdColours: Array<string> = new Array<string>();
   _bleVerifActive = false;
-  
+
   isActive(): boolean {
     return this._bleVerifActive;
   }
@@ -37,7 +37,7 @@ export default class RICLEDPatternChecker {
 
     // Check length of available colours
     if (availableColors.length == 0) {
-        RICLog.warn('start no available colours');
+      RICLog.warn('start no available colours');
     }
 
     // Random colour selection
@@ -51,7 +51,7 @@ export default class RICLEDPatternChecker {
     // LED and LCD colours are different to attempt to be visually similar
     this._ledColours = [LED_1.led, LED_2.led, LED_3.led];
     this._lcdColours = [LED_1.lcd, LED_2.lcd, LED_3.lcd];
-    
+
     // Set the colours to display on LEDs
     this._bleVerifActive = true;
 

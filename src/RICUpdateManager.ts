@@ -11,17 +11,17 @@
 
 import { RICFileSendType, RICFWInfo, RICHWFWUpdRslt, RICOKFail, RICSystemInfo, RICUpdateInfo } from "./RICTypes";
 import { RICUpdateEvent, RICUpdateEventIF } from "./RICUpdateEvents";
-import RICMsgHandler from "./RICMsgHandler";
+import { RICMsgHandler } from "./RICMsgHandler";
 import semverEq from 'semver/functions/eq';
 import semverGt from 'semver/functions/gt';
 import axios from 'axios';
 import RNFetchBlob from 'rn-fetch-blob';
-import RICUtils from "./RICUtils";
-import RICFileHandler from "./RICFileHandler";
-import RICLog from "./RICLog";
-import RICSystem from "./RICSystem";
+import { RICUtils } from "./RICUtils";
+import { RICFileHandler } from "./RICFileHandler";
+import { RICLog } from "./RICLog";
+import { RICSystem } from "./RICSystem";
 
-export default class RICUpdateManager {
+export class RICUpdateManager {
 
   // Event callbakcs
   _eventListener: RICUpdateEventIF;
@@ -53,20 +53,20 @@ export default class RICUpdateManager {
 
   // App version
   _appVersion = '';
-  
+
   // TESTS - set to true for testing OTA updates ONLY
   TEST_TRUNCATE_ESP_FILE = false;
   TEST_PRETEND_ELEM_UPDATE_REQD = false;
   TEST_PRETEND_INITIAL_VERSIONS_DIFFER = false;
   TEST_PRETEND_FINAL_VERSIONS_MATCH = false;
 
-  constructor(ricMsgHandler: RICMsgHandler, 
-        ricFileHandler: RICFileHandler, 
-        ricSystem: RICSystem,
-        eventListener: RICUpdateEventIF, 
-        firmwareTypeStrForMainFw: string, 
-        nonFirmwareElemTypes: string[],
-        currentAppVersion: string) {
+  constructor(ricMsgHandler: RICMsgHandler,
+    ricFileHandler: RICFileHandler,
+    ricSystem: RICSystem,
+    eventListener: RICUpdateEventIF,
+    firmwareTypeStrForMainFw: string,
+    nonFirmwareElemTypes: string[],
+    currentAppVersion: string) {
     this._ricMsgHandler = ricMsgHandler;
     this._ricFileHandler = ricFileHandler;
     this._ricSystem = ricSystem;
@@ -268,8 +268,8 @@ export default class RICUpdateManager {
       for (let fwIdx = 0; fwIdx < firmwareData.length; fwIdx++) {
         RICLog.debug(`fwUpdate uploading file name ${firmwareList[fwIdx].destname} len ${firmwareData[fwIdx].length}`);
         const elemType = firmwareList[fwIdx].elemType === this._firmwareTypeStrForMainFw
-        ? RICFileSendType.RIC_FIRMWARE_UPDATE
-        : RICFileSendType.RIC_NORMAL_FILE;
+          ? RICFileSendType.RIC_FIRMWARE_UPDATE
+          : RICFileSendType.RIC_NORMAL_FILE;
         await this.fileSend(
           firmwareList[fwIdx].destname,
           elemType,
@@ -285,7 +285,7 @@ export default class RICUpdateManager {
               `fwUpdate progress ${progress.toFixed(2)} sent ${sentBytes} len ${firmwareData[fwIdx].length} total ${totalBytes} propComplete ${percComplete.toFixed(2)}`,
             );
             this._eventListener.onUpdateManagerEvent(
-              RICUpdateEvent.UPDATE_PROGRESS, 
+              RICUpdateEvent.UPDATE_PROGRESS,
               {
                 stage: 'Uploading new firmware\nThis may take a while, please be patient',
                 progress: percComplete,
@@ -310,7 +310,7 @@ export default class RICUpdateManager {
         const percComplete =
           this._progressAfterUpload +
           ((this._progressAfterRestart - this._progressAfterUpload) * i) / 3;
-        this._eventListener.onUpdateManagerEvent(RICUpdateEvent.UPDATE_PROGRESS, 
+        this._eventListener.onUpdateManagerEvent(RICUpdateEvent.UPDATE_PROGRESS,
           {
             stage: 'Restarting Marty',
             progress: percComplete,
@@ -370,7 +370,7 @@ export default class RICUpdateManager {
       const percComplete =
         this._progressAfterRestart +
         ((1 - this._progressAfterRestart) * elemFwIdx) / firmwareList.length;
-      this._eventListener.onUpdateManagerEvent(RICUpdateEvent.UPDATE_PROGRESS, {stage: 'Updating elements', progress: percComplete});
+      this._eventListener.onUpdateManagerEvent(RICUpdateEvent.UPDATE_PROGRESS, { stage: 'Updating elements', progress: percComplete });
       elemFwIdx++;
 
       // Check element is not main
@@ -423,7 +423,7 @@ export default class RICUpdateManager {
     }
 
     // Done update
-    this._eventListener.onUpdateManagerEvent(RICUpdateEvent.UPDATE_PROGRESS, {stage: 'Finished', progress: 1});
+    this._eventListener.onUpdateManagerEvent(RICUpdateEvent.UPDATE_PROGRESS, { stage: 'Finished', progress: 1 });
     if (allElemsUpdatedOk) {
       this._eventListener.onUpdateManagerEvent(RICUpdateEvent.UPDATE_SUCCESS_ALL, this._ricSystem.getCachedSystemInfo());
     } else {
@@ -448,7 +448,7 @@ export default class RICUpdateManager {
    * @returns Promise<boolean>
    *
    */
-   async fileSend(
+  async fileSend(
     fileName: string,
     fileType: RICFileSendType,
     fileContents: Uint8Array,
@@ -464,5 +464,5 @@ export default class RICUpdateManager {
 
   fileSendCancel() {
     return this._ricFileHandler.fileSendCancel();
-  }  
+  }
 }

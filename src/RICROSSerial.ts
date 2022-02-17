@@ -9,10 +9,10 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import RICUtils from './RICUtils';
+import { RICUtils } from './RICUtils';
 import { MessageResult } from './RICMsgHandler';
-import RICCommsStats from './RICCommsStats';
-import RICAddOnManager from './RICAddOnManager';
+import { RICCommsStats } from './RICCommsStats';
+import { RICAddOnManager } from './RICAddOnManager';
 
 export class ROSSerialSmartServos {
   smartServos: {
@@ -42,15 +42,15 @@ export class ROSSerialPowerStatus {
     power5VIsOn: boolean;
     powerUSBIsConnected: boolean;
   } = {
-    battRemainCapacityPercent: 0,
-    battTempDegC: 0,
-    battRemainCapacityMAH: 0,
-    battFullCapacityMAH: 0,
-    battCurrentMA: 0,
-    power5VOnTimeSecs: 0,
-    power5VIsOn: false,
-    powerUSBIsConnected: false,
-  };
+      battRemainCapacityPercent: 0,
+      battTempDegC: 0,
+      battRemainCapacityMAH: 0,
+      battFullCapacityMAH: 0,
+      battCurrentMA: 0,
+      power5VOnTimeSecs: 0,
+      power5VIsOn: false,
+      powerUSBIsConnected: false,
+    };
 }
 
 export class ROSSerialAddOnStatus {
@@ -82,29 +82,29 @@ export class ROSSerialRGBT {
 }
 
 export class ROSSerialRobotStatus {
-robotStatus: {
-  flags: number,
-  isMoving: boolean,
-  isPaused: boolean,
-  isFwUpdating: boolean,
-  workQCount: number,
-  heapFree: number,
-  heapMin: number,
-  pixRGBT: ROSSerialRGBT[],
-  loopMsAvg: number,
-  loopMsMax: number,
-} = {
-    flags: 0,
-    isMoving: false,
-    isPaused: false,
-    isFwUpdating: false,
-    workQCount: 0,
-    heapFree: 0,
-    heapMin: 0,
-    pixRGBT: [],
-    loopMsAvg: 0,
-    loopMsMax: 0,
-  };
+  robotStatus: {
+    flags: number,
+    isMoving: boolean,
+    isPaused: boolean,
+    isFwUpdating: boolean,
+    workQCount: number,
+    heapFree: number,
+    heapMin: number,
+    pixRGBT: ROSSerialRGBT[],
+    loopMsAvg: number,
+    loopMsMax: number,
+  } = {
+      flags: 0,
+      isMoving: false,
+      isPaused: false,
+      isFwUpdating: false,
+      workQCount: 0,
+      heapFree: 0,
+      heapMin: 0,
+      pixRGBT: [],
+      loopMsAvg: 0,
+      loopMsMax: 0,
+    };
 }
 
 export type ROSSerialMsg =
@@ -114,7 +114,7 @@ export type ROSSerialMsg =
   | ROSSerialAddOnStatusList
   | ROSSerialRobotStatus;
 
-export default class RICROSSerial {
+export class RICROSSerial {
   static decode(
     rosSerialMsg: Uint8Array,
     startPos: number,
@@ -124,7 +124,7 @@ export default class RICROSSerial {
   ): void {
     // Payload may contain multiple ROSSerial messages
     let msgPos = startPos;
-    for(;;) {
+    for (; ;) {
       const remainingMsgLen = rosSerialMsg.length - msgPos;
 
       // ROSSerial ROSTopics
@@ -175,33 +175,33 @@ export default class RICROSSerial {
 
       // Handle ROSSerial messages
       if (messageResult !== null) {
-        switch(topicID) {
+        switch (topicID) {
           case ROSTOPIC_V2_SMART_SERVOS:
             // Smart Servos
             messageResult.onRxSmartServo(this.extractSmartServos(payload));
             commsStats.recordSmartServos();
             break;
-        case ROSTOPIC_V2_ACCEL:
+          case ROSTOPIC_V2_ACCEL:
             // Accelerometer
             messageResult.onRxIMU(this.extractAccel(payload));
             commsStats.recordIMU();
             break;
-        case ROSTOPIC_V2_POWER_STATUS:
+          case ROSTOPIC_V2_POWER_STATUS:
             // Power Status
             messageResult.onRxPowerStatus(this.extractPowerStatus(payload));
             commsStats.recordPowerStatus();
             break;
-        case ROSTOPIC_V2_ADDONS:
+          case ROSTOPIC_V2_ADDONS:
             // Addons
             messageResult.onRxAddOnPub(this.extractAddOnStatus(payload, addOnManager));
             commsStats.recordAddOnPub();
             break;
-        case ROSTOPIC_V2_ROBOT_STATUS:
+          case ROSTOPIC_V2_ROBOT_STATUS:
             // Robot Status
             messageResult.onRobotStatus(this.extractRobotStatus(payload));
             commsStats.recordRobotStatus();
             break;
-        default:
+          default:
             // Unknown topic
             messageResult.onRxOtherROSSerialMsg(topicID, payload);
             commsStats.recordOtherTopic();
@@ -307,48 +307,48 @@ export default class RICROSSerial {
 
   static extractRobotStatus(buf: Uint8Array): ROSSerialRobotStatus {
     if (buf.length >= 24) {
-        const flags = RICUtils.getBEUint8FromBuf(buf, 0);
-        const workQCount = RICUtils.getBEUint8FromBuf(buf, 1);
-        const heapFree = RICUtils.getBEUint32FromBuf(buf, 2);
-        const heapMin = RICUtils.getBEUint32FromBuf(buf, 6);
-        const pixRGBT1 = RICROSSerial.extractRGBT(buf, 10);
-        const pixRGBT2 = RICROSSerial.extractRGBT(buf, 14);
-        const pixRGBT3 = RICROSSerial.extractRGBT(buf, 18);
-        const loopMsAvg = RICUtils.getBEUint8FromBuf(buf, 22);
-        const loopMsMax = RICUtils.getBEUint8FromBuf(buf, 23);
-        // RICLog.debug(`RobotStatus ${buf.length} ${RICUtils.bufferToHex(buf)} ${flags} ${workQCount} ${heapFree} ${heapMin} ${pixRGBT1.toString()} ${pixRGBT2.toString()} ${pixRGBT3.toString()} ${loopMsAvg} ${loopMsMax}`);
-        return {
-          robotStatus: {
-            flags: flags,
-            isMoving: (flags & 0x01) != 0,
-            isPaused: (flags & 0x02) != 0,
-            isFwUpdating: (flags & 0x04) != 0,
-            workQCount: workQCount,
-            heapFree: heapFree,
-            heapMin: heapMin,
-            pixRGBT: [pixRGBT1, pixRGBT2, pixRGBT3],
-            loopMsAvg: loopMsAvg,
-            loopMsMax: loopMsMax,
-          },
-        }
+      const flags = RICUtils.getBEUint8FromBuf(buf, 0);
+      const workQCount = RICUtils.getBEUint8FromBuf(buf, 1);
+      const heapFree = RICUtils.getBEUint32FromBuf(buf, 2);
+      const heapMin = RICUtils.getBEUint32FromBuf(buf, 6);
+      const pixRGBT1 = RICROSSerial.extractRGBT(buf, 10);
+      const pixRGBT2 = RICROSSerial.extractRGBT(buf, 14);
+      const pixRGBT3 = RICROSSerial.extractRGBT(buf, 18);
+      const loopMsAvg = RICUtils.getBEUint8FromBuf(buf, 22);
+      const loopMsMax = RICUtils.getBEUint8FromBuf(buf, 23);
+      // RICLog.debug(`RobotStatus ${buf.length} ${RICUtils.bufferToHex(buf)} ${flags} ${workQCount} ${heapFree} ${heapMin} ${pixRGBT1.toString()} ${pixRGBT2.toString()} ${pixRGBT3.toString()} ${loopMsAvg} ${loopMsMax}`);
+      return {
+        robotStatus: {
+          flags: flags,
+          isMoving: (flags & 0x01) != 0,
+          isPaused: (flags & 0x02) != 0,
+          isFwUpdating: (flags & 0x04) != 0,
+          workQCount: workQCount,
+          heapFree: heapFree,
+          heapMin: heapMin,
+          pixRGBT: [pixRGBT1, pixRGBT2, pixRGBT3],
+          loopMsAvg: loopMsAvg,
+          loopMsMax: loopMsMax,
+        },
+      }
     } else {
-        const flags = RICUtils.getBEUint8FromBuf(buf, 0);
-        const workQCount = RICUtils.getBEUint8FromBuf(buf, 1);
-        // RICLog.debug(`RobotStatus ${buf.length} ${RICUtils.bufferToHex(buf)} ${flags} ${workQCount}`);
-        return {
-          robotStatus: {
-            flags: flags,
-            isMoving: (flags & 0x01) != 0,
-            isPaused: (flags & 0x02) != 0,
-            isFwUpdating: (flags & 0x04) != 0,
-            workQCount: workQCount,
-            heapFree: 0,
-            heapMin: 0,
-            pixRGBT: [],
-            loopMsAvg: 0,
-            loopMsMax: 0,
-          }
+      const flags = RICUtils.getBEUint8FromBuf(buf, 0);
+      const workQCount = RICUtils.getBEUint8FromBuf(buf, 1);
+      // RICLog.debug(`RobotStatus ${buf.length} ${RICUtils.bufferToHex(buf)} ${flags} ${workQCount}`);
+      return {
+        robotStatus: {
+          flags: flags,
+          isMoving: (flags & 0x01) != 0,
+          isPaused: (flags & 0x02) != 0,
+          isFwUpdating: (flags & 0x04) != 0,
+          workQCount: workQCount,
+          heapFree: 0,
+          heapMin: 0,
+          pixRGBT: [],
+          loopMsAvg: 0,
+          loopMsMax: 0,
         }
+      }
     }
   }
 }

@@ -9,7 +9,7 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-export default class RICStruct {
+export class RICStruct {
   _rechk = /^([<>])?(([1-9]\d*)?([xcbB?hHiIfdsp]))*$/;
   _refmt = /([1-9]\d*)?([xcbB?hHiIfdsp])/g;
   _format = '';

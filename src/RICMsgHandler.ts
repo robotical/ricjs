@@ -9,11 +9,12 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import RICCommsStats from './RICCommsStats';
-import MsgTrackInfo from './RICMsgTrackInfo';
-import RICLog from './RICLog';
-import RICUtils from './RICUtils';
-import RICROSSerial, {
+import { RICCommsStats } from './RICCommsStats';
+import { MsgTrackInfo } from './RICMsgTrackInfo';
+import { RICLog } from './RICLog';
+import { RICUtils } from './RICUtils';
+import {
+  RICROSSerial,
   ROSSerialIMU,
   ROSSerialSmartServos,
   ROSSerialPowerStatus,
@@ -28,8 +29,8 @@ import {
   RICREST_REST_ELEM_CODE_POS,
   RICREST_HEADER_PAYLOAD_POS,
 } from './RICProtocolDefs';
-import RICMiniHDLC from './RICMiniHDLC';
-import RICAddOnManager from './RICAddOnManager';
+import { RICMiniHDLC } from './RICMiniHDLC';
+import { RICAddOnManager } from './RICAddOnManager';
 import { RICReportMsg } from './RICTypes';
 
 // Protocol enums
@@ -93,7 +94,7 @@ const MAX_MSG_NUM = 255;
 const MSG_RESPONSE_TIMEOUT_MS = 5000;
 const MSG_RETRY_COUNT = 5;
 
-export default class RICMsgHandler {
+export class RICMsgHandler {
   // Message numbering and tracking
   _currentMsgNumber = 1;
   _currentMsgHandle = 1;

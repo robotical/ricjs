@@ -9,7 +9,7 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import RICLog from "./RICLog"
+import { RICLog } from "./RICLog"
 
 export class FileBlockTrackInfo {
   isDone = false;
@@ -35,7 +35,7 @@ export class FileBlockTrackInfo {
   }
 }
 
-export default class MsgTrackInfo {
+export class MsgTrackInfo {
   msgOutstanding = false;
   msgFrame: Uint8Array = new Uint8Array();
   msgSentMs = 0;

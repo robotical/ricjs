@@ -1,3 +1,14 @@
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// RICDataExtractor
+// Communications Connector for RIC V2
+//
+// RIC V2
+// Rob Dobson & Chris Greening 2020
+// (C) Robotical 2020-2022
+//
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 export enum RICDataExtractorVarType {
   VAR_BOOL,
   VAR_SIGNED,
@@ -36,7 +47,7 @@ export class RICDataExtractorDef {
   fields: Array<RICDataExtractorVarDef> = new Array<RICDataExtractorVarDef>();
 }
 
-export default class RICDataExtractor {
+export class RICDataExtractor {
   _formatDef: RICDataExtractorDef = new RICDataExtractorDef();
   _varNameBase = '';
   constructor(varNameBase: string, formatDef: RICDataExtractorDef) {

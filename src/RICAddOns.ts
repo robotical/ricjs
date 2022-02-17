@@ -1,17 +1,17 @@
-import RICLog from './RICLog'
-import RICDataExtractor, { RICDataExtractorVarType } from './RICDataExtractor';
+import { RICLog } from './RICLog'
+import { RICDataExtractor, RICDataExtractorVarType } from './RICDataExtractor';
 import { ROSSerialAddOnStatus } from './RICROSSerial';
 import { RICReportMsg } from './RICTypes';
 
 // RIC ADDON CODES
-export const RIC_WHOAMI_TYPE_CODE_ADDON_DISTANCE  = '00000083';
-export const RIC_WHOAMI_TYPE_CODE_ADDON_LIGHT     = '00000084';
-export const RIC_WHOAMI_TYPE_CODE_ADDON_COLOUR    = '00000085';
+export const RIC_WHOAMI_TYPE_CODE_ADDON_DISTANCE = '00000083';
+export const RIC_WHOAMI_TYPE_CODE_ADDON_LIGHT = '00000084';
+export const RIC_WHOAMI_TYPE_CODE_ADDON_COLOUR = '00000085';
 export const RIC_WHOAMI_TYPE_CODE_ADDON_IRFOOT_V1 = '00000086';
-export const RIC_WHOAMI_TYPE_CODE_ADDON_LEDFOOT   = '00000087';
+export const RIC_WHOAMI_TYPE_CODE_ADDON_LEDFOOT = '00000087';
 export const RIC_WHOAMI_TYPE_CODE_ADDON_LEDARM_V1 = '00000088';
-export const RIC_WHOAMI_TYPE_CODE_ADDON_LEDEYE    = '00000089';
-export const RIC_WHOAMI_TYPE_CODE_ADDON_NOISE     = '0000008A';
+export const RIC_WHOAMI_TYPE_CODE_ADDON_LEDEYE = '00000089';
+export const RIC_WHOAMI_TYPE_CODE_ADDON_NOISE = '0000008A';
 export const RIC_WHOAMI_TYPE_CODE_ADDON_GRIPSERVO = '0000008B';
 export const RIC_WHOAMI_TYPE_CODE_ADDON_IRFOOT_V2 = '0000008C';
 export const RIC_WHOAMI_TYPE_CODE_ADDON_LEDARM_V2 = '0000008D';
@@ -191,10 +191,10 @@ export function getHWElemTypeStr(whoAmITypeCode: string | undefined, whoAmI: str
     case parseInt("0x" + RIC_WHOAMI_TYPE_CODE_ADDON_LEDARM_V1):
       //RICLog.debug("Found LED Arm");
       return 'DiscoArm';
-    
-      case parseInt("0x" + RIC_WHOAMI_TYPE_CODE_ADDON_LEDARM_V2):
-        //RICLog.debug("Found LED Arm");
-        return 'DiscoArm';
+
+    case parseInt("0x" + RIC_WHOAMI_TYPE_CODE_ADDON_LEDARM_V2):
+      //RICLog.debug("Found LED Arm");
+      return 'DiscoArm';
 
     case parseInt("0x" + RIC_WHOAMI_TYPE_CODE_ADDON_LEDEYE):
       //RICLog.debug("Found LED Eye");
@@ -225,7 +225,7 @@ export abstract class RICAddOnBase {
   _name = '';
   _deviceTypeID = 0;
   _initCmd: string | null = null;
-  abstract processInit(_dataReceived: RICReportMsg) : void;
+  abstract processInit(_dataReceived: RICReportMsg): void;
   constructor(name: string) {
     this._name = name;
   }
@@ -250,7 +250,7 @@ export class RICAddOnGripServo extends RICAddOnBase {
     super(name);
     this._deviceTypeID = parseInt("0x" + RIC_WHOAMI_TYPE_CODE_ADDON_GRIPSERVO);
   }
-  
+
   processPublishedData(
     addOnID: number,
     statusByte: number,
@@ -267,7 +267,7 @@ export class RICAddOnGripServo extends RICAddOnBase {
     retStatus.status = statusByte;
     return retStatus;
   }
-  processInit(_dataReceived: RICReportMsg) : void {
+  processInit(_dataReceived: RICReportMsg): void {
   }
 }
 
@@ -292,7 +292,7 @@ export class RICAddOnLEDFoot extends RICAddOnBase {
     retStatus.status = statusByte;
     return retStatus;
   }
-  processInit(_dataReceived: RICReportMsg) : void {
+  processInit(_dataReceived: RICReportMsg): void {
   }
 }
 
@@ -315,7 +315,7 @@ export class RICAddOnLEDArm extends RICAddOnBase {
     retStatus.status = statusByte;
     return retStatus;
   }
-  processInit(_dataReceived: RICReportMsg) : void {
+  processInit(_dataReceived: RICReportMsg): void {
   }
 }
 
@@ -338,7 +338,7 @@ export class RICAddOnLEDEye extends RICAddOnBase {
     retStatus.status = statusByte;
     return retStatus;
   }
-  processInit(_dataReceived: RICReportMsg) : void {
+  processInit(_dataReceived: RICReportMsg): void {
   }
 }
 
@@ -365,7 +365,7 @@ export class RICAddOnIRFoot extends RICAddOnBase {
     retStatus.vals = this._dataExtractor.extractData(rawData);
     return retStatus;
   }
-  processInit(_dataReceived: RICReportMsg) : void {
+  processInit(_dataReceived: RICReportMsg): void {
   }
 }
 
@@ -397,8 +397,8 @@ export class RICAddOnColourSensor extends RICAddOnBase {
     return retStatus;
   }
 
-  setCalibration(cal: Array<number>){
-    if (cal.length != 4){
+  setCalibration(cal: Array<number>) {
+    if (cal.length != 4) {
       console.warn(`Colour sensor calibration function called with ${cal.length} parameters, expected 4`);
     }
     const [c, r, g, b] = cal;
@@ -410,7 +410,7 @@ export class RICAddOnColourSensor extends RICAddOnBase {
     this._dataExtractor.preCalcs();
   }
 
-  getCalibration():Array<number>{
+  getCalibration(): Array<number> {
     const c = this._dataExtractor._formatDef.fields[0].postMult ? this._dataExtractor._formatDef.fields[0].postMult : 1.0;
     const r = this._dataExtractor._formatDef.fields[1].postMult ? this._dataExtractor._formatDef.fields[1].postMult : 1.0;
     const g = this._dataExtractor._formatDef.fields[2].postMult ? this._dataExtractor._formatDef.fields[2].postMult : 1.0;
@@ -419,17 +419,17 @@ export class RICAddOnColourSensor extends RICAddOnBase {
     return [c, r, g, b];
   }
 
-  processInit(dataReceived: RICReportMsg){
+  processInit(dataReceived: RICReportMsg) {
     RICLog.debug(`Addon ${this._name} init data received ${JSON.stringify(dataReceived)}`)
-    if (dataReceived.elemName != this._name){
+    if (dataReceived.elemName != this._name) {
       RICLog.warn(`Addon init Rx received  for ${this._name} but addon name wrong: ${JSON.stringify(dataReceived)}`);
     }
     if (dataReceived.hexRd) {
       const cal = this.getCalibration();
 
-      for (let i = 0; i< 4; i++){
-        const calRcv = parseInt(dataReceived.hexRd.substring(4*i, 4), 16);
-        if (calRcv > 0){ cal[i] = 255/calRcv;}
+      for (let i = 0; i < 4; i++) {
+        const calRcv = parseInt(dataReceived.hexRd.substring(4 * i, 4), 16);
+        if (calRcv > 0) { cal[i] = 255 / calRcv; }
       }
 
       this.setCalibration(cal);
@@ -463,7 +463,7 @@ export class RICAddOnDistanceSensor extends RICAddOnBase {
     retStatus.vals = this._dataExtractor.extractData(rawData);
     return retStatus;
   }
-  processInit(_dataReceived: RICReportMsg) : void {
+  processInit(_dataReceived: RICReportMsg): void {
   }
 }
 
@@ -493,7 +493,7 @@ export class RICAddOnLightSensor extends RICAddOnBase {
     retStatus.vals = this._dataExtractor.extractData(rawData);
     return retStatus;
   }
-  processInit(_dataReceived: RICReportMsg) : void {
+  processInit(_dataReceived: RICReportMsg): void {
   }
 }
 
@@ -523,6 +523,6 @@ export class RICAddOnNoiseSensor extends RICAddOnBase {
     retStatus.vals = this._dataExtractor.extractData(rawData);
     return retStatus;
   }
-  processInit(_dataReceived: RICReportMsg) : void {
+  processInit(_dataReceived: RICReportMsg): void {
   }
 }

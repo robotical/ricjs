@@ -1,4 +1,4 @@
-import RICLog from './RICLog'
+import { RICLog } from './RICLog'
 import { Dictionary, RICHWElem, RICReportMsg } from './RICTypes';
 import {
   RICAddOnBase,
@@ -25,7 +25,7 @@ import {
 } from './RICAddOns';
 import { ROSSerialAddOnStatus } from './RICROSSerial';
 
-export default class RICAddOnManager {
+export class RICAddOnManager {
 
   _addOnMap: Dictionary<RICAddOnBase> = {};
 

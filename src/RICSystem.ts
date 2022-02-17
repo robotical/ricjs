@@ -10,12 +10,12 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 import { RICSysModInfoWiFi, RICWifiConnState, RICWifiConnStatus } from './RICWifiTypes';
-import RICAddOnManager from "./RICAddOnManager";
-import RICLog from "./RICLog"
-import RICMsgHandler from "./RICMsgHandler";
+import {RICAddOnManager} from "./RICAddOnManager";
+import {RICLog} from "./RICLog"
+import {RICMsgHandler} from "./RICMsgHandler";
 import { RICAddOnList, RICCalibInfo, RICFileList, RICFriendlyName, RICHWElem, RICHWElemList, RICNameResponse, RICOKFail, RICReportMsg, RICSysModInfoBLEMan, RICSystemInfo } from "./RICTypes";
 
-export default class RICSystem {
+export class RICSystem {
 
   // Message handler
   _ricMsgHandler: RICMsgHandler;

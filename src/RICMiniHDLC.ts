@@ -275,7 +275,7 @@ const CRC_LUT = [
   0x1ef0,
 ];
 
-export default class RICMiniHDLC {
+export class RICMiniHDLC {
   rxState: RICMiniHDLCState;
   rxBuffer: Array<number> = [];
   onRxFrame: ((rxFrame: Uint8Array) => void) | null;
