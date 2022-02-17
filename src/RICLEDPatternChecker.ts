@@ -18,7 +18,7 @@ export type RICLEDPatternCheckerColour = {
   lcd: string;
 }
 
-export class RICLEDPatternChecker {
+export class RICLEDPatternCheckerClass {
 
   // Verification of correct device
   _ledColours: Array<string> = new Array<string>();
