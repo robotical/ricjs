@@ -9,10 +9,10 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import { RICUtils } from './RICUtils';
-import { MessageResult } from './RICMsgHandler';
+import RICUtils from './RICUtils';
+import { RICMessageResult } from './RICMsgHandler';
 import RICCommsStats from './RICCommsStats';
-import { RICAddOnManager } from './RICAddOnManager';
+import RICAddOnManager from './RICAddOnManager';
 
 export class ROSSerialSmartServos {
   smartServos: {
@@ -118,7 +118,7 @@ export class RICROSSerial {
   static decode(
     rosSerialMsg: Uint8Array,
     startPos: number,
-    messageResult: MessageResult | null,
+    RICMessageResult: RICMessageResult | null,
     commsStats: RICCommsStats,
     addOnManager: RICAddOnManager,
   ): void {
@@ -174,36 +174,36 @@ export class RICROSSerial {
       // RICLog.debug('ROSSerial ' + RICUtils.bufferToHex(payload));
 
       // Handle ROSSerial messages
-      if (messageResult !== null) {
+      if (RICMessageResult !== null) {
         switch (topicID) {
           case ROSTOPIC_V2_SMART_SERVOS:
             // Smart Servos
-            messageResult.onRxSmartServo(this.extractSmartServos(payload));
+            RICMessageResult.onRxSmartServo(this.extractSmartServos(payload));
             commsStats.recordSmartServos();
             break;
           case ROSTOPIC_V2_ACCEL:
             // Accelerometer
-            messageResult.onRxIMU(this.extractAccel(payload));
+            RICMessageResult.onRxIMU(this.extractAccel(payload));
             commsStats.recordIMU();
             break;
           case ROSTOPIC_V2_POWER_STATUS:
             // Power Status
-            messageResult.onRxPowerStatus(this.extractPowerStatus(payload));
+            RICMessageResult.onRxPowerStatus(this.extractPowerStatus(payload));
             commsStats.recordPowerStatus();
             break;
           case ROSTOPIC_V2_ADDONS:
             // Addons
-            messageResult.onRxAddOnPub(this.extractAddOnStatus(payload, addOnManager));
+            RICMessageResult.onRxAddOnPub(this.extractAddOnStatus(payload, addOnManager));
             commsStats.recordAddOnPub();
             break;
           case ROSTOPIC_V2_ROBOT_STATUS:
             // Robot Status
-            messageResult.onRobotStatus(this.extractRobotStatus(payload));
+            RICMessageResult.onRobotStatus(this.extractRobotStatus(payload));
             commsStats.recordRobotStatus();
             break;
           default:
             // Unknown topic
-            messageResult.onRxOtherROSSerialMsg(topicID, payload);
+            RICMessageResult.onRxOtherROSSerialMsg(topicID, payload);
             commsStats.recordOtherTopic();
             break;
         }

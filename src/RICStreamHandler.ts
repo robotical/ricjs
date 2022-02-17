@@ -9,18 +9,19 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import {RICLog} from './RICLog'
-import {RICMsgHandler, 
+import RICLog from './RICLog'
+import {
+  RICMsgHandler,
   RICRESTElemCode,
 } from './RICMsgHandler';
 import RNFetchBlob from 'rn-fetch-blob';
 import RICCommsStats from './RICCommsStats';
 import { RICStreamStartResp, RICStreamType } from './RICTypes';
-import {RICUtils} from './RICUtils';
+import RICUtils from './RICUtils';
 
-export class RICStreamHandler {
+export default class RICStreamHandler {
   _msgHandler: RICMsgHandler;
-  
+
   // Stream state
   _streamID: number | null = null;
   DEFAULT_MAX_BLOCK_SIZE = 500;
@@ -59,7 +60,7 @@ export class RICStreamHandler {
           RICLog.debug(`streamFromURL ${received} ${total}`);
           // const currentProgress = received / total;
           // this._eventListener.onUpdateManagerEvent(RICUpdateEvent.UPDATE_PROGRESS, { stage: 'Downloading firmware', progress: currentProgress });
-      });
+        });
       RICLog.debug(`streamFromURL ${res}`);
       if (res) {
         RICLog.debug(`streamFromURL starting base64Enc`);
@@ -136,7 +137,7 @@ export class RICStreamHandler {
       this._maxBlockSize = streamStartResp.maxBlockSize || this.DEFAULT_MAX_BLOCK_SIZE;
       RICLog.debug(
         `sendStreamStartMsg streamID ${this._streamID} maxBlockSize ${this._maxBlockSize} streamType ${streamTypeEnum}`,
-      );  
+      );
     } else {
       RICLog.warn(`sendStreamStartMsg failed ${streamStartResp.rslt}`);
     }
@@ -186,7 +187,7 @@ export class RICStreamHandler {
     // Send stream blocks
     let progressUpdateCtr = 0;
     while (this._soktoPos < streamContents.length) {
-      
+
       // Check for new sokto
       if (this._soktoReceived) {
         streamPos = this._soktoPos;
@@ -199,7 +200,7 @@ export class RICStreamHandler {
         await this._sendStreamCancelMsg();
         break;
       }
-      
+
       const blockSize = Math.min(streamContents.length - streamPos, this._maxBlockSize);
       const block = streamContents.slice(streamPos, streamPos + blockSize);
       if (block.length > 0) {
@@ -207,8 +208,8 @@ export class RICStreamHandler {
 
         RICLog.debug(
           `sendStreamContents ${Date.now()} pos ${streamPos} ${blockSize} ${block.length} ${this._soktoPos}`,
-        );  
-  
+        );
+
         streamPos += blockSize;
       }
 
@@ -237,7 +238,7 @@ export class RICStreamHandler {
     block: Uint8Array,
     blockStart: number,
   ): Promise<void> {
- 
+
     // Send
     await this._msgHandler.sendFileBlock(block, blockStart);
   }

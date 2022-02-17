@@ -11,8 +11,8 @@
 
 import RICCommsStats from './RICCommsStats';
 import { RICMsgTrackInfo } from './RICMsgTrackInfo';
-import { RICLog } from './RICLog';
-import { RICUtils } from './RICUtils';
+import RICLog from './RICLog';
+import RICUtils from './RICUtils';
 import {
   RICROSSerial,
   ROSSerialIMU,
@@ -29,8 +29,8 @@ import {
   RICREST_REST_ELEM_CODE_POS,
   RICREST_HEADER_PAYLOAD_POS,
 } from './RICProtocolDefs';
-import { RICMiniHDLC } from './RICMiniHDLC';
-import { RICAddOnManager } from './RICAddOnManager';
+import RICMiniHDLC from './RICMiniHDLC';
+import RICAddOnManager from './RICAddOnManager';
 import { RICReportMsg } from './RICTypes';
 
 // Protocol enums
@@ -42,31 +42,31 @@ export enum RICRESTElemCode {
   RICREST_ELEM_CODE_FILEBLOCK,
 }
 
-export enum CommsMsgTypeCode {
+export enum RICCommsMsgTypeCode {
   MSG_TYPE_COMMAND,
   MSG_TYPE_RESPONSE,
   MSG_TYPE_PUBLISH,
   MSG_TYPE_REPORT,
 }
 
-export enum CommsMsgProtocol {
+export enum RICCommsMsgProtocol {
   MSG_PROTOCOL_ROSSERIAL,
   MSG_PROTOCOL_RESERVED_1,
   MSG_PROTOCOL_RICREST,
 }
 
 // Message results
-export enum MessageResultCode {
+export enum RICMsgResultCode {
   MESSAGE_RESULT_TIMEOUT,
   MESSAGE_RESULT_OK,
   MESSAGE_RESULT_FAIL,
   MESSAGE_RESULT_UNKNOWN,
 }
 
-export interface MessageResult {
+export interface RICMessageResult {
   onRxReply(
     msgHandle: number,
-    msgRsltCode: MessageResultCode,
+    msgRsltCode: RICMsgResultCode,
     msgRsltJsonObj: object | null,
   ): void;
   onRxUnnumberedMsg(msgRsltJsonObj: object): void;
@@ -78,7 +78,7 @@ export interface MessageResult {
   onRxOtherROSSerialMsg(topicID: number, payload: Uint8Array): void;
 }
 
-export interface MessageSender {
+export interface RICMessageSender {
   sendTxMsg(
     msg: Uint8Array,
     sendWithResponse: boolean,
@@ -108,10 +108,10 @@ export class RICMsgHandler {
   _reportMsgCallbacks = new Map<string, (report: RICReportMsg) => void>();
 
   // Interface to inform of message results
-  _msgResultHandler: MessageResult | null = null;
+  _msgResultHandler: RICMessageResult | null = null;
 
   // Interface to send messages
-  _msgSender: MessageSender | null = null;
+  _msgSender: RICMessageSender | null = null;
 
   // Comms stats
   _commsStats: RICCommsStats;
@@ -143,12 +143,12 @@ export class RICMsgHandler {
     this._miniHDLC.onRxFrame = this._onHDLCFrameDecode.bind(this);
   }
 
-  registerForResults(msgResultHandler: MessageResult) {
+  registerForResults(msgResultHandler: RICMessageResult) {
     this._msgResultHandler = msgResultHandler;
   }
 
-  registerMsgSender(messageSender: MessageSender) {
-    this._msgSender = messageSender;
+  registerMsgSender(RICMessageSender: RICMessageSender) {
+    this._msgSender = RICMessageSender;
   }
 
   handleNewRxMsg(rxMsg: Uint8Array): void {
@@ -199,12 +199,12 @@ export class RICMsgHandler {
         );
 
         // Check message types
-        if (rxMsgType == CommsMsgTypeCode.MSG_TYPE_RESPONSE) {
+        if (rxMsgType == RICCommsMsgTypeCode.MSG_TYPE_RESPONSE) {
 
           // Handle response messages
           this._handleResponseMessages(restStr, rxMsgNum);
 
-        } else if (rxMsgType == CommsMsgTypeCode.MSG_TYPE_REPORT) {
+        } else if (rxMsgType == RICCommsMsgTypeCode.MSG_TYPE_REPORT) {
 
           // Handle report messages
           this._handleReportMessages(restStr);
@@ -217,7 +217,7 @@ export class RICMsgHandler {
           `_onHDLCFrameDecode RICREST rx binary message elemCode ${ricRestElemCode} len ${binMsgLen}`,
         );
       }
-    } else if (rxProtocol == CommsMsgProtocol.MSG_PROTOCOL_ROSSERIAL) {
+    } else if (rxProtocol == RICCommsMsgProtocol.MSG_PROTOCOL_ROSSERIAL) {
       // Extract ROSSerial messages - decoded messages returned via _msgResultHandler
       RICROSSerial.decode(
         rxMsg,
@@ -233,14 +233,14 @@ export class RICMsgHandler {
 
   _handleResponseMessages(restStr: string, rxMsgNum: number): void {
     try {
-      let msgRsltCode = MessageResultCode.MESSAGE_RESULT_UNKNOWN;
+      let msgRsltCode = RICMsgResultCode.MESSAGE_RESULT_UNKNOWN;
       const msgRsltJsonObj = JSON.parse(restStr);
       if ('rslt' in msgRsltJsonObj) {
         const rsltStr = msgRsltJsonObj.rslt.toLowerCase();
         if (rsltStr === 'ok') {
-          msgRsltCode = MessageResultCode.MESSAGE_RESULT_OK;
+          msgRsltCode = RICMsgResultCode.MESSAGE_RESULT_OK;
         } else if (rsltStr === 'fail') {
-          msgRsltCode = MessageResultCode.MESSAGE_RESULT_FAIL;
+          msgRsltCode = RICMsgResultCode.MESSAGE_RESULT_FAIL;
         } else {
           RICLog.warn(
             `_onHDLCFrameDecode RICREST rslt not recognized ${msgRsltJsonObj.rslt}`,
@@ -325,8 +325,8 @@ export class RICMsgHandler {
     // Send
     return await this.sendCommsMsg(
       cmdMsg,
-      CommsMsgTypeCode.MSG_TYPE_COMMAND,
-      CommsMsgProtocol.MSG_PROTOCOL_RICREST,
+      RICCommsMsgTypeCode.MSG_TYPE_COMMAND,
+      RICCommsMsgProtocol.MSG_PROTOCOL_RICREST,
       isNumbered,
       withResponse
     );
@@ -337,8 +337,8 @@ export class RICMsgHandler {
   /* eslint-disable @typescript-eslint/no-explicit-any */
   async sendCommsMsg<T>(
     msgPayload: Uint8Array,
-    msgDirection: CommsMsgTypeCode,
-    msgProtocol: CommsMsgProtocol,
+    msgDirection: RICCommsMsgTypeCode,
+    msgProtocol: RICCommsMsgProtocol,
     isNumbered: boolean,
     withResponse: boolean,
   ): Promise<T> {
@@ -438,7 +438,7 @@ export class RICMsgHandler {
 
   msgTrackingRxRespMsg(
     msgNum: number,
-    msgRsltCode: MessageResultCode,
+    msgRsltCode: RICMsgResultCode,
     msgRsltJsonObj: object,
   ) {
     // Check message number
@@ -470,7 +470,7 @@ export class RICMsgHandler {
 
   _msgCompleted(
     msgNum: number,
-    msgRsltCode: MessageResultCode,
+    msgRsltCode: RICMsgResultCode,
     msgRsltObj: object | null,
   ) {
     const msgHandle = this._msgTrackInfos[msgNum].msgHandle;
@@ -478,7 +478,7 @@ export class RICMsgHandler {
     if (this._msgResultHandler !== null) {
       this._msgResultHandler.onRxReply(msgHandle, msgRsltCode, msgRsltObj);
     }
-    if (msgRsltCode === MessageResultCode.MESSAGE_RESULT_OK) {
+    if (msgRsltCode === RICMsgResultCode.MESSAGE_RESULT_OK) {
       const resolve = this._msgTrackInfos[msgNum].resolve;
       if (resolve) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -526,7 +526,7 @@ export class RICMsgHandler {
           RICLog.warn(
             `msgTrackTimer TIMEOUT msgNum ${i} after ${MSG_RETRY_COUNT} retries`,
           );
-          this._msgCompleted(i, MessageResultCode.MESSAGE_RESULT_TIMEOUT, null);
+          this._msgCompleted(i, RICMsgResultCode.MESSAGE_RESULT_TIMEOUT, null);
           this._commsStats.recordMsgTimeout();
         }
       }
@@ -551,8 +551,8 @@ export class RICMsgHandler {
     // RICSERIAL protocol
     msgBuf[msgBufPos++] = 0; // not numbered
     msgBuf[msgBufPos++] =
-      (CommsMsgTypeCode.MSG_TYPE_COMMAND << 6) +
-      CommsMsgProtocol.MSG_PROTOCOL_RICREST;
+      (RICCommsMsgTypeCode.MSG_TYPE_COMMAND << 6) +
+      RICCommsMsgProtocol.MSG_PROTOCOL_RICREST;
 
     // RICREST protocol
     msgBuf[msgBufPos++] = RICRESTElemCode.RICREST_ELEM_CODE_FILEBLOCK;

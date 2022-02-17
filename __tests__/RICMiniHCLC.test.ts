@@ -1,4 +1,6 @@
-import {RICMiniHDLC} from '../src/RICMiniHDLC';
+// Test RICMiniHDLC
+
+import RICMiniHDLC from '../src/RICMiniHDLC';
 // import RICUtils from '../src/RICUtils';
 
 test('HDLC simple encode', () => {
@@ -29,7 +31,7 @@ test('HDLC simple decode', () => {
             'l'.charCodeAt(0),
             'l'.charCodeAt(0),
             'o'.charCodeAt(0),
-            0xda, 
+            0xda,
             0xda,
             hdlc.FRAME_BOUNDARY_OCTET,
         ]);
@@ -46,5 +48,5 @@ test('HDLC simple decode', () => {
 
     expect(frameReceived).toEqual(new Uint8Array([72, 101, 108, 108, 111]));
 });
-  
+
 
