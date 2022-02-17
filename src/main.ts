@@ -1,18 +1,18 @@
-export * from './RICSystem';
-export * from './RICROSSerial'
+export { RICAddOnManager } from './RICAddOnManager';
+export { RICCommsStats } from './RICCommsStats';
+export { RICFileHandler } from './RICFileHandler';
+export { RICLEDPatternChecker } from './RICLEDPatternChecker';
+export { RICLog } from './RICLog';
+export { RICMiniHDLC } from './RICMiniHDLC';
 export * from './RICMsgHandler'
+export * from './RICROSSerial'
+export { RICStreamHandler } from './RICStreamHandler';
+export { RICSystem } from './RICSystem';
 export * from './RICTypes';
-export * from './RICUtils';
-export * from './RICWifiTypes';
-export * from './RICFileHandler';
-export * from './RICCommsStats';
-export * from './RICAddOnManager';
-export * from './RICLEDPatternChecker';
-export * from './RICUpdateManager';
 export * from './RICUpdateEvents';
-export * from './RICStreamHandler';
-export * from './RICLog';
-export * from './RICMiniHDLC';
+export { RICUpdateManager } from './RICUpdateManager';
+export { RICUtils } from './RICUtils';
+export * from './RICWifiTypes';
 
 // Linktest
 export function linktest(str: string): void {

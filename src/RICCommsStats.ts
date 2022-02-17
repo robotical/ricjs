@@ -9,10 +9,6 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-export enum RICCommsStatsDummy {
-  RIC_COMMS_STATS_DUMMY_NONE,
-}
-
 export class RICCommsStats {
   _msgRxCount = 0;
   _msgRxCountInWindow = 0;
