@@ -11,7 +11,7 @@
 
 import { RICUtils } from './RICUtils';
 import { MessageResult } from './RICMsgHandler';
-import { RICCommsStats } from './RICCommsStats';
+import RICCommsStats from './RICCommsStats';
 import { RICAddOnManager } from './RICAddOnManager';
 
 export class ROSSerialSmartServos {

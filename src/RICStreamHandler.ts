@@ -14,7 +14,7 @@ import {RICMsgHandler,
   RICRESTElemCode,
 } from './RICMsgHandler';
 import RNFetchBlob from 'rn-fetch-blob';
-import {RICCommsStats} from './RICCommsStats';
+import RICCommsStats from './RICCommsStats';
 import { RICStreamStartResp, RICStreamType } from './RICTypes';
 import {RICUtils} from './RICUtils';
 

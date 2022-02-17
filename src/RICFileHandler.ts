@@ -18,7 +18,7 @@ import {
   RICFileSendType,
   RICFileStartResp,
 } from './RICTypes';
-import { RICCommsStats } from './RICCommsStats';
+import RICCommsStats from './RICCommsStats';
 import { FileBlockTrackInfo } from './RICMsgTrackInfo';
 
 export class RICFileHandler {

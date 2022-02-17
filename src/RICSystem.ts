@@ -10,9 +10,9 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 import { RICSysModInfoWiFi, RICWifiConnState, RICWifiConnStatus } from './RICWifiTypes';
-import {RICAddOnManager} from "./RICAddOnManager";
-import {RICLog} from "./RICLog"
-import {RICMsgHandler} from "./RICMsgHandler";
+import { RICAddOnManager } from "./RICAddOnManager";
+import { RICLog } from "./RICLog"
+import { RICMsgHandler } from "./RICMsgHandler";
 import { RICAddOnList, RICCalibInfo, RICFileList, RICFriendlyName, RICHWElem, RICHWElemList, RICNameResponse, RICOKFail, RICReportMsg, RICSysModInfoBLEMan, RICSystemInfo } from "./RICTypes";
 
 export class RICSystem {
@@ -40,7 +40,7 @@ export class RICSystem {
   _ricWifiConnStatus: RICWifiConnStatus = new RICWifiConnStatus();
   _defaultWiFiHostname = 'Marty';
   _maxSecsToWaitForWiFiConn = 20;
-    
+
   /**
    * constructor
    * @param ricMsgHandler
@@ -153,7 +153,7 @@ export class RICSystem {
    * @returns Promise<RICCalibInfo>
    *
    */
-   async getRICCalibInfo(forceGetFromRIC = false): Promise<RICCalibInfo> {
+  async getRICCalibInfo(forceGetFromRIC = false): Promise<RICCalibInfo> {
     if (!forceGetFromRIC && this._calibInfo) {
       return this._calibInfo;
     }
@@ -167,7 +167,7 @@ export class RICSystem {
       RICLog.debug(`getRICCalibInfo Failed to get version ${error}`);
       return new RICCalibInfo();
     }
-  }  
+  }
 
   /**
    *
@@ -176,7 +176,7 @@ export class RICSystem {
    * @returns Promise<boolean> true if successful
    *
    */
-   async setRICName(newName: string): Promise<boolean> {
+  async setRICName(newName: string): Promise<boolean> {
     try {
       const msgRsltJsonObj = await this._ricMsgHandler.sendRICRESTURL<
         RICFriendlyName
@@ -257,14 +257,14 @@ export class RICSystem {
       return new RICHWElemList();
     }
   }
-  
+
   /**
    *
    * getAddOnList - get list of add-ons configured on the robot
    * @returns Promise<RICAddOnList>
    *
    */
-   async getAddOnList(): Promise<RICAddOnList> {
+  async getAddOnList(): Promise<RICAddOnList> {
     try {
       const addOnList = await this._ricMsgHandler.sendRICRESTURL<RICAddOnList>(
         'addon/list',
@@ -306,7 +306,7 @@ export class RICSystem {
    * @returns Promise<RICOKFail>
    *
    */
-   async runCommand(commandName: string, params: object): Promise<RICOKFail> {
+  async runCommand(commandName: string, params: object): Promise<RICOKFail> {
     try {
       // Format the paramList as query string
       const paramEntries = Object.entries(params);
@@ -325,7 +325,7 @@ export class RICSystem {
       RICLog.debug(`runCommand failed ${error}`);
       return new RICOKFail();
     }
-  }  
+  }
 
   /**
    * 
@@ -335,7 +335,7 @@ export class RICSystem {
    * 
    */
   async getSysModInfoBLEMan(): Promise<RICSysModInfoBLEMan | null> {
-     try {
+    try {
       // Get SysMod Info
       const bleInfo = await this._ricMsgHandler.sendRICRESTURL<
         RICSysModInfoBLEMan
@@ -344,11 +344,10 @@ export class RICSystem {
       RICLog.debug(
         `getSysModInfoBLEMan rslt ${bleInfo.rslt} isConn ${bleInfo.isConn} paused ${bleInfo.isAdv} txBPS ${bleInfo.txBPS} rxBPS ${bleInfo.rxBPS}`,
       );
-      if ("tBPS" in bleInfo)
-      {
+      if ("tBPS" in bleInfo) {
         RICLog.debug(
           `getSysModInfoBLEMan testMsgs ${bleInfo.tM} testBytes ${bleInfo.tB} testRateBytesPS ${bleInfo.tBPS}`,
-        );        
+        );
       }
 
       return bleInfo;
@@ -364,7 +363,7 @@ export class RICSystem {
    *  @return string - hostname of connected WiFi
    *
    */
-   _getHostnameFromFriendlyName(): string {
+  _getHostnameFromFriendlyName(): string {
     const friendlyName = this.getFriendlyName();
     if (!friendlyName) {
       return this._defaultWiFiHostname;
@@ -381,7 +380,7 @@ export class RICSystem {
    *  @return boolean - true if connected
    *
    */
-   async getWiFiConnStatus(): Promise<boolean | null> {
+  async getWiFiConnStatus(): Promise<boolean | null> {
     try {
       // Get status
       const ricSysModInfoWiFi = await this._ricMsgHandler.sendRICRESTURL<
@@ -413,7 +412,7 @@ export class RICSystem {
     this._ricWifiConnStatus.connState = RICWifiConnState.WIFI_CONN_NONE;
     this._ricWifiConnStatus.isPaused = false;
     return null;
-  }  
+  }
 
   // Mark: WiFi Connection ------------------------------------------------------------------------------------
 
@@ -424,7 +423,7 @@ export class RICSystem {
    *  @return boolean - true if successful
    *
    */
-   async pauseWifiConnection(pause: boolean): Promise<boolean> {
+  async pauseWifiConnection(pause: boolean): Promise<boolean> {
     try {
       if (pause) {
         await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(

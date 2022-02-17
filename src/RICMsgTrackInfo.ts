@@ -35,7 +35,7 @@ export class FileBlockTrackInfo {
   }
 }
 
-export class MsgTrackInfo {
+export class RICMsgTrackInfo {
   msgOutstanding = false;
   msgFrame: Uint8Array = new Uint8Array();
   msgSentMs = 0;

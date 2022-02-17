@@ -9,8 +9,8 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import { RICCommsStats } from './RICCommsStats';
-import { MsgTrackInfo } from './RICMsgTrackInfo';
+import RICCommsStats from './RICCommsStats';
+import { RICMsgTrackInfo } from './RICMsgTrackInfo';
 import { RICLog } from './RICLog';
 import { RICUtils } from './RICUtils';
 import {
@@ -98,7 +98,7 @@ export class RICMsgHandler {
   // Message numbering and tracking
   _currentMsgNumber = 1;
   _currentMsgHandle = 1;
-  _msgTrackInfos: Array<MsgTrackInfo> = new Array<MsgTrackInfo>(
+  _msgTrackInfos: Array<RICMsgTrackInfo> = new Array<RICMsgTrackInfo>(
     MAX_MSG_NUM + 1,
   );
   _msgTrackCheckTimer: ReturnType<typeof setTimeout> | null = null;
@@ -130,7 +130,7 @@ export class RICMsgHandler {
 
     // Message tracking
     for (let i = 0; i < this._msgTrackInfos.length; i++) {
-      this._msgTrackInfos[i] = new MsgTrackInfo();
+      this._msgTrackInfos[i] = new RICMsgTrackInfo();
     }
 
     // Timer for checking messages
