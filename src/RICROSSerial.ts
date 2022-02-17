@@ -9,10 +9,10 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import RICUtils from './RICUtils';
+import { RICUtils } from './RICUtils';
 import { RICMessageResult } from './RICMsgHandler';
-import RICCommsStats from './RICCommsStats';
-import RICAddOnManager from './RICAddOnManager';
+import { RICCommsStats } from './RICCommsStats';
+import { RICAddOnManager } from './RICAddOnManager';
 
 export class ROSSerialSmartServos {
   smartServos: {

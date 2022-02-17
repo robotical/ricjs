@@ -9,7 +9,7 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import RICLog from './RICLog'
+import { RICLog } from './RICLog'
 import {
   RICMsgHandler,
   RICRESTElemCode,
@@ -18,10 +18,33 @@ import {
   RICFileSendType,
   RICFileStartResp,
 } from './RICTypes';
-import RICCommsStats from './RICCommsStats';
-import { FileBlockTrackInfo } from './RICMsgTrackInfo';
+import { RICCommsStats } from './RICCommsStats';
 
-export default class RICFileHandler {
+class FileBlockTrackInfo {
+  isDone = false;
+  prom: Promise<boolean>;
+  constructor(prom: Promise<boolean>) {
+    this.prom = prom;
+    this.prom.then(
+      () => {
+        // RICLog.debug('send complete');
+        this.isDone = true;
+      },
+      rej => {
+        RICLog.debug(`FileBlockTrackInfo send rejected ${rej}`);
+        this.isDone = true;
+      },
+    );
+  }
+  isComplete() {
+    return this.isDone;
+  }
+  get() {
+    return this.prom;
+  }
+}
+
+export class RICFileHandler {
   _msgHandler: RICMsgHandler;
 
   // Timeouts

@@ -9,7 +9,7 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import RICLog from './RICLog'
+import { RICLog } from './RICLog'
 import { RICDataExtractor, RICDataExtractorVarType } from './RICDataExtractor';
 import { ROSSerialAddOnStatus } from './RICROSSerial';
 import { RICReportMsg } from './RICTypes';

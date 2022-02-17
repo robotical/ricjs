@@ -9,10 +9,10 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import RICCommsStats from './RICCommsStats';
+import { RICCommsStats } from './RICCommsStats';
 import { RICMsgTrackInfo } from './RICMsgTrackInfo';
-import RICLog from './RICLog';
-import RICUtils from './RICUtils';
+import { RICLog } from './RICLog';
+import { RICUtils } from './RICUtils';
 import {
   RICROSSerial,
   ROSSerialIMU,
@@ -29,8 +29,8 @@ import {
   RICREST_REST_ELEM_CODE_POS,
   RICREST_HEADER_PAYLOAD_POS,
 } from './RICProtocolDefs';
-import RICMiniHDLC from './RICMiniHDLC';
-import RICAddOnManager from './RICAddOnManager';
+import { RICMiniHDLC } from './RICMiniHDLC';
+import { RICAddOnManager } from './RICAddOnManager';
 import { RICReportMsg } from './RICTypes';
 
 // Protocol enums

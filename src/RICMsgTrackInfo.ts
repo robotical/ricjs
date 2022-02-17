@@ -9,32 +9,6 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import RICLog from "./RICLog"
-
-export class FileBlockTrackInfo {
-  isDone = false;
-  prom: Promise<boolean>;
-  constructor(prom: Promise<boolean>) {
-    this.prom = prom;
-    this.prom.then(
-      () => {
-        // RICLog.debug('send complete');
-        this.isDone = true;
-      },
-      rej => {
-        RICLog.debug(`FileBlockTrackInfo send rejected ${rej}`);
-        this.isDone = true;
-      },
-    );
-  }
-  isComplete() {
-    return this.isDone;
-  }
-  get() {
-    return this.prom;
-  }
-}
-
 export class RICMsgTrackInfo {
   msgOutstanding = false;
   msgFrame: Uint8Array = new Uint8Array();

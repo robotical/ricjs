@@ -16,12 +16,12 @@ import semverEq from 'semver/functions/eq';
 import semverGt from 'semver/functions/gt';
 import axios from 'axios';
 import RNFetchBlob from 'rn-fetch-blob';
-import RICUtils from "./RICUtils";
-import RICFileHandler from "./RICFileHandler";
-import RICLog from "./RICLog";
-import RICSystem from "./RICSystem";
+import { RICUtils } from "./RICUtils";
+import { RICFileHandler } from "./RICFileHandler";
+import { RICLog } from "./RICLog";
+import { RICSystem } from "./RICSystem";
 
-export default class RICUpdateManager {
+export class RICUpdateManager {
 
   // Event callbakcs
   _eventListener: RICUpdateEventIF;
