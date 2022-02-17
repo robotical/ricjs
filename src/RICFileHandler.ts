@@ -9,16 +9,16 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import { RICLog } from './RICLog'
-import {
-  RICMsgHandler,
+import RICLog from './RICLog'
+import 
+  RICMsgHandler, {
   RICRESTElemCode,
 } from './RICMsgHandler';
 import {
   RICFileSendType,
   RICFileStartResp,
 } from './RICTypes';
-import { RICCommsStats } from './RICCommsStats';
+import RICCommsStats from './RICCommsStats';
 
 class FileBlockTrackInfo {
   isDone = false;
@@ -44,7 +44,7 @@ class FileBlockTrackInfo {
   }
 }
 
-export class RICFileHandler {
+export default class RICFileHandler {
   _msgHandler: RICMsgHandler;
 
   // Timeouts

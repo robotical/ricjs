@@ -9,9 +9,9 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import { RICLog } from "./RICLog";
+import RICLog from "./RICLog";
 
-export class RICUtils {
+export default class RICUtils {
   static _isEndianSet = false;
   static _isLittleEndian = false;
 

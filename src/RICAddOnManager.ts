@@ -9,7 +9,7 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import { RICLog } from './RICLog'
+import RICLog from './RICLog'
 import { Dictionary, RICHWElem, RICReportMsg } from './RICTypes';
 import {
   RICAddOnBase,
@@ -36,7 +36,7 @@ import {
 } from './RICAddOns';
 import { ROSSerialAddOnStatus } from './RICROSSerial';
 
-export class RICAddOnManager {
+export default class RICAddOnManager {
 
   _addOnMap: Dictionary<RICAddOnBase> = {};
 

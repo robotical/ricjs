@@ -20,7 +20,7 @@ export enum RICLogLevel {
 
 export type RICLogFn = (logLevel: RICLogLevel, msg: string) => void;
 
-export class RICLog {
+export default class RICLog {
   static _logListener: RICLogFn | null = null;
   static _logLevel = RICLogLevel.DEBUG;
 

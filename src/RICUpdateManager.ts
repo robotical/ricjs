@@ -11,17 +11,17 @@
 
 import { RICFileSendType, RICFWInfo, RICHWFWUpdRslt, RICOKFail, RICSystemInfo, RICUpdateInfo } from "./RICTypes";
 import { RICUpdateEvent, RICUpdateEventIF } from "./RICUpdateEvents";
-import { RICMsgHandler } from "./RICMsgHandler";
+import RICMsgHandler from "./RICMsgHandler";
 import semverEq from 'semver/functions/eq';
 import semverGt from 'semver/functions/gt';
 import axios from 'axios';
 import RNFetchBlob from 'rn-fetch-blob';
-import { RICUtils } from "./RICUtils";
-import { RICFileHandler } from "./RICFileHandler";
-import { RICLog } from "./RICLog";
-import { RICSystem } from "./RICSystem";
+import RICUtils from "./RICUtils";
+import RICFileHandler from "./RICFileHandler";
+import RICLog from "./RICLog";
+import RICSystem from "./RICSystem";
 
-export class RICUpdateManager {
+export default class RICUpdateManager {
 
   // Event callbakcs
   _eventListener: RICUpdateEventIF;

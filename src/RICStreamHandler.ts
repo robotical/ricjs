@@ -9,17 +9,16 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import { RICLog } from './RICLog'
-import {
-  RICMsgHandler,
+import RICLog from './RICLog'
+import RICMsgHandler, {
   RICRESTElemCode,
 } from './RICMsgHandler';
 import RNFetchBlob from 'rn-fetch-blob';
-import { RICCommsStats } from './RICCommsStats';
+import RICCommsStats from './RICCommsStats';
 import { RICStreamStartResp, RICStreamType } from './RICTypes';
-import { RICUtils } from './RICUtils';
+import RICUtils from './RICUtils';
 
-export class RICStreamHandler {
+export default class RICStreamHandler {
   _msgHandler: RICMsgHandler;
 
   // Stream state

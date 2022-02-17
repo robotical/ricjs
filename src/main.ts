@@ -1,17 +1,17 @@
-export { RICAddOnManager } from './RICAddOnManager';
-export { RICCommsStats } from './RICCommsStats';
-export { RICFileHandler } from './RICFileHandler';
-export { RICLEDPatternChecker } from './RICLEDPatternChecker';
-export { RICLog } from './RICLog';
-export { RICMiniHDLC } from './RICMiniHDLC';
-export * from './RICMsgHandler'
+export { default as RICAddOnManager } from './RICAddOnManager';
+export { default as RICCommsStats } from './RICCommsStats';
+export { default as RICFileHandler } from './RICFileHandler';
+export { default as RICLEDPatternChecker } from './RICLEDPatternChecker';
+export { default as RICLog } from './RICLog';
+export { default as RICMiniHDLC } from './RICMiniHDLC';
+export { default as RICMsgHandler } from './RICMsgHandler'
 export * from './RICROSSerial'
-export { RICStreamHandler } from './RICStreamHandler';
-export { RICSystem } from './RICSystem';
+export { default as RICStreamHandler } from './RICStreamHandler';
+export { default as RICSystem } from './RICSystem';
 export * from './RICTypes';
 export * from './RICUpdateEvents';
-export { RICUpdateManager } from './RICUpdateManager';
-export { RICUtils } from './RICUtils';
+export { default as RICUpdateManager } from './RICUpdateManager';
+export { default as RICUtils } from './RICUtils';
 export * from './RICWifiTypes';
 
 // Linktest

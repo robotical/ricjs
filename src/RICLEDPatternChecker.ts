@@ -9,8 +9,8 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import { RICLog } from './RICLog'
-import { RICMsgHandler } from './RICMsgHandler';
+import RICLog from './RICLog'
+import RICMsgHandler from './RICMsgHandler';
 import { RICOKFail } from './RICTypes';
 
 export type RICLEDPatternCheckerColour = {
@@ -18,7 +18,7 @@ export type RICLEDPatternCheckerColour = {
   lcd: string;
 }
 
-export class RICLEDPatternChecker {
+export default class RICLEDPatternChecker {
 
   // Verification of correct device
   _ledColours: Array<string> = new Array<string>();
