@@ -1,4 +1,4 @@
-import RICMiniHDLC from '../src/RICMiniHDLC';
+import {RICMiniHDLC} from '../src/RICMiniHDLC';
 // import RICUtils from '../src/RICUtils';
 
 test('HDLC simple encode', () => {
