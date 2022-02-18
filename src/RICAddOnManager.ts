@@ -29,6 +29,13 @@ class AddOnFactoryElem {
   }
 }
 
+export interface RICAddOnRegistry {
+  registerHWElemType(typeCode: string,
+    typeName: string,
+    addOnFamily: string,
+    factoryFn: RICAddOnCreator): void;
+}
+
 /**
  * RICAddOnManager
  * 
@@ -36,7 +43,7 @@ class AddOnFactoryElem {
  * Handles the creation and management of RIC Add-Ons
  * 
  */
-export default class RICAddOnManager {
+export default class RICAddOnManager implements RICAddOnRegistry {
 
   _addOnFactoryMap: Dictionary<AddOnFactoryElem> = {};
   _configuredAddOns: Dictionary<RICAddOnBase> = {};
