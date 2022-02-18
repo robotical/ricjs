@@ -18,13 +18,13 @@ export type RICAddOnCreator = (typeCode: string, name: string, addOnFamily: stri
 
 class AddOnFactoryElem {
   typeCode: string;
-  name: string;
+  typeName: string;
   addOnFamily: string;
   factoryFn: RICAddOnCreator;
-  constructor(typeCode: string, name: string, addOnFamily: string, factoryFn: RICAddOnCreator) {
+  constructor(typeCode: string, typeName: string, addOnFamily: string, factoryFn: RICAddOnCreator) {
     this.typeCode = typeCode;
     this.addOnFamily = addOnFamily;
-    this.name = name;
+    this.typeName = typeName;
     this.factoryFn = factoryFn;
   }
 }
@@ -35,12 +35,12 @@ export default class RICAddOnManager {
   _configuredAddOns: Dictionary<RICAddOnBase> = {};
 
   registerHWElemType(typeCode: string,
-      name: string,
+      typeName: string,
       addOnFamily: string,
       factoryFn: RICAddOnCreator): void {
     RICLog.debug(`registerHWElemType ${typeCode} ${name}`);
     const lookupStr = addOnFamily + "_" + typeCode;
-    this._addOnFactoryMap[lookupStr] = new AddOnFactoryElem(typeCode, name, addOnFamily, factoryFn);
+    this._addOnFactoryMap[lookupStr] = new AddOnFactoryElem(typeCode, typeName, addOnFamily, factoryFn);
   }
 
   setHWElems(hwElems: Array<RICHWElem>) {
@@ -62,7 +62,7 @@ export default class RICAddOnManager {
       if (lookupStr in this._addOnFactoryMap) {
         const addOnFactoryElem = this._addOnFactoryMap[lookupStr];
         const addOn = addOnFactoryElem.factoryFn(hwElem.whoAmITypeCode, 
-                addOnFactoryElem.name, hwElem.type);
+                hwElem.name, hwElem.type);
         if (addOn !== null) {
           addOnMap[hwElem.IDNo.toString()] = addOn;
         }
@@ -77,7 +77,7 @@ export default class RICAddOnManager {
       return `Undefined whoamiTypeCode`;
     }
     if (whoAmITypeCode in this._addOnFactoryMap) {
-      this._addOnFactoryMap[whoAmITypeCode].name;
+      return this._addOnFactoryMap[whoAmITypeCode].typeName;
     }
     return `Unknown (${whoAmI} - ${whoAmITypeCode})`;
   }
