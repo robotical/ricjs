@@ -15,8 +15,3 @@ export * from './RICUpdateEvents';
 export { default as RICUpdateManager } from './RICUpdateManager';
 export { default as RICUtils } from './RICUtils';
 export * from './RICWifiTypes';
-
-// Linktest
-export function linktest(str: string): void {
-    console.log("Hello World linktest " + str);
-}
