@@ -44,18 +44,18 @@ export default class RICAddOnManager {
   }
 
   setHWElems(hwElems: Array<RICHWElem>) {
-    this._configuredAddOns = this.getMappingOfAddOns(hwElems);
+    this._configuredAddOns = this.configureAddOns(hwElems);
   }
 
   clear() {
     this._configuredAddOns = {};
   }
 
-  getMappingOfAddOns(hwElems: Array<RICHWElem>): Dictionary<RICAddOnBase> {
+  configureAddOns(hwElems: Array<RICHWElem>): Dictionary<RICAddOnBase> {
     const addOnMap: Dictionary<RICAddOnBase> = {};
     // Iterate HWElems to find addons
     for (const hwElem of hwElems) {
-      RICLog.debug(`getMappingOfAddOns whoAmITypeCode ${hwElem.whoAmITypeCode}`);
+      RICLog.debug(`configureAddOns whoAmITypeCode ${hwElem.whoAmITypeCode}`);
 
       // Lookup the add-on
       const lookupStr = hwElem.type + "_" + hwElem.whoAmITypeCode;
