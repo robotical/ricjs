@@ -38,7 +38,7 @@ export default class RICAddOnManager {
       typeName: string,
       addOnFamily: string,
       factoryFn: RICAddOnCreator): void {
-    RICLog.debug(`registerHWElemType ${typeCode} ${name}`);
+    RICLog.debug(`registerHWElemType ${typeCode} ${typeName}`);
     const lookupStr = addOnFamily + "_" + typeCode;
     this._addOnFactoryMap[lookupStr] = new AddOnFactoryElem(typeCode, typeName, addOnFamily, factoryFn);
   }
