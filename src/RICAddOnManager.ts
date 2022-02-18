@@ -29,25 +29,38 @@ class AddOnFactoryElem {
   }
 }
 
+/**
+ * RICAddOnManager
+ * 
+ * @description
+ * Handles the creation and management of RIC Add-Ons
+ * 
+ */
 export default class RICAddOnManager {
 
   _addOnFactoryMap: Dictionary<AddOnFactoryElem> = {};
   _configuredAddOns: Dictionary<RICAddOnBase> = {};
 
   registerHWElemType(typeCode: string,
-      typeName: string,
-      addOnFamily: string,
-      factoryFn: RICAddOnCreator): void {
+    typeName: string,
+    addOnFamily: string,
+    factoryFn: RICAddOnCreator): void {
     RICLog.debug(`registerHWElemType ${typeCode} ${typeName}`);
     const lookupStr = addOnFamily + "_" + typeCode;
     this._addOnFactoryMap[lookupStr] = new AddOnFactoryElem(typeCode, typeName, addOnFamily, factoryFn);
   }
 
-  setHWElems(hwElems: Array<RICHWElem>) {
+  /**
+   * @function setHWElems
+   * Set the hardware elements from a list of RICHWElem
+   * @param hwElems
+   * 
+   */
+  setHWElems(hwElems: Array<RICHWElem>): void {
     this._configuredAddOns = this.configureAddOns(hwElems);
   }
 
-  clear() {
+  clear(): void {
     this._configuredAddOns = {};
   }
 
@@ -61,8 +74,8 @@ export default class RICAddOnManager {
       const lookupStr = hwElem.type + "_" + hwElem.whoAmITypeCode;
       if (lookupStr in this._addOnFactoryMap) {
         const addOnFactoryElem = this._addOnFactoryMap[lookupStr];
-        const addOn = addOnFactoryElem.factoryFn(hwElem.whoAmITypeCode, 
-                hwElem.name, hwElem.type);
+        const addOn = addOnFactoryElem.factoryFn(hwElem.whoAmITypeCode,
+          hwElem.name, hwElem.type);
         if (addOn !== null) {
           addOnMap[hwElem.IDNo.toString()] = addOn;
         }

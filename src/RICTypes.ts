@@ -159,6 +159,24 @@ export class RICFileList {
   files: Array<RICFile> = [];
 }
 
+/**
+ * RICHWElem
+ * 
+ * @description
+ * Information about a hardware element
+ * 
+ * @field name: string - element name
+ * @field type: string - element type
+ * @field busName: string - name of bus (e.g. I2C) attached to
+ * @field addr: string - address of element on the bus
+ * @field addrValid: number - 1 if address is valid
+ * @field IDNo: string - unique identifier of element
+ * @field whoAmI: string - name of element type
+ * @field whoAmITypeCode: string - number of element type
+ * @field SN: string - Serial number
+ * @field versionStr: string - Version
+ * @field commsOk: number - 1 if communications OK
+ */
 export type RICHWElem = {
   name: string;
   type: string;
@@ -179,6 +197,18 @@ export class RICHWElemList {
   hw: Array<RICHWElem> = [];
 }
 
+/**
+ * RICAddOn
+ * 
+ * @description
+ * Information about an add-on
+ * 
+ * @field name: string - Name of add-on
+ * @field SN: string - Serial number
+ * @field poll: string - polling type ("status")
+ * @field pollRd: string - hex data most recently read
+ * @field pollHz: number - rate of polling
+ */
 export type RICAddOn = {
   name: string;
   SN: string;
@@ -193,6 +223,17 @@ export class RICAddOnList {
   addons: Array<RICAddOn> = [];
 }
 
+/**
+ * AddOnElemAndConfig
+ * 
+ * @description
+ * Carrier of information about an add-on combining
+ * the add-on element and the add-on configuration
+ * 
+ * @field addOnConfig: RICAddOn - Add-on configuration
+ * @field hwElemRec: RICHWElem - Add-on element
+ * @field elemIdx: number - Index of the add-on element
+ */
 export class AddOnElemAndConfig {
   constructor(
     addOnConfig: RICAddOn | null,
