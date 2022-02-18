@@ -1,5 +1,7 @@
+export { default as RICAddOnBase } from './RICAddOnBase';
 export { default as RICAddOnManager } from './RICAddOnManager';
 export { default as RICCommsStats } from './RICCommsStats';
+export * from './RICDataExtractor';
 export { default as RICFileHandler } from './RICFileHandler';
 export { default as RICLEDPatternChecker } from './RICLEDPatternChecker';
 export { default as RICLog } from './RICLog';

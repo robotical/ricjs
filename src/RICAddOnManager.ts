@@ -11,41 +11,44 @@
 
 import RICLog from './RICLog'
 import { Dictionary, RICHWElem, RICReportMsg } from './RICTypes';
-import {
-  RICAddOnBase,
-  RIC_WHOAMI_TYPE_CODE_ADDON_GRIPSERVO,
-  RICAddOnGripServo,
-  RIC_WHOAMI_TYPE_CODE_ADDON_LEDFOOT,
-  RICAddOnLEDFoot,
-  RIC_WHOAMI_TYPE_CODE_ADDON_LEDARM_V1,
-  RIC_WHOAMI_TYPE_CODE_ADDON_LEDARM_V2,
-  RICAddOnLEDArm,
-  RIC_WHOAMI_TYPE_CODE_ADDON_LEDEYE,
-  RICAddOnLEDEye,
-  RIC_WHOAMI_TYPE_CODE_ADDON_IRFOOT_V1,
-  RIC_WHOAMI_TYPE_CODE_ADDON_IRFOOT_V2,
-  RICAddOnIRFoot,
-  RIC_WHOAMI_TYPE_CODE_ADDON_COLOUR,
-  RICAddOnColourSensor,
-  RIC_WHOAMI_TYPE_CODE_ADDON_DISTANCE,
-  RICAddOnDistanceSensor,
-  RIC_WHOAMI_TYPE_CODE_ADDON_LIGHT,
-  RICAddOnLightSensor,
-  RIC_WHOAMI_TYPE_CODE_ADDON_NOISE,
-  RICAddOnNoiseSensor,
-} from './RICAddOns';
+import RICAddOnBase from './RICAddOnBase';
 import { ROSSerialAddOnStatus } from './RICROSSerial';
+
+export type RICAddOnCreator = (typeCode: string, name: string, addOnFamily: string) => RICAddOnBase;
+
+class AddOnFactoryElem {
+  typeCode: string;
+  name: string;
+  addOnFamily: string;
+  factoryFn: RICAddOnCreator;
+  constructor(typeCode: string, name: string, addOnFamily: string, factoryFn: RICAddOnCreator) {
+    this.typeCode = typeCode;
+    this.addOnFamily = addOnFamily;
+    this.name = name;
+    this.factoryFn = factoryFn;
+  }
+}
 
 export default class RICAddOnManager {
 
-  _addOnMap: Dictionary<RICAddOnBase> = {};
+  _addOnFactoryMap: Dictionary<AddOnFactoryElem> = {};
+  _configuredAddOns: Dictionary<RICAddOnBase> = {};
+
+  registerHWElemType(typeCode: string,
+      name: string,
+      addOnFamily: string,
+      factoryFn: RICAddOnCreator): void {
+    RICLog.debug(`registerHWElemType ${typeCode} ${name}`);
+    const lookupStr = addOnFamily + "_" + typeCode;
+    this._addOnFactoryMap[lookupStr] = new AddOnFactoryElem(typeCode, name, addOnFamily, factoryFn);
+  }
 
   setHWElems(hwElems: Array<RICHWElem>) {
-    this._addOnMap = this.getMappingOfAddOns(hwElems);
+    this._configuredAddOns = this.getMappingOfAddOns(hwElems);
   }
 
   clear() {
-    this._addOnMap = {};
+    this._configuredAddOns = {};
   }
 
   getMappingOfAddOns(hwElems: Array<RICHWElem>): Dictionary<RICAddOnBase> {
@@ -53,66 +56,30 @@ export default class RICAddOnManager {
     // Iterate HWElems to find addons
     for (const hwElem of hwElems) {
       RICLog.debug(`getMappingOfAddOns whoAmITypeCode ${hwElem.whoAmITypeCode}`);
-      if (hwElem.type === 'RSAddOn') {
-        const dtid = parseInt("0x" + hwElem.whoAmITypeCode);
-        switch (dtid) {
-          case parseInt("0x" + RIC_WHOAMI_TYPE_CODE_ADDON_GRIPSERVO):
-            addOnMap[hwElem.IDNo.toString()] = new RICAddOnGripServo(hwElem.name);
-            break;
-          case parseInt("0x" + RIC_WHOAMI_TYPE_CODE_ADDON_LEDFOOT):
-            addOnMap[hwElem.IDNo.toString()] = new RICAddOnLEDFoot(
-              hwElem.name
-            );
-            break;
-          case parseInt("0x" + RIC_WHOAMI_TYPE_CODE_ADDON_LEDARM_V1):
-          case parseInt("0x" + RIC_WHOAMI_TYPE_CODE_ADDON_LEDARM_V2):
-            addOnMap[hwElem.IDNo.toString()] = new RICAddOnLEDArm(
-              hwElem.name,
-              dtid //LED Arm needs the dtid, since there are two
-            );
-            break;
-          case parseInt("0x" + RIC_WHOAMI_TYPE_CODE_ADDON_LEDEYE):
-            addOnMap[hwElem.IDNo.toString()] = new RICAddOnLEDEye(
-              hwElem.name
-            );
-            break;
-          // both IRFoot IDs treated the same way:
-          case parseInt("0x" + RIC_WHOAMI_TYPE_CODE_ADDON_IRFOOT_V1):
-          case parseInt("0x" + RIC_WHOAMI_TYPE_CODE_ADDON_IRFOOT_V2):
-            addOnMap[hwElem.IDNo.toString()] = new RICAddOnIRFoot(
-              hwElem.name,
-              dtid //IR sensor needs the dtid, since there are two
-            );
-            break;
-          case parseInt("0x" + RIC_WHOAMI_TYPE_CODE_ADDON_COLOUR):
-            addOnMap[hwElem.IDNo.toString()] = new RICAddOnColourSensor(
-              hwElem.name,
-            );
-            break;
-          case parseInt("0x" + RIC_WHOAMI_TYPE_CODE_ADDON_DISTANCE):
-            addOnMap[hwElem.IDNo.toString()] = new RICAddOnDistanceSensor(
-              hwElem.name,
-            );
-            break;
-          case parseInt("0x" + RIC_WHOAMI_TYPE_CODE_ADDON_LIGHT):
-            addOnMap[hwElem.IDNo.toString()] = new RICAddOnLightSensor(
-              hwElem.name,
-            );
-            break;
-          case parseInt("0x" + RIC_WHOAMI_TYPE_CODE_ADDON_NOISE):
-            addOnMap[hwElem.IDNo.toString()] = new RICAddOnNoiseSensor(
-              hwElem.name,
-            );
-            break;
+
+      // Lookup the add-on
+      const lookupStr = hwElem.type + "_" + hwElem.whoAmITypeCode;
+      if (lookupStr in this._addOnFactoryMap) {
+        const addOnFactoryElem = this._addOnFactoryMap[lookupStr];
+        const addOn = addOnFactoryElem.factoryFn(hwElem.whoAmITypeCode, 
+                addOnFactoryElem.name, hwElem.type);
+        if (addOn !== null) {
+          addOnMap[hwElem.IDNo.toString()] = addOn;
         }
       }
     }
-    //good to check here that the items aren't NULL
-    //if the callback processPublishedData() isn't correct
-    //extractAddOnStatus in RICROSSerial adds null and this breaks Scratch
-    // RICLog.debug("ADD ON MAP");
-    // RICLog.debug(addOnMap);
     return addOnMap;
+  }
+
+  getHWElemTypeStr(whoAmITypeCode: string | undefined, whoAmI: string | undefined) {
+    RICLog.debug(`getting type code for ${whoAmITypeCode}`);
+    if (whoAmITypeCode === undefined) {
+      return `Undefined whoamiTypeCode`;
+    }
+    if (whoAmITypeCode in this._addOnFactoryMap) {
+      this._addOnFactoryMap[whoAmITypeCode].name;
+    }
+    return `Unknown (${whoAmI} - ${whoAmITypeCode})`;
   }
 
   processPublishedData(
@@ -122,17 +89,17 @@ export default class RICAddOnManager {
   ): ROSSerialAddOnStatus | null {
     // Lookup in map
     const addOnIdStr = addOnID.toString();
-    if (addOnIdStr in this._addOnMap) {
-      const addOnHandler = this._addOnMap[addOnIdStr];
+    if (addOnIdStr in this._configuredAddOns) {
+      const addOnHandler = this._configuredAddOns[addOnIdStr];
       return addOnHandler.processPublishedData(addOnID, statusByte, rawData);
     }
     return null;
   }
 
   getIDNoFromName(name: string): string | null {
-    for (const key in this._addOnMap) {
-      if (key in this._addOnMap) {
-        if (this._addOnMap[key]._name == name)
+    for (const key in this._configuredAddOns) {
+      if (key in this._configuredAddOns) {
+        if (this._configuredAddOns[key]._name == name)
           return key;
       }
     }
@@ -141,9 +108,9 @@ export default class RICAddOnManager {
 
   getInitCmds(): Array<string> {
     const cmds: Array<string> = [];
-    for (const key in this._addOnMap) {
-      if (key in this._addOnMap) {
-        const initCmd = this._addOnMap[key]._initCmd;
+    for (const key in this._configuredAddOns) {
+      if (key in this._configuredAddOns) {
+        const initCmd = this._configuredAddOns[key]._initCmd;
         if (initCmd) {
           cmds.push(initCmd);
         }
@@ -170,7 +137,7 @@ export default class RICAddOnManager {
           }
         }
         if (hwElemIDNoStr.length > 0) {
-          this._addOnMap[hwElemIDNoStr].processInit(report);
+          this._configuredAddOns[hwElemIDNoStr].processInit(report);
         }
       }
     }
