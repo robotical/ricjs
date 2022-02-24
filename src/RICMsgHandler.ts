@@ -538,10 +538,8 @@ export default class RICMsgHandler {
     }, this._msgTrackTimerMs);
   }
 
-  async sendFileBlock(
-    blockContents: Uint8Array,
-    blockStart: number,
-  ): Promise<boolean> {
+  encodeFileStreamBlock(blockContents: Uint8Array,
+    blockStart:number): Uint8Array {
     // Create entire message buffer (including protocol wrappers)
     const msgBuf = new Uint8Array(
       blockContents.length + 4 + RICREST_HEADER_PAYLOAD_POS + RICSERIAL_PAYLOAD_POS,
@@ -565,6 +563,14 @@ export default class RICMsgHandler {
 
     // Copy block info
     msgBuf.set(blockContents, msgBufPos);
+    return msgBuf;
+  }
+
+  async sendFileBlock(
+    blockContents: Uint8Array,
+    blockStart: number,
+  ): Promise<boolean> {
+    const msgBuf = this.encodeFileStreamBlock(blockContents, blockStart);
 
     // // Debug
     // RICLog.debug(
@@ -590,5 +596,36 @@ export default class RICMsgHandler {
       RICLog.warn(`RICMsgHandler sendFileBlock error${error}`);
     }
     return false;
+  }
+
+  async sendStreamBlock(
+    blockContents: Uint8Array,
+    blockStart: number,
+  ): Promise<void> {
+    const msgBuf = this.encodeFileStreamBlock(blockContents, blockStart);
+
+    // // Debug
+    // RICLog.debug(
+    //   `sendStreamBlock frameLen ${msgBuf.length} start ${blockStart} end ${blockEnd} len ${blockLen}`,
+    // );
+
+    // Send
+    try {
+      // Send
+      if (this._msgSender) {
+
+        // Wrap into HDLC
+        const framedMsg = this._miniHDLC.encode(msgBuf);
+
+        // Send
+        return await this._msgSender.sendTxMsg(
+          framedMsg,
+          true,
+          // Platform.OS === 'ios',
+        );
+      }
+    } catch (error: unknown) {
+      RICLog.warn(`RICMsgHandler sendStreamBlock error${error}`);
+    }
   }
 }

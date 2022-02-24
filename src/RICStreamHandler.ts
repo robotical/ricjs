@@ -62,13 +62,14 @@ export default class RICStreamHandler {
         });
       RICLog.debug(`streamFromURL ${res}`);
       if (res) {
+        const urlLastPart = sourceURL.substring(sourceURL.lastIndexOf('/')+1);
         RICLog.debug(`streamFromURL starting base64Enc`);
         const base64Enc = await res.base64();
         RICLog.debug(`streamFromURL base64EncLen ${base64Enc.length}`);
         const fileBytes = RICUtils.atob(base64Enc);
         if (fileBytes) {
           RICLog.debug(`streamFromURL fileBytesLen ${fileBytes.length}`);
-          this.streamSend("URL", targetEndpoint, streamType, fileBytes, progressCallback);
+          this.streamSend(urlLastPart, targetEndpoint, streamType, fileBytes, progressCallback);
         }
         // clean up file
         res.flush();
@@ -151,6 +152,9 @@ export default class RICStreamHandler {
     // Stram end command message
     const cmdMsg = `{"cmdName":"ufEnd","reqStr":"ufEnd","streamID":${streamID}}`;
 
+    // Debug
+    RICLog.debug(`sendStreamEndMsg ${cmdMsg}`);
+
     // Send
     return await this._msgHandler.sendRICREST(
       cmdMsg,
@@ -162,6 +166,9 @@ export default class RICStreamHandler {
   async _sendStreamCancelMsg(): Promise<void> {
     // File cancel command message
     const cmdMsg = `{"cmdName":"ufCancel"}`;
+
+    // Debug
+    RICLog.debug(`sendStreamCancelMsg ${cmdMsg}`);
 
     // Send
     return await this._msgHandler.sendRICREST(
@@ -182,6 +189,7 @@ export default class RICStreamHandler {
     this._soktoReceived = false;
     this._soktoPos = 0;
     let streamPos = 0;
+    const streamStartTime = Date.now();
 
     // Send stream blocks
     let progressUpdateCtr = 0;
@@ -190,7 +198,7 @@ export default class RICStreamHandler {
       // Check for new sokto
       if (this._soktoReceived) {
         streamPos = this._soktoPos;
-        RICLog.debug(`sendStreamContents ${streamPos}`);
+        RICLog.debug(`sendStreamContents ${Date.now()-streamStartTime}ms soktoReceived for ${streamPos}`);
         this._soktoReceived = false;
       }
 
@@ -203,10 +211,10 @@ export default class RICStreamHandler {
       const blockSize = Math.min(streamContents.length - streamPos, this._maxBlockSize);
       const block = streamContents.slice(streamPos, streamPos + blockSize);
       if (block.length > 0) {
-        await this._sendStreamBlock(block, streamPos);
+        await this._msgHandler.sendStreamBlock(block, streamPos);
 
         RICLog.debug(
-          `sendStreamContents ${Date.now()} pos ${streamPos} ${blockSize} ${block.length} ${this._soktoPos}`,
+          `sendStreamContents ${Date.now()-streamStartTime}ms pos ${streamPos} ${blockSize} ${block.length} ${this._soktoPos}`,
         );
 
         streamPos += blockSize;
@@ -224,22 +232,13 @@ export default class RICStreamHandler {
 
         // Debug
         RICLog.verbose(
-          `_sendStream ${progressUpdateCtr} sokto ${this._soktoPos} block len ${this._maxBlockSize}`,
+          `sendStreamContents ${Date.now()-streamStartTime}ms progress ${progressUpdateCtr} sokto ${this._soktoPos} block len ${this._maxBlockSize}`,
         );
 
         // Continue
         progressUpdateCtr = 0;
       }
     }
-  }
-
-  async _sendStreamBlock(
-    block: Uint8Array,
-    blockStart: number,
-  ): Promise<void> {
-
-    // Send
-    await this._msgHandler.sendFileBlock(block, blockStart);
   }
 
   onSoktoMsg(soktoPos: number) {

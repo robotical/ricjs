@@ -46,7 +46,7 @@ export default class RICLog {
 
   static verbose(msg: string) {
     if (!this.doLogging(RICLogLevel.VERBOSE, msg))
-      console.log(msg);
+      console.debug(msg);
   }
 
   static setLogListener(listener: RICLogFn | null) {
