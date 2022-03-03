@@ -288,6 +288,19 @@ export class RICSysModInfoBLEMan {
   tDatErrs? = 0;
 }
 
+export type RICProgressCBType = (received: number, total: number) => void;
+
+export class RICFileDownloadResult
+{
+    fileData: Uint8Array | null = null;
+    downloadedOk = false;
+}
+
+export interface RICFileDownloadIF {
+    // Download file
+    downloadFile(downloadUrl: string, progressCB:RICProgressCBType): Promise<RICFileDownloadResult>;
+}
+
 export interface Dictionary<T> {
   [key: string]: T;
 }

@@ -9,14 +9,12 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import { RICFileSendType, RICFWInfo, RICHWFWUpdRslt, RICOKFail, RICSystemInfo, RICUpdateInfo } from "./RICTypes";
+import { RICFileDownloadIF, RICFileSendType, RICFWInfo, RICHWFWUpdRslt, RICOKFail, RICSystemInfo, RICUpdateInfo } from "./RICTypes";
 import { RICUpdateEvent, RICUpdateEventIF } from "./RICUpdateEvents";
 import RICMsgHandler from "./RICMsgHandler";
 import semverEq from 'semver/functions/eq';
 import semverGt from 'semver/functions/gt';
 import axios from 'axios';
-import RNFetchBlob from 'rn-fetch-blob';
-import RICUtils from "./RICUtils";
 import RICFileHandler from "./RICFileHandler";
 import RICLog from "./RICLog";
 import RICSystem from "./RICSystem";
@@ -31,6 +29,12 @@ export default class RICUpdateManager {
 
   // File handler
   _ricFileHandler: RICFileHandler;
+
+  // File downloader
+  _fileDownloader: RICFileDownloadIF;
+
+  // Firmware update URL
+  _firmwareUpdateURL: string;
 
   // RIC system
   _ricSystem: RICSystem;
@@ -66,7 +70,9 @@ export default class RICUpdateManager {
     eventListener: RICUpdateEventIF,
     firmwareTypeStrForMainFw: string,
     nonFirmwareElemTypes: string[],
-    currentAppVersion: string) {
+    currentAppVersion: string,
+    fileDownloader: RICFileDownloadIF,
+    firmwareUpdateURL: string) {
     this._ricMsgHandler = ricMsgHandler;
     this._ricFileHandler = ricFileHandler;
     this._ricSystem = ricSystem;
@@ -74,6 +80,8 @@ export default class RICUpdateManager {
     this._firmwareTypeStrForMainFw = firmwareTypeStrForMainFw;
     this._nonFirmwareElemTypes = nonFirmwareElemTypes;
     this._appVersion = currentAppVersion;
+    this._fileDownloader = fileDownloader;
+    this._firmwareUpdateURL = firmwareUpdateURL;
   }
 
   async checkForUpdate(systemInfo: RICSystemInfo | null): Promise<RICUpdateEvent> {
@@ -85,9 +93,8 @@ export default class RICUpdateManager {
     this._latestVersionInfo = null;
     try {
       // live version
-      const updateURL = `https://updates.robotical.io/live/martyv2/rev${systemInfo.RicHwRevNo ? systemInfo.RicHwRevNo : 1}/current_version.json`;
+      const updateURL = this._firmwareUpdateURL;
       // internal testing
-      //const updateURL = `https://updates.robotical.io/testing/martyv2/rev${this._systemInfo.RicHwRevNo ? this._systemInfo.RicHwRevNo : 1}/current_version.json`;
       RICLog.debug(`Update URL: ${updateURL}`);
       const response = await axios.get(updateURL);
       this._latestVersionInfo = response.data;
@@ -216,24 +223,14 @@ export default class RICUpdateManager {
       for (let fwIdx = 0; fwIdx < firmwareList.length; fwIdx++) {
         // Download the firmware
         RICLog.debug(`fwUpdate downloading file URI ${firmwareList[fwIdx].downloadUrl}`);
-        const res = await RNFetchBlob.config({
-          fileCache: true,
-          appendExt: 'bin',
-        })
-          .fetch('GET', firmwareList[fwIdx].downloadUrl)
-          .progress((received: number, total: number) => {
-            // RICLog.debug(`fwUpdate ${received} ${total}`);
-            const currentProgress = ((fwIdx + received / total) / numFw) * this._progressAfterDownload;
-            this._eventListener.onUpdateManagerEvent(RICUpdateEvent.UPDATE_PROGRESS, { stage: 'Downloading firmware', progress: currentProgress });
-          });
-        if (res) {
-          const base64Enc = await res.base64();
-          const fileBytes = RICUtils.atob(base64Enc);
-          if (fileBytes) {
-            firmwareData.push(fileBytes);
-          }
-          // clean up file
-          res.flush();
+        const downloadResult = await this._fileDownloader.downloadFile(firmwareList[fwIdx].downloadUrl,
+            (received: number, total: number) => {
+                const currentProgress = ((fwIdx + received / total) / numFw) * this._progressAfterDownload;
+                this._eventListener.onUpdateManagerEvent(RICUpdateEvent.UPDATE_PROGRESS, 
+                        { stage: 'Downloading firmware', progress: currentProgress });
+            });
+        if (downloadResult.downloadedOk && downloadResult.fileData != null) {
+          firmwareData.push(downloadResult.fileData);
         } else {
           this._eventListener.onUpdateManagerEvent(RICUpdateEvent.UPDATE_FAILED);
           throw Error('file download res null');

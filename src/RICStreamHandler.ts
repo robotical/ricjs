@@ -13,10 +13,8 @@ import RICLog from './RICLog'
 import RICMsgHandler, {
   RICRESTElemCode,
 } from './RICMsgHandler';
-import RNFetchBlob from 'rn-fetch-blob';
 import RICCommsStats from './RICCommsStats';
 import { RICStreamStartResp, RICStreamType } from './RICTypes';
-import RICUtils from './RICUtils';
 
 export default class RICStreamHandler {
   _msgHandler: RICMsgHandler;
@@ -42,43 +40,22 @@ export default class RICStreamHandler {
     this.onSoktoMsg = this.onSoktoMsg.bind(this);
   }
 
-  async streamFromURL(
-    sourceURL: string,
+  async streamBytes(
+    dataBytes: Uint8Array,
+    streamName: string,
     streamType: RICStreamType,
     targetEndpoint: string,
     progressCallback: ((sent: number, total: number, progress: number) => void) | undefined,
   ): Promise<boolean> {
 
-    RICLog.debug(`streamFromURL ${sourceURL} getting file`);
+    RICLog.debug(`streamData ${streamName}`);
     try {
-      const res = await RNFetchBlob.config({
-        fileCache: true,
-        appendExt: 'bin',
-      }).fetch('GET', sourceURL)
-        .progress((received: number, total: number) => {
-          RICLog.debug(`streamFromURL ${received} ${total}`);
-          // const currentProgress = received / total;
-          // this._eventListener.onUpdateManagerEvent(RICUpdateEvent.UPDATE_PROGRESS, { stage: 'Downloading firmware', progress: currentProgress });
-        });
-      RICLog.debug(`streamFromURL ${res}`);
-      if (res) {
-        const urlLastPart = sourceURL.substring(sourceURL.lastIndexOf('/')+1);
-        RICLog.debug(`streamFromURL starting base64Enc`);
-        const base64Enc = await res.base64();
-        RICLog.debug(`streamFromURL base64EncLen ${base64Enc.length}`);
-        const fileBytes = RICUtils.atob(base64Enc);
-        if (fileBytes) {
-          RICLog.debug(`streamFromURL fileBytesLen ${fileBytes.length}`);
-          this.streamSend(urlLastPart, targetEndpoint, streamType, fileBytes, progressCallback);
-        }
-        // clean up file
-        res.flush();
-      } else {
-        // this._eventListener.onUpdateManagerEvent(RICUpdateEvent.UPDATE_FAILED);
-        throw Error('file download res null');
+      if (dataBytes) {
+        RICLog.debug(`streamFromURL fileBytesLen ${dataBytes.length}`);
+        this.streamSend(streamName, targetEndpoint, streamType, dataBytes, progressCallback);
       }
     } catch (err) {
-      RICLog.error(`streamFromURL ${err}`);
+      RICLog.error(`streamBytes ${err}`);
       return false;
     }
     return true;
@@ -181,7 +158,7 @@ export default class RICStreamHandler {
   async _sendStreamContents(
     streamContents: Uint8Array,
     progressCallback: ((sent: number, total: number, progress: number) => void) | undefined,
-  ) {
+  ) : Promise<void> {
     if (progressCallback) {
       progressCallback(0, streamContents.length, 0);
     }
