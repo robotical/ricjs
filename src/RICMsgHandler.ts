@@ -283,12 +283,28 @@ export default class RICMsgHandler {
   async sendRICRESTURL<T>(
     cmdStr: string,
     msgTracking: boolean,
+    msgTimeoutMs: number | undefined = undefined,
   ): Promise<T> {
     // Send
     return await this.sendRICREST(
       cmdStr,
       RICRESTElemCode.RICREST_ELEM_CODE_URL,
       msgTracking,
+      msgTimeoutMs,
+    );
+  }
+
+  async sendRICRESTCmdFrame<T>(
+    cmdStr: string, 
+    msgTracking: boolean,
+    msgTimeoutMs: number | undefined = undefined,
+  ): Promise<T> {
+    // Send
+    return await this.sendRICREST(
+      cmdStr,
+      RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
+      msgTracking,
+      msgTimeoutMs,
     );
   }
 
@@ -296,6 +312,7 @@ export default class RICMsgHandler {
     cmdStr: string,
     ricRESTElemCode: RICRESTElemCode,
     msgTracking: boolean,
+    msgTimeoutMs: number | undefined = undefined,
   ): Promise<T> {
     // Put cmdStr into buffer
     const cmdStrTerm = new Uint8Array(cmdStr.length + 1);
@@ -308,6 +325,7 @@ export default class RICMsgHandler {
       ricRESTElemCode,
       msgTracking,
       true,
+      msgTimeoutMs,
     );
   }
 
@@ -316,6 +334,7 @@ export default class RICMsgHandler {
     ricRESTElemCode: RICRESTElemCode,
     isNumbered: boolean,
     withResponse: boolean,
+    msgTimeoutMs: number | undefined = undefined,
   ): Promise<T> {
     // Form message
     const cmdMsg = new Uint8Array(cmdBytes.length + RICREST_HEADER_PAYLOAD_POS);
@@ -323,16 +342,17 @@ export default class RICMsgHandler {
     cmdMsg.set(cmdBytes, RICREST_HEADER_PAYLOAD_POS);
 
     // Send
-    return await this.sendCommsMsg(
+    return await this.sendCommsMsg<T>(
       cmdMsg,
       RICCommsMsgTypeCode.MSG_TYPE_COMMAND,
       RICCommsMsgProtocol.MSG_PROTOCOL_RICREST,
       isNumbered,
-      withResponse
+      withResponse,
+      msgTimeoutMs,
     );
   }
 
-  // TODO - Investigate whether these lint errors are actually an issue
+  // TODO 2022 - Investigate whether these lint errors are actually an issue
   /* eslint-disable no-async-promise-executor */
   /* eslint-disable @typescript-eslint/no-explicit-any */
   async sendCommsMsg<T>(
@@ -341,6 +361,7 @@ export default class RICMsgHandler {
     msgProtocol: RICCommsMsgProtocol,
     isNumbered: boolean,
     withResponse: boolean,
+    msgTimeoutMs: number | undefined,
   ): Promise<T> {
     const promise = new Promise<T>(async (resolve, reject) => {
       try {
@@ -368,6 +389,7 @@ export default class RICMsgHandler {
           this.msgTrackingTxCmdMsg<T>(
             framedMsg,
             withResponse,
+            msgTimeoutMs,
             resolve,
             reject,
           );
@@ -400,6 +422,7 @@ export default class RICMsgHandler {
   msgTrackingTxCmdMsg<T>(
     msgFrame: Uint8Array,
     withResponse: boolean,
+    msgTimeoutMs: number | undefined,
     resolve: (arg: T) => void,
     reject: (reason: Error) => void,
   ): void {
@@ -414,6 +437,7 @@ export default class RICMsgHandler {
       msgFrame,
       withResponse,
       this._currentMsgHandle,
+      msgTimeoutMs,
       resolve,
       reject,
     );
@@ -500,16 +524,20 @@ export default class RICMsgHandler {
     // Check message timeouts
     for (let i = 0; i < MAX_MSG_NUM + 1; i++) {
       if (!this._msgTrackInfos[i].msgOutstanding) continue;
+      let msgTimeoutMs = this._msgTrackInfos[i].msgTimeoutMs;
+      if (msgTimeoutMs === undefined)
+        msgTimeoutMs = MSG_RESPONSE_TIMEOUT_MS;
       if (
         Date.now() >
-        this._msgTrackInfos[i].msgSentMs + MSG_RESPONSE_TIMEOUT_MS
+        this._msgTrackInfos[i].msgSentMs + msgTimeoutMs
       ) {
         RICLog.debug(`msgTrackTimer Message response timeout msgNum ${i} retrying`);
         RICLog.verbose(`msgTrackTimer retryMsg ${RICUtils.bufferToHex(this._msgTrackInfos[i].msgFrame)}`);
         if (this._msgTrackInfos[i].retryCount < MSG_RETRY_COUNT) {
           this._msgTrackInfos[i].retryCount++;
           if (
-            this._msgSender !== null
+            this._msgSender !== null &&
+            this._msgTrackInfos[i].msgFrame !== null
           ) {
             try {
               await this._msgSender.sendTxMsg(

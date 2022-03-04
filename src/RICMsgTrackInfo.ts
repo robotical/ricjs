@@ -16,6 +16,7 @@ export class RICMsgTrackInfo {
   retryCount = 0;
   withResponse = false;
   msgHandle = 0;
+  msgTimeoutMs: number | undefined = undefined;
   resolve: unknown;
   reject: unknown;
 
@@ -28,6 +29,7 @@ export class RICMsgTrackInfo {
     msgFrame: Uint8Array,
     withResponse: boolean,
     msgHandle: number,
+    msgTimeoutMs: number | undefined,
     resolve: unknown,
     reject: unknown,
   ) {
@@ -37,6 +39,7 @@ export class RICMsgTrackInfo {
     this.msgSentMs = Date.now();
     this.withResponse = withResponse;
     this.msgHandle = msgHandle;
+    this.msgTimeoutMs = msgTimeoutMs;
     this.resolve = resolve;
     this.reject = reject;
   }
