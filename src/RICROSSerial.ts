@@ -41,6 +41,9 @@ export class ROSSerialPowerStatus {
     power5VOnTimeSecs: number;
     power5VIsOn: boolean;
     powerUSBIsConnected: boolean;
+    battInfoValid: boolean;
+    powerUSBIsValid: boolean;
+    powerFlags: number;
   } = {
       battRemainCapacityPercent: 0,
       battTempDegC: 0,
@@ -50,6 +53,9 @@ export class ROSSerialPowerStatus {
       power5VOnTimeSecs: 0,
       power5VIsOn: false,
       powerUSBIsConnected: false,
+      battInfoValid: false,
+      powerUSBIsValid: false,
+      powerFlags: 0,
     };
 }
 
@@ -260,6 +266,8 @@ export class RICROSSerial {
     const powerFlags = RICUtils.getBEUint16FromBuf(buf, 10);
     const isOnUSBPower = (powerFlags & 0x0001) != 0;
     const is5VOn = (powerFlags & 0x0002) != 0;
+    const isBattInfoValid = (powerFlags & 0x0004) == 0;
+    const isUSBPowerInfoValid = (powerFlags & 0x0008) == 0;
     return {
       powerStatus: {
         battRemainCapacityPercent: remCapPC,
@@ -269,7 +277,10 @@ export class RICROSSerial {
         battCurrentMA: currentMA,
         power5VOnTimeSecs: power5VOnTimeSecs,
         power5VIsOn: is5VOn,
-        powerUSBIsConnected: isOnUSBPower,
+        powerUSBIsConnected: isOnUSBPower && isUSBPowerInfoValid,
+        battInfoValid: isBattInfoValid,
+        powerUSBIsValid: isUSBPowerInfoValid,
+        powerFlags: powerFlags,
       },
     };
   }
