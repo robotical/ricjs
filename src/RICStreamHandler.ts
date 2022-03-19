@@ -215,6 +215,9 @@ export default class RICStreamHandler {
         // Continue
         progressUpdateCtr = 0;
       }
+
+      // Wait to ensure we don't hog the CPU
+      await new Promise((resolve) => setTimeout(resolve, 5));
     }
   }
 
