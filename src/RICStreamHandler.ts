@@ -21,7 +21,7 @@ export default class RICStreamHandler {
 
   // Stream state
   _streamID: number | null = null;
-  DEFAULT_MAX_BLOCK_SIZE = 500;
+  DEFAULT_MAX_BLOCK_SIZE = 400;
   _maxBlockSize: number = this.DEFAULT_MAX_BLOCK_SIZE;
 
   // RICCommsStats
