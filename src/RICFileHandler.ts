@@ -17,6 +17,7 @@ import
 import {
   RICFileSendType,
   RICFileStartResp,
+  RICOKFail,
 } from './RICTypes';
 import RICCommsStats from './RICCommsStats';
 
@@ -84,12 +85,14 @@ export default class RICFileHandler {
 
     // Send file start message
     // RICLog.verbose('XXXXXXXXX _sendFileStartMsg start');
-    await this._sendFileStartMsg(fileName, fileType, fileContents);
+    if (!await this._sendFileStartMsg(fileName, fileType, fileContents))
+      return false;
     // RICLog.verbose('XXXXXXXXX _sendFileStartMsg done');
 
     // Send contents
     // RICLog.verbose('XXXXXXXXX _sendFileContents start');
-    await this._sendFileContents(fileContents, progressCallback);
+    if (!await this._sendFileContents(fileContents, progressCallback))
+      return false;
     // RICLog.verbose('XXXXXXXXX _sendFileContents done');
 
     // Send file end
@@ -115,7 +118,7 @@ export default class RICFileHandler {
     fileName: string,
     fileType: RICFileSendType,
     fileContents: Uint8Array,
-  ): Promise<void> {
+  ): Promise<boolean> {
     // File start command message
     const reqStr =
       fileType == RICFileSendType.RIC_FIRMWARE_UPDATE
@@ -130,11 +133,20 @@ export default class RICFileHandler {
     RICLog.debug(`sendFileStartMsg ${cmdMsg}`);
 
     // Send
-    const fileStartResp = await this._msgHandler.sendRICREST<RICFileStartResp>(
-      cmdMsg,
-      RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
-      true,
-    );
+    let fileStartResp = null;
+    try {
+        fileStartResp = await this._msgHandler.sendRICREST<RICFileStartResp>(
+                cmdMsg,
+                RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
+        );
+    } catch (err) {
+      RICLog.error(`sendFileStartMsg error ${err}`);
+      return false;
+    }
+    if (fileStartResp.rslt !== 'ok') {
+      RICLog.error(`sendFileStartMsg error ${fileStartResp.rslt}`);
+      return false;
+    }
 
     // Extract params
     if (fileStartResp.batchMsgSize) {
@@ -146,13 +158,14 @@ export default class RICFileHandler {
     RICLog.debug(
       `_fileSendStartMsg fileBlockSize ${this._fileBlockSize} batchAckSize ${this._batchAckSize}`,
     );
+    return true;
   }
 
   async _sendFileEndMsg(
     fileName: string,
     fileType: RICFileSendType,
     fileContents: Uint8Array,
-  ): Promise<void> {
+  ): Promise<boolean> {
     // File end command message
     const reqStr =
       fileType == RICFileSendType.RIC_FIRMWARE_UPDATE
@@ -164,14 +177,23 @@ export default class RICFileHandler {
     const cmdMsg = `{"cmdName":"ufEnd","reqStr":"${reqStr}","fileType":"${fileDest}","fileName":"${fileName}","fileLen":${fileLen}}`;
 
     // Await outstanding promises
-    await this.awaitOutstandingMsgPromises(true);
+    try {
+      await this.awaitOutstandingMsgPromises(true);
+    } catch (err) {
+    }
 
     // Send
-    return await this._msgHandler.sendRICREST(
-      cmdMsg,
-      RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
-      true,
-    );
+    let fileEndResp = null;
+    try {
+      fileEndResp = await this._msgHandler.sendRICREST<RICOKFail>(
+        cmdMsg,
+        RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
+      );
+    } catch (err) {
+      RICLog.error(`sendFileEndMsg error ${err}`);
+      return false;
+    }
+    return fileEndResp.rslt === 'ok';
   }
 
   async _sendFileCancelMsg(): Promise<void> {
@@ -182,17 +204,20 @@ export default class RICFileHandler {
     await this.awaitOutstandingMsgPromises(true);
 
     // Send
-    return await this._msgHandler.sendRICREST(
-      cmdMsg,
-      RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
-      true,
-    );
+    try {
+      return await this._msgHandler.sendRICREST(
+        cmdMsg,
+        RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
+      );
+    } catch (err) {
+      RICLog.error(`sendFileCancelMsg error ${err}`);
+    }
   }
 
   async _sendFileContents(
     fileContents: Uint8Array,
     progressCallback: ((sent: number, total: number, progress: number) => void) | undefined,
-  ) {
+  ): Promise<boolean> {
     if (progressCallback) {
       progressCallback(0, fileContents.length, 0);
     }
@@ -209,7 +234,8 @@ export default class RICFileHandler {
         RICLog.verbose(
           `_sendFileContents NO BATCH ACKS ${progressUpdateCtr} blocks total sent ${this._ackedFilePos} block len ${this._fileBlockSize}`,
         );
-        await this._sendFileBlock(fileContents, this._ackedFilePos);
+        if (!await this._sendFileBlock(fileContents, this._ackedFilePos))
+          return false;
         this._ackedFilePos += this._fileBlockSize;
         progressUpdateCtr++;
       } else {
@@ -231,7 +257,8 @@ export default class RICFileHandler {
           // RICLog.verbose(
           //   `_sendFileContents sendblock pos ${sendFromPos} len ${this._fileBlockSize} ackedTo ${this._ackedFilePos} fileLen ${fileContents.length}`,
           // );
-          await this._sendFileBlock(fileContents, sendFromPos);
+          if (!await this._sendFileBlock(fileContents, sendFromPos))
+            return false;
           sendFromPos += this._fileBlockSize;
         }
 
@@ -260,6 +287,7 @@ export default class RICFileHandler {
         progressUpdateCtr = 0;
       }
     }
+    return true;
   }
 
   async batchAck(timeout: number): Promise<void> {
@@ -298,7 +326,7 @@ export default class RICFileHandler {
   async _sendFileBlock(
     fileContents: Uint8Array,
     blockStart: number,
-  ): Promise<number> {
+  ): Promise<boolean> {
     // Calc block start and end
     const blockEnd = Math.min(
       fileContents.length,
@@ -310,6 +338,9 @@ export default class RICFileHandler {
 
     // Send
     const promRslt = this._msgHandler.sendFileBlock(fileContents.subarray(blockStart, blockEnd), blockStart);
+    if (!promRslt) {
+      return false;
+    }
 
     // Add to list of pending messages
     this._msgAwaitList.push(new FileBlockTrackInfo(promRslt));
@@ -318,7 +349,7 @@ export default class RICFileHandler {
     // RICLog.debug(
     //   `sendFileBlock start ${blockStart} end ${blockEnd} len ${blockLen}`,
     // );
-    return blockEnd - blockStart;
+    return true;
   }
 
   onOktoMsg(fileOkTo: number) {

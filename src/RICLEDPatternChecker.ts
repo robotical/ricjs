@@ -73,10 +73,7 @@ export default class RICLEDPatternChecker {
     try {
       RICLog.debug('setRICColors setting colours');
       if (msgHandler) {
-        await msgHandler.sendRICRESTURL<RICOKFail>(
-          `indicator/set?${colourSetStr}&ms=${timeoutMs}`,
-          false,
-        );
+        await msgHandler.sendRICRESTURL<RICOKFail>(`indicator/set?${colourSetStr}&ms=${timeoutMs}`);
       }
     } catch (error) {
       RICLog.debug(`setRICColors failed to send ${error}`);
@@ -90,10 +87,7 @@ export default class RICLEDPatternChecker {
     RICLog.debug('clearRICColors');
     try {
       if (msgHandler) {
-        await msgHandler.sendRICRESTURL<RICOKFail>(
-          `indicator/resume`,
-          false,
-        );
+        await msgHandler.sendRICRESTURL<RICOKFail>(`indicator/resume`);
       }
     } catch (error) {
       RICLog.debug(`clearRICColors failed to send ${error}`);

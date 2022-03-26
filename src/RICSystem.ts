@@ -136,9 +136,7 @@ export default class RICSystem {
       return this._systemInfo;
     }
     try {
-      this._systemInfo = await this._ricMsgHandler.sendRICRESTURL<
-        RICSystemInfo
-      >('v', true);
+      this._systemInfo = await this._ricMsgHandler.sendRICRESTURL<RICSystemInfo>('v');
       RICLog.debug('getRICSystemInfo returned ' + JSON.stringify(this._systemInfo));
       return this._systemInfo;
     } catch (error) {
@@ -158,9 +156,7 @@ export default class RICSystem {
       return this._calibInfo;
     }
     try {
-      this._calibInfo = await this._ricMsgHandler.sendRICRESTURL<
-        RICCalibInfo
-      >('calibrate', true);
+      this._calibInfo = await this._ricMsgHandler.sendRICRESTURL<RICCalibInfo>('calibrate');
       RICLog.debug('getRICCalibInfo returned ' + this._calibInfo);
       return this._calibInfo;
     } catch (error) {
@@ -178,10 +174,7 @@ export default class RICSystem {
    */
   async setRICName(newName: string): Promise<boolean> {
     try {
-      const msgRsltJsonObj = await this._ricMsgHandler.sendRICRESTURL<
-        RICFriendlyName
-      >(`friendlyname/${newName}`, true);
-
+      const msgRsltJsonObj = await this._ricMsgHandler.sendRICRESTURL<RICFriendlyName>(`friendlyname/${newName}`);
       const nameThatHasBeenSet = msgRsltJsonObj.friendlyName;
       this._ricFriendlyName = nameThatHasBeenSet;
       this._ricFriendlyNameIsSet = true;
@@ -199,9 +192,7 @@ export default class RICSystem {
    */
   async getRICName(): Promise<RICNameResponse> {
     try {
-      const msgRsltJsonObj = await this._ricMsgHandler.sendRICRESTURL<
-        RICNameResponse
-      >('friendlyname', true);
+      const msgRsltJsonObj = await this._ricMsgHandler.sendRICRESTURL<RICNameResponse>('friendlyname');
       if (msgRsltJsonObj.rslt === 'ok') {
         this._ricFriendlyName = msgRsltJsonObj.friendlyName;
         this._ricFriendlyNameIsSet = msgRsltJsonObj.friendlyNameIsSet != 0;
@@ -221,10 +212,7 @@ export default class RICSystem {
    */
   async getHWElemList(): Promise<RICHWElemList> {
     try {
-      const ricHWList = await this._ricMsgHandler.sendRICRESTURL<RICHWElemList>(
-        'hwstatus',
-        true,
-      );
+      const ricHWList = await this._ricMsgHandler.sendRICRESTURL<RICHWElemList>('hwstatus');
       RICLog.debug('getHWElemList returned ' + JSON.stringify(ricHWList));
       this._hwElems = ricHWList.hw;
       this._addOnManager.setHWElems(this._hwElems);
@@ -266,10 +254,7 @@ export default class RICSystem {
    */
   async getAddOnList(): Promise<RICAddOnList> {
     try {
-      const addOnList = await this._ricMsgHandler.sendRICRESTURL<RICAddOnList>(
-        'addon/list',
-        true,
-      );
+      const addOnList = await this._ricMsgHandler.sendRICRESTURL<RICAddOnList>('addon/list');
       RICLog.debug('getAddOnList returned ' + addOnList);
       return addOnList;
     } catch (error) {
@@ -286,10 +271,7 @@ export default class RICSystem {
    */
   async getFileList(): Promise<RICFileList> {
     try {
-      const ricFileList = await this._ricMsgHandler.sendRICRESTURL<RICFileList>(
-        'filelist',
-        true,
-      );
+      const ricFileList = await this._ricMsgHandler.sendRICRESTURL<RICFileList>('filelist');
       RICLog.debug('getFileList returned ' + ricFileList);
       return ricFileList;
     } catch (error) {
@@ -317,10 +299,7 @@ export default class RICSystem {
       }
       // Format the url to send
       if (paramQueryStr.length > 0) commandName += '?' + paramQueryStr;
-      return await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
-        commandName,
-        true,
-      );
+      return await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(commandName);
     } catch (error) {
       RICLog.debug(`runCommand failed ${error}`);
       return new RICOKFail();
@@ -337,13 +316,14 @@ export default class RICSystem {
   async getSysModInfoBLEMan(): Promise<RICSysModInfoBLEMan | null> {
     try {
       // Get SysMod Info
-      const bleInfo = await this._ricMsgHandler.sendRICRESTURL<
-        RICSysModInfoBLEMan
-      >('sysmodinfo/BLEMan', true);
+      const bleInfo = await this._ricMsgHandler.sendRICRESTURL<RICSysModInfoBLEMan>('sysmodinfo/BLEMan');
 
+      // Debug
       RICLog.debug(
         `getSysModInfoBLEMan rslt ${bleInfo.rslt} isConn ${bleInfo.isConn} paused ${bleInfo.isAdv} txBPS ${bleInfo.txBPS} rxBPS ${bleInfo.rxBPS}`,
       );
+
+      // Check for test rate
       if ("tBPS" in bleInfo) {
         RICLog.debug(
           `getSysModInfoBLEMan testMsgs ${bleInfo.tM} testBytes ${bleInfo.tB} testRateBytesPS ${bleInfo.tBPS}`,
@@ -383,9 +363,7 @@ export default class RICSystem {
   async getWiFiConnStatus(): Promise<boolean | null> {
     try {
       // Get status
-      const ricSysModInfoWiFi = await this._ricMsgHandler.sendRICRESTURL<
-        RICSysModInfoWiFi
-      >('sysmodinfo/NetMan', true);
+      const ricSysModInfoWiFi = await this._ricMsgHandler.sendRICRESTURL<RICSysModInfoWiFi>('sysmodinfo/NetMan');
 
       RICLog.debug(
         `wifiConnStatus rslt ${ricSysModInfoWiFi.rslt} isConn ${ricSysModInfoWiFi.isConn} paused ${ricSysModInfoWiFi.isPaused}`,
@@ -426,15 +404,9 @@ export default class RICSystem {
   async pauseWifiConnection(pause: boolean): Promise<boolean> {
     try {
       if (pause) {
-        await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
-          'wifipause/pause',
-          false,
-        );
+        await this._ricMsgHandler.sendRICRESTURL<RICOKFail>('wifipause/pause');
       } else {
-        await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
-          'wifipause/resume',
-          false,
-        );
+        await this._ricMsgHandler.sendRICRESTURL<RICOKFail>('wifipause/resume');
       }
     } catch (error) {
       RICLog.debug(`wifiConnect wifi pause ${error}`);
@@ -459,10 +431,7 @@ export default class RICSystem {
       const RICRESTURL_wifiCredentials = 'w/' + ssid + '/' + password + '/' + this._getHostnameFromFriendlyName();
       RICLog.debug(`wifiConnect attempting to connect to wifi ${RICRESTURL_wifiCredentials}`);
 
-      await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
-        RICRESTURL_wifiCredentials,
-        true,
-      );
+      await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(RICRESTURL_wifiCredentials);
     } catch (error) {
       RICLog.debug(`wifiConnect failed ${error}`);
       return false;
@@ -497,10 +466,7 @@ export default class RICSystem {
     try {
       RICLog.debug(`wifiDisconnect clearing wifi info`);
 
-      await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
-        'wc',
-        true,
-      );
+      await this._ricMsgHandler.sendRICRESTURL<RICOKFail>('wc');
       this.getWiFiConnStatus();
       return true;
     } catch (error) {

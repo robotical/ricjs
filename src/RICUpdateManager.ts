@@ -154,9 +154,7 @@ export default class RICUpdateManager {
     // Check if a previous hw-elem update didn't complete - but no point if we would update anyway
     if (!this._updateESPRequired) {
       try {
-        const elUpdRslt = await this._ricMsgHandler.sendRICRESTURL<
-          RICHWFWUpdRslt
-        >('hwfwupd', true);
+        const elUpdRslt = await this._ricMsgHandler.sendRICRESTURL<RICHWFWUpdRslt>('hwfwupd');
 
         // Check result
         this._updateElemsRequired =
@@ -379,7 +377,7 @@ export default class RICUpdateManager {
       // Start hw-elem update
       const updateCmd = `hwfwupd/${elemFw.elemType}/${elemFw.destname}/all`;
       try {
-        await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(updateCmd, true);
+        await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(updateCmd);
       } catch (error) {
         RICLog.debug(`fwUpdate failed to start hw-elem firmware update cmd ${updateCmd}`);
 
@@ -398,9 +396,7 @@ export default class RICUpdateManager {
           await new Promise(resolve => setTimeout(resolve, 5000));
 
           // Get result (or status)
-          const elUpdRslt = await this._ricMsgHandler.sendRICRESTURL<
-            RICHWFWUpdRslt
-          >('hwfwupd', true);
+          const elUpdRslt = await this._ricMsgHandler.sendRICRESTURL<RICHWFWUpdRslt>('hwfwupd');
 
           // Check result
           if (

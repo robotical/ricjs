@@ -59,14 +59,18 @@ export class RICCalibInfo {
 }
 
 export class RICOKFail {
+  RIC_OK = 'ok';
   set(rsltFlag: boolean) {
     if (rsltFlag) {
-      this.rslt = 'ok';
+      this.rslt = this.RIC_OK;
     } else {
       this.rslt = 'fail';
     }
   }
   rslt = 'commsFail';
+  isOk() {
+    return this.rslt === this.RIC_OK;
+  }
 }
 
 export class RICReportMsg {
@@ -88,7 +92,6 @@ export class RICHWFWStat {
   n = '';
   p = 0;
   i = 0;
-  c = [];
 }
 
 export class RICHWFWUpdRslt {

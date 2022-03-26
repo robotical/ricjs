@@ -315,8 +315,8 @@ export default class RICMiniHDLC {
   }
 
   addRxBytes(rxBytes: Uint8Array): void {
-    for (const rxByte of rxBytes) {
-      this.addRxByte(rxByte);
+    for (let i = 0; i < rxBytes.length; i++) {
+      this.addRxByte(rxBytes[i]);
     }
   }
 

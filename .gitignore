@@ -1,4 +1,4 @@
-/node_modules/
+node_modules
 /build/
 /lib/
 /dist/
@@ -8,3 +8,5 @@
 .DS_Store
 coverage
 *.log
+
+bundle.js

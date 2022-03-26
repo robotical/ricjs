@@ -14,86 +14,130 @@ import RICMsgHandler, {
   RICRESTElemCode,
 } from './RICMsgHandler';
 import RICCommsStats from './RICCommsStats';
-import { RICStreamStartResp, RICStreamType } from './RICTypes';
+import { RICOKFail, RICStreamStartResp, RICStreamType } from './RICTypes';
 
 export default class RICStreamHandler {
-  _msgHandler: RICMsgHandler;
+
+  // Queue of audio stream requests
+  private _streamAudioQueue: {
+    streamContents: Uint8Array;
+  }[] = [];
 
   // Stream state
-  _streamID: number | null = null;
+  private _streamID: number | null = null;
   DEFAULT_MAX_BLOCK_SIZE = 400;
-  _maxBlockSize: number = this.DEFAULT_MAX_BLOCK_SIZE;
+  private _maxBlockSize: number = this.DEFAULT_MAX_BLOCK_SIZE;
+
+  // Handler of messages
+  private _msgHandler: RICMsgHandler;
 
   // RICCommsStats
-  _commsStats: RICCommsStats;
+  // private _commsStats: RICCommsStats;
 
   // Cancel flag
-  _isCancelled = false;
+  private _isCancelled = false;
 
   // Flow control
-  _soktoReceived = false;
-  _soktoPos = 0;
+  private _soktoReceived = false;
+  private _soktoPos = 0;
 
-  constructor(msgHandler: RICMsgHandler, commsStats: RICCommsStats) {
+  constructor(msgHandler: RICMsgHandler, _commsStats: RICCommsStats) {
     this._msgHandler = msgHandler;
-    this._commsStats = commsStats;
+    // this._commsStats = commsStats;
     this.onSoktoMsg = this.onSoktoMsg.bind(this);
   }
 
-  async streamBytes(
-    dataBytes: Uint8Array,
-    streamName: string,
-    streamType: RICStreamType,
-    targetEndpoint: string,
-    progressCallback: ((sent: number, total: number, progress: number) => void) | undefined,
-  ): Promise<boolean> {
-
-    RICLog.debug(`streamData ${streamName}`);
-    try {
-      if (dataBytes) {
-        RICLog.debug(`streamFromURL fileBytesLen ${dataBytes.length}`);
-        this.streamSend(streamName, targetEndpoint, streamType, dataBytes, progressCallback);
+  // Start streaming audio
+  streamAudio(streamContents: Uint8Array, clearExisting: boolean): void {
+    // Clear (if required) and add to queue
+    if (clearExisting) {
+      this._streamAudioQueue = [];
+      if (this._streamID !== null) {
+        this._isCancelled = true;
       }
-    } catch (err) {
-      RICLog.error(`streamBytes ${err}`);
-      return false;
     }
-    return true;
+    this._streamAudioQueue.push({
+      streamContents,
+    });
+
+    // Check if we need to start streaming
+    if (this._streamAudioQueue.length > 0) {
+      this._handleStreamStart();
+    }
   }
 
-  async streamSend(
+  async streamCancel(): Promise<void> {
+    this._isCancelled = true;
+  }
+
+  // Handle starting of streaming
+  private _handleStreamStart(): void {
+    // Get next stream
+    const stream = this._streamAudioQueue[0];
+    this._streamAudioQueue.splice(0, 1);
+    if (stream === undefined) {
+      return;
+    }
+
+    // Send stream
+    setTimeout(async () => {
+      try {
+        this._streamAudioSend("audio.mp3", "streamaudio", RICStreamType.RIC_REAL_TIME_STREAM, stream.streamContents);
+      } catch (error) {
+        RICLog.error(`RICStreamHandler._handleStreamStart ${error}`);
+      }
+    }, 0);
+  }
+
+  private async _streamAudioSend(
     streamName: string,
     targetEndpoint: string,
     streamType: RICStreamType,
     streamContents: Uint8Array,
-    progressCallback: ((sent: number, total: number, progress: number) => void) | undefined,
   ): Promise<boolean> {
-    this._isCancelled = false;
+
+    // Check if waiting for cancel
+    if (this._isCancelled) {
+      // Send cancel message
+      console.log('_streamAudioSend cancelling');
+      try {
+        await this._sendStreamCancelMsg();
+      } catch (error) {
+        RICLog.error(`RICStreamHandler._streamAudioSend ${error}`);
+      }
+      console.log('_streamAudioSend cancelled');
+      // Clear state
+      this._streamID = null;
+      this._isCancelled = false;
+    }
 
     // Send file start message
-    await this._sendStreamStartMsg(streamName, targetEndpoint, streamType, streamContents);
+    if (await this._sendStreamStartMsg(streamName, targetEndpoint, streamType, streamContents)) {
 
-    // Send contents
-    await this._sendStreamContents(streamContents, progressCallback);
+      // Send contents
+      if (await this._sendStreamContents(streamContents)) {
+      
+        // Send file end
+        await this._sendStreamEndMsg(this._streamID);
+      }
+    }
 
-    // Send file end
-    await this._sendStreamEndMsg(this._streamID);
+    // Check if any more audio to play
+    if (this._streamAudioQueue.length > 0) {
+      this._handleStreamStart();
+    }
 
     // Complete
     return true;
   }
 
-  async streamSendCancel(): Promise<void> {
-    this._isCancelled = true;
-  }
-
   // Send the start message
-  async _sendStreamStartMsg(
+  private async _sendStreamStartMsg(
     streamName: string,
     targetEndpoint: string,
     streamTypeEnum: RICStreamType,
     streamContents: Uint8Array,
-  ): Promise<void> {
+  ): Promise<boolean> {
     // Stream start command message
     const streamType = 'rtstream';
     const cmdMsg = `{"cmdName":"ufStart","reqStr":"ufStart","fileType":"${streamType}","fileName":"${streamName}","endpoint":"${targetEndpoint}","fileLen":${streamContents.length}}`;
@@ -102,11 +146,16 @@ export default class RICStreamHandler {
     RICLog.debug(`sendStreamStartMsg ${cmdMsg}`);
 
     // Send
-    const streamStartResp = await this._msgHandler.sendRICREST<RICStreamStartResp>(
-      cmdMsg,
-      RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
-      true,
-    );
+    let streamStartResp = null;
+    try {    
+      streamStartResp = await this._msgHandler.sendRICREST<RICStreamStartResp>(
+        cmdMsg,
+        RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
+      );
+    } catch (err) {
+      RICLog.error(`sendStreamStartMsg error ${err}`);
+      return false;
+    }
 
     // Extract params
     if (streamStartResp.rslt === 'ok') {
@@ -117,14 +166,16 @@ export default class RICStreamHandler {
       );
     } else {
       RICLog.warn(`sendStreamStartMsg failed ${streamStartResp.rslt}`);
+      return false;
     }
+    return true;
   }
 
-  async _sendStreamEndMsg(
+  private async _sendStreamEndMsg(
     streamID: number | null,
-  ): Promise<void> {
+  ): Promise<boolean> {
     if (streamID === null) {
-      return;
+      return false;
     }
     // Stram end command message
     const cmdMsg = `{"cmdName":"ufEnd","reqStr":"ufEnd","streamID":${streamID}}`;
@@ -133,14 +184,20 @@ export default class RICStreamHandler {
     RICLog.debug(`sendStreamEndMsg ${cmdMsg}`);
 
     // Send
-    return await this._msgHandler.sendRICREST(
-      cmdMsg,
-      RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
-      true,
-    );
+    let streamEndResp = null;
+    try {    
+      streamEndResp = await this._msgHandler.sendRICREST<RICOKFail>(
+        cmdMsg,
+        RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
+      );
+    } catch (err) {
+      RICLog.error(`sendStreamEndMsg error ${err}`);
+      return false;
+    }
+    return streamEndResp.rslt === 'ok';
   }
 
-  async _sendStreamCancelMsg(): Promise<void> {
+  private async _sendStreamCancelMsg(): Promise<RICOKFail> {
     // File cancel command message
     const cmdMsg = `{"cmdName":"ufCancel"}`;
 
@@ -148,29 +205,33 @@ export default class RICStreamHandler {
     RICLog.debug(`sendStreamCancelMsg ${cmdMsg}`);
 
     // Send
-    return await this._msgHandler.sendRICREST(
+    return this._msgHandler.sendRICREST<RICOKFail>(
       cmdMsg,
       RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
-      true,
     );
   }
 
-  async _sendStreamContents(
+  private async _sendStreamContents(
     streamContents: Uint8Array,
-    progressCallback: ((sent: number, total: number, progress: number) => void) | undefined,
-  ) : Promise<void> {
-    if (progressCallback) {
-      progressCallback(0, streamContents.length, 0);
-    }
+  ) : Promise<boolean> {
 
     this._soktoReceived = false;
     this._soktoPos = 0;
     let streamPos = 0;
     const streamStartTime = Date.now();
 
+    // Check streamID is valid
+    if (this._streamID === null) {
+      return false;
+    }
+
     // Send stream blocks
-    let progressUpdateCtr = 0;
     while (this._soktoPos < streamContents.length) {
+
+      // Check if cancelled
+      if (this._isCancelled) {
+        return false;
+      }
 
       // Check for new sokto
       if (this._soktoReceived) {
@@ -180,51 +241,30 @@ export default class RICStreamHandler {
       }
 
       // Send stream block
-      if (this._isCancelled) {
-        await this._sendStreamCancelMsg();
-        break;
-      }
-
       const blockSize = Math.min(streamContents.length - streamPos, this._maxBlockSize);
       const block = streamContents.slice(streamPos, streamPos + blockSize);
       if (block.length > 0) {
-        await this._msgHandler.sendStreamBlock(block, streamPos);
+        const sentOk = await this._msgHandler.sendStreamBlock(block, streamPos, this._streamID);
 
         RICLog.debug(
-          `sendStreamContents ${Date.now()-streamStartTime}ms pos ${streamPos} ${blockSize} ${block.length} ${this._soktoPos}`,
+          `sendStreamContents ${sentOk ? "OK" : "FAILED"} ${Date.now()-streamStartTime}ms pos ${streamPos} ${blockSize} ${block.length} ${this._soktoPos}`,
         );
-
+        if (!sentOk) {
+          return false;
+        }
         streamPos += blockSize;
       }
 
-      // Show progress
-      progressUpdateCtr++;
-      if ((progressUpdateCtr >= 20) && progressCallback) {
-        // Update UI
-        progressCallback(
-          this._soktoPos,
-          streamContents.length,
-          this._soktoPos / streamContents.length,
-        );
-
-        // Debug
-        RICLog.verbose(
-          `sendStreamContents ${Date.now()-streamStartTime}ms progress ${progressUpdateCtr} sokto ${this._soktoPos} block len ${this._maxBlockSize}`,
-        );
-
-        // Continue
-        progressUpdateCtr = 0;
-      }
-
       // Wait to ensure we don't hog the CPU
-      await new Promise((resolve) => setTimeout(resolve, 5));
+      await new Promise((resolve) => setTimeout(resolve, 1));
     }
+    return true;
   }
 
   onSoktoMsg(soktoPos: number) {
     // Get how far we've progressed in file
     this._soktoPos = soktoPos;
     this._soktoReceived = true;
-    RICLog.verbose(`onOktoMsg received file up to ${this._soktoPos}`);
+    RICLog.verbose(`onSoktoMsg received file up to ${this._soktoPos}`);
   }
 }

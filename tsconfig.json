@@ -19,13 +19,9 @@
     "experimentalDecorators": true,
     "sourceMap": true,
     "outDir": "./dist/",
-    "types": [
-      "node",
-      "jest"
-    ],
     "lib": [
-      "ES6",
-      "DOM"
+      "es6",
+      "dom"
     ]
   },
   "include": [
