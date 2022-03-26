@@ -68,7 +68,7 @@ export default class RICChannelWebSocket implements RICChannel {
     // }
 
     // Connect
-    const connOk = await this._wsConnect(locator);
+    const connOk = await this._wsConnect("ws://" + locator + "/ws");
 
     // Check if ok
     if (!connOk) {

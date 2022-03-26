@@ -37,7 +37,7 @@ export default class RICChannelWebBLE implements RICChannel {
   // isEnabled
   isEnabled() {
     if (navigator.bluetooth) {
-      console.log("Web Bluetooth is supported in your browser.");
+      RICLog.error("Web Bluetooth is supported in your browser.");
       return true;
     } else {
       window.alert('Web Bluetooth API is not available.\n' +
@@ -59,18 +59,18 @@ export default class RICChannelWebBLE implements RICChannel {
   // Disconnection event
   onDisconnected(event: Event) {
     const device = event.target;
-    console.log(`RICChannelWebBLE.onDisconnected ${device}`);
+    RICLog.debug(`RICChannelWebBLE.onDisconnected ${device}`);
     this._isConnected = false;
   }
 
   // Connect to a device
   async connect(locator: string | object): Promise<boolean> {
-    // console.log(`Selected device: ${deviceID}`);
+    // RICLog.debug(`Selected device: ${deviceID}`);
     this._bleDevice = locator as BluetoothDevice;
     if (this._bleDevice && this._bleDevice.gatt) {
       try {
         await this._bleDevice.gatt.connect();
-        console.log(`RICChannelWebBLE.connect - starting connection to device ${this._bleDevice.name}`);
+        RICLog.debug(`RICChannelWebBLE.connect - starting connection to device ${this._bleDevice.name}`);
 
         // Add disconnect listener
         this._bleDevice.addEventListener('gattserverdisconnected', this.onDisconnected.bind(this));
@@ -78,26 +78,26 @@ export default class RICChannelWebBLE implements RICChannel {
         // Get service
         try {
           const service = await this._bleDevice.gatt.getPrimaryService(RICChannelWebBLE.RICServiceUUID);
-          console.log(`RICChannelWebBLE.connect - found service: ${service.uuid}`);
+          RICLog.debug(`RICChannelWebBLE.connect - found service: ${service.uuid}`);
 
           try {
             // Get Tx and Rx characteristics
             this._characteristicTx = await service.getCharacteristic(RICChannelWebBLE.RICCmdUUID);
-            console.log(`RICChannelWebBLE.connect - found char ${this._characteristicTx.uuid}`);
+            RICLog.debug(`RICChannelWebBLE.connect - found char ${this._characteristicTx.uuid}`);
             this._characteristicRx = await service.getCharacteristic(RICChannelWebBLE.RICRespUUID);
-            console.log(`RICChannelWebBLE.connect - found char ${this._characteristicRx.uuid}`);
+            RICLog.debug(`RICChannelWebBLE.connect - found char ${this._characteristicRx.uuid}`);
 
             // Notifications of received messages
             try {
               await this._characteristicRx.startNotifications();
-              console.log('RICChannelWebBLE.connect - notifications started');
+              RICLog.debug('RICChannelWebBLE.connect - notifications started');
               this._characteristicRx.addEventListener('characteristicvaluechanged', this._onMsgRx.bind(this));
             } catch (error) {
-              console.log('RICChannelWebBLE.connnect - addEventListener failed ' + error);
+              RICLog.debug('RICChannelWebBLE.connnect - addEventListener failed ' + error);
             }
 
             // Connected ok
-            console.log(`RICChannelWebBLE.connect ${this._bleDevice.name}`);
+            RICLog.debug(`RICChannelWebBLE.connect ${this._bleDevice.name}`);
 
             // Connected
             this._isConnected = true;
@@ -105,13 +105,13 @@ export default class RICChannelWebBLE implements RICChannel {
             return true;
 
           } catch (error) {
-            console.log(`Cannot find characteristic: ${error}`);
+            RICLog.error(`Cannot find characteristic: ${error}`);
           }
         } catch (error) {
-          console.log(`Cannot get service ${error}`);
+          RICLog.error(`Cannot get service ${error}`);
         }
-      } catch (error) {
-        console.log(error);
+      } catch (error: unknown) {
+        RICLog.warn(`${error}`);
       }
     }
     return false;
@@ -122,7 +122,7 @@ export default class RICChannelWebBLE implements RICChannel {
       try {
         await this._bleDevice.gatt.disconnect();
       } catch (error) {
-        console.log(`RICChannelWebBLE.disconnect ${error}`);
+        RICLog.debug(`RICChannelWebBLE.disconnect ${error}`);
       }
     }
   }

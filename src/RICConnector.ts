@@ -24,7 +24,7 @@ export class RICConnector {
   private _commsStats: RICCommsStats = new RICCommsStats();
 
   // Latest data from servos, IMU, etc
-  _ricStateInfo: RICStateInfo = new RICStateInfo();
+  private _ricStateInfo: RICStateInfo = new RICStateInfo();
 
   // Add-on Manager
   private _addOnManager = new RICAddOnManager();
@@ -65,13 +65,21 @@ export class RICConnector {
 
   constructor() {
     // Debug
-    console.log('RICConnector starting up');
+    RICLog.debug('RICConnector starting up');
   }
 
   isConnected() {
     // Check if connected
     const isConnected = this._ricChannel ? this._ricChannel.isConnected(true) : false;
     return isConnected;
+  }
+
+  getRICSystem(): RICSystem {
+    return this._ricSystem;
+  }
+
+  getRICState(): RICStateInfo {
+    return this._ricStateInfo;
   }
 
   /**
@@ -90,7 +98,7 @@ export class RICConnector {
       // Create channel
       this._ricChannel = new RICChannelWebBLE();
 
-    } else if (method === 'WebSocket' && typeof locator === 'string') {
+    } else if (((method.toLocaleLowerCase() === 'WebSocket') || (method.toLocaleLowerCase() === 'wifi')) && (typeof locator === 'string')) {
 
       // Create channel
       this._ricChannel = new RICChannelWebSocket();
@@ -108,8 +116,12 @@ export class RICConnector {
       this._ricMsgHandler.registerMsgSender(this._ricChannel);
 
       // Connect
-      return await this._ricChannel.connect(locator);
-
+      try {
+        return await this._ricChannel.connect(locator);
+      } catch (error) {
+        RICLog.error(`RICConnector.connect() error: ${error}`);
+        return false;
+      }
     }
 
     return false;
@@ -145,7 +157,7 @@ export class RICConnector {
       if (paramQueryStr.length > 0) commandName += '?' + paramQueryStr;
       return await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(commandName);
     } catch (error) {
-      console.log('runCommand failed', error);
+      RICLog.warn(`runCommand failed ${error}`);
       return new RICOKFail();
     }
   }
@@ -157,7 +169,7 @@ export class RICConnector {
     msgRsltCode: RICMsgResultCode,
     msgRsltJsonObj: object | null,
   ): void {
-    console.log(
+    RICLog.verbose(
       `onRxReply msgHandle ${msgHandle} rsltCode ${msgRsltCode} obj ${JSON.stringify(
         msgRsltJsonObj,
       )}`,
@@ -165,7 +177,7 @@ export class RICConnector {
   }
 
   onRxUnnumberedMsg(msgRsltJsonObj: { [key: string]: number | string }): void {
-    console.log(
+    RICLog.verbose(
       `onRxUnnumberedMsg rsltCode obj ${JSON.stringify(msgRsltJsonObj)}`,
     );
 
@@ -180,35 +192,35 @@ export class RICConnector {
   // Mark: Published data handling -----------------------------------------------------------------------------------------
 
   onRxOtherROSSerialMsg(topicID: number, payload: Uint8Array): void {
-    console.log(`onRxOtherROSSerialMsg topicID ${topicID} payload ${RICUtils.bufferToHex(payload)}`);
+    RICLog.debug(`onRxOtherROSSerialMsg topicID ${topicID} payload ${RICUtils.bufferToHex(payload)}`);
   }
 
   onRxSmartServo(smartServos: ROSSerialSmartServos): void {
-    // console.log(`onRxSmartServo ${JSON.stringify(smartServos)}`);
+    // RICLog.verbose(`onRxSmartServo ${JSON.stringify(smartServos)}`);
     this._ricStateInfo.smartServos = smartServos;
     this._ricStateInfo.smartServosValidMs = Date.now();
   }
 
   onRxIMU(imuData: ROSSerialIMU): void {
-    // console.log(`onRxIMU ${JSON.stringify(imuData)}`);
+    // RICLog.verbose(`onRxIMU ${JSON.stringify(imuData)}`);
     this._ricStateInfo.imuData = imuData;
     this._ricStateInfo.imuDataValidMs = Date.now();
   }
 
   onRxPowerStatus(powerStatus: ROSSerialPowerStatus): void {
-    // console.log(`onRxPowerStatus ${JSON.stringify(powerStatus)}`);
+    // RICLog.verbose(`onRxPowerStatus ${JSON.stringify(powerStatus)}`);
     this._ricStateInfo.power = powerStatus;
     this._ricStateInfo.powerValidMs = Date.now();
   }
 
   onRxAddOnPub(addOnInfo: ROSSerialAddOnStatusList): void {
-    // console.log(`onRxAddOnPub ${JSON.stringify(addOnInfo)}`);
+    // RICLog.verbose(`onRxAddOnPub ${JSON.stringify(addOnInfo)}`);
     this._ricStateInfo.addOnInfo = addOnInfo;
     this._ricStateInfo.addOnInfoValidMs = Date.now();
   }
 
   onRobotStatus(robotStatus: ROSSerialRobotStatus): void {
-    // console.log(`onRobotStatus ${JSON.stringify(robotStatus)}`);
+    // RICLog.verbose(`onRobotStatus ${JSON.stringify(robotStatus)}`);
     this._ricStateInfo.robotStatus = robotStatus;
     this._ricStateInfo.robotStatusValidMs = Date.now();
   }
@@ -232,7 +244,7 @@ export class RICConnector {
     this._ledPatternChecker.setup(ledLcdColours);
 
     // Start timer to repeat checking LED pattern
-    console.log(`checkCorrectRICStart: starting LED pattern checker`);
+    RICLog.debug(`checkCorrectRICStart: starting LED pattern checker`);
     if (!this._checkCorrectRICRefreshLEDs()) {
       return false;
     }
@@ -241,9 +253,9 @@ export class RICConnector {
     // This is because RIC's LED pattern override times out after a while
     // so has to be refreshed periodically
     this._ledPatternRefreshTimer = setInterval(async () => {
-      console.log(`checkCorrectRICStart: loop`);
+      RICLog.verbose(`checkCorrectRICStart: loop`);
       if (!this._checkCorrectRICRefreshLEDs()) {
-        console.debug('checkCorrectRICStart no longer active - clearing timer');
+        RICLog.debug('checkCorrectRICStart no longer active - clearing timer');
         this._clearLedPatternRefreshTimer();
       }
     }, this._ledPatternTimeoutMs / 2.1);
@@ -289,7 +301,7 @@ export class RICConnector {
     }
 
     // Check connected
-    console.log(`_verificationRepeat getting isConnected`);
+    RICLog.debug(`_verificationRepeat getting isConnected`);
     const isConnected = this._ricChannel ? await this._ricChannel.isConnected(true) : false;
     if (!isConnected) {
       console.warn('_verificationRepeat no longer connected to BLE');
@@ -297,7 +309,7 @@ export class RICConnector {
     }
 
     // Repeat the LED pattern (RIC times out the LED override after ~10 seconds)
-    console.log(`_verificationRepeat setting pattern`);
+    RICLog.debug(`_verificationRepeat setting pattern`);
     return await this._ledPatternChecker.setRICColors(this._ricMsgHandler, this._ledPatternTimeoutMs);
   }
 
@@ -319,8 +331,13 @@ export class RICConnector {
   async retrieveMartySystemInfo(): Promise<boolean> {
 
     // Retrieve system info
-    const retrieveResult = this._ricSystem.retrieveInfo();
-    if (!retrieveResult) {
+    try {
+      const retrieveResult = await this._ricSystem.retrieveInfo();
+      if (!retrieveResult) {
+        return false;
+      }
+    } catch (err) {
+      RICLog.error(`retrieveMartySystemInfo: error ${err}`);
       return false;
     }
 

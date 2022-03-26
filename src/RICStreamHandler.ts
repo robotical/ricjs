@@ -99,13 +99,12 @@ export default class RICStreamHandler {
     // Check if waiting for cancel
     if (this._isCancelled) {
       // Send cancel message
-      console.log('_streamAudioSend cancelling');
+      RICLog.debug('_streamAudioSend cancelling');
       try {
         await this._sendStreamCancelMsg();
       } catch (error) {
         RICLog.error(`RICStreamHandler._streamAudioSend ${error}`);
       }
-      console.log('_streamAudioSend cancelled');
       // Clear state
       this._streamID = null;
       this._isCancelled = false;
@@ -161,7 +160,7 @@ export default class RICStreamHandler {
     if (streamStartResp.rslt === 'ok') {
       this._streamID = streamStartResp.streamID;
       this._maxBlockSize = streamStartResp.maxBlockSize || this.DEFAULT_MAX_BLOCK_SIZE;
-      RICLog.debug(
+      RICLog.verbose(
         `sendStreamStartMsg streamID ${this._streamID} maxBlockSize ${this._maxBlockSize} streamType ${streamTypeEnum}`,
       );
     } else {
@@ -236,7 +235,7 @@ export default class RICStreamHandler {
       // Check for new sokto
       if (this._soktoReceived) {
         streamPos = this._soktoPos;
-        RICLog.debug(`sendStreamContents ${Date.now()-streamStartTime}ms soktoReceived for ${streamPos}`);
+        RICLog.verbose(`sendStreamContents ${Date.now()-streamStartTime}ms soktoReceived for ${streamPos}`);
         this._soktoReceived = false;
       }
 
@@ -246,7 +245,7 @@ export default class RICStreamHandler {
       if (block.length > 0) {
         const sentOk = await this._msgHandler.sendStreamBlock(block, streamPos, this._streamID);
 
-        RICLog.debug(
+        RICLog.verbose(
           `sendStreamContents ${sentOk ? "OK" : "FAILED"} ${Date.now()-streamStartTime}ms pos ${streamPos} ${blockSize} ${block.length} ${this._soktoPos}`,
         );
         if (!sentOk) {

@@ -1,52 +1,133 @@
 body {
     padding-top: 1rem;
     font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-  }
-  .main-container {
+}
+
+.main-container {
     font-size: 1rem;
-  }
-  .title {
+}
+
+.title {
     font-size: 1.2rem;
     padding: 0.5rem 0.5rem;
     text-align: center;
-  }
-  .info-columns {
+}
+
+.info-columns {
     display: flex;
     flex-direction: row;
     justify-content: space-around;
     align-items: center;
     padding: 0.5rem 0.5rem;
     border: 1px solid #ccc;
-  }
-  .examples-container {
+}
+
+.examples-container {
     font-size: 1rem;
     padding: 0.1rem 0.1rem;
     text-align: center;
-    flex-grow:1;
-  }
-  .example-row {
+    flex-grow: 1;
+}
+
+.button-row {
     margin: 0.5rem 0;
     padding: 0.1rem;
     flex-direction: column;
     display: flex;
     background-color: #efefef;
-  }
-  .example {
+}
+
+.button-container {
     width: 100%
-  }
-  .example-name {
+}
+
+.example-name {
     flex-grow: 3;
-  }
-  .example-button {
-    flex-grow:1;
-  }
-  .example-button button {
+}
+
+.example-button {
+    flex-grow: 1;
+}
+
+.example-button button {
     width: auto;
-  }
-  .example-name + .example-button {
+}
+
+.example-name+.example-button {
     margin-left: 2%;
-  }
-  .status-container {
+}
+
+.status-container {
     flex-grow: 1;
     padding: 1rem;
-  }
+}
+
+.status-disconn {
+    background-color: #f00;
+    color: #efefef;
+    padding: 0.2rem;
+}
+
+.status-conn {
+    background-color: #080;
+    color: #efefef;
+    padding: 0.2rem;
+}
+
+.pix-info {
+    display: inline;
+}
+
+.pix-info-idx {
+    display: inline;
+    padding-right: 0.5rem;
+}
+
+.pix-info-rgb {
+    display: inline-block;
+    margin-right: 0.5rem;
+    min-width: 20px;
+    min-height: 8px;
+    border: 2px solid #ccc;
+}
+
+.flag-info {
+    display: inline;
+    border: 2px solid #ccc;
+    padding-right: 4px;
+    margin-right: 3px;
+}
+
+.flag-line-sep {
+    display: block;
+    margin-top: 5px;
+}
+
+#imu-status-container {
+    margin-top: 10px;
+}
+
+.info-status-container {
+    margin-top: 10px;
+}
+
+.table-striped tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+table,
+th,
+td {
+    border-collapse: collapse;
+}
+
+.table-bordered table,
+th,
+td {
+    border: 1px solid black;
+    font-family: "consolas", "monospace";
+}
+
+.table-head {
+    font-weight: bold;
+}

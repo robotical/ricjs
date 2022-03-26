@@ -361,7 +361,7 @@ export default class RICMsgHandler {
     const framedMsg = this.frameCommsMsg(msgPayload, msgDirection, msgProtocol, true);
 
     // Debug
-    RICLog.debug(
+    RICLog.verbose(
       `sendMsgAndWaitForReply ${RICUtils.bufferToHex(framedMsg)}`,
     );
 
@@ -542,7 +542,7 @@ export default class RICMsgHandler {
     );
 
     // Debug
-    RICLog.debug(
+    RICLog.verbose(
       `msgTrackingTxCmdMsg msgNum ${this._currentMsgNumber
       } msg ${RICUtils.bufferToHex(msgFrame)} sanityCheck ${this._msgTrackInfos[this._currentMsgNumber].msgOutstanding
       }`,

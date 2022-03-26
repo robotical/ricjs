@@ -34,3 +34,16 @@ export async function connectBLE(params: Array<string>): Promise<void> {
 export async function disconnectBLE(params: Array<string>): Promise<void> {
     globalThis.ricConnector.disconnect();
 }
+
+export async function connectWiFi(params: Array<string>): Promise<void> {
+  const wifiIP = document.getElementById("wifi-ip") as HTMLInputElement;
+  const wifiPw = document.getElementById("wifi-pw") as HTMLInputElement;
+  const wifiIPAddr = wifiIP.value;
+  const wifiPwStr = wifiPw.value;
+  globalThis.ricConnector.connect("WiFi", wifiIPAddr);
+}
+
+export async function disconnectWiFi(params: Array<string>): Promise<void> {
+  globalThis.ricConnector.disconnect();
+}
+

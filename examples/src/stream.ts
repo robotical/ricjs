@@ -12,4 +12,8 @@ export async function streamSoundFile(params: Array<string>): Promise<void> {
     const audioBuffer = await fileData.arrayBuffer();
     const audioData = new Uint8Array(audioBuffer);
     globalThis.ricConnector.streamAudio(audioData, true);
-  }
+}
+
+export async function sendREST(params: Array<string>): Promise<void> {
+    globalThis.ricConnector.sendRICRESTMsg(params[0], {});
+}
