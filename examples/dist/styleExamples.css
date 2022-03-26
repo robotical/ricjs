@@ -131,3 +131,35 @@ td {
 .table-head {
     font-weight: bold;
 }
+
+.progress {
+    height: 1.0em;
+    width: 100%;
+    background-color: #c9c9c9;
+    position: relative;
+    display: inline;
+}
+
+.progress:before {
+    content: attr(data-label);
+    font-size: 0.8em;
+    position: absolute;
+    text-align: center;
+    top: 5px;
+    left: 0;
+    right: 0;
+}
+
+.progress .value {
+    background-color: #7cc4ff;
+    display: inline-block;
+    height: 100%;
+}
+
+.field-name {
+    display: inline;
+}
+
+.progress-line {
+    display: block;
+}

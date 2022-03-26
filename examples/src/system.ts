@@ -66,7 +66,7 @@ export function servoStatusFormat(name:string, servoStatus:ROSSerialSmartServos)
   let statusStr = "";
   for (let i = 0; i < servoStatus.smartServos.length; i++) {
     const servo = servoStatus.smartServos[i];
-    statusStr += `<progress class="flag-info" max="180" value="${servo.pos}"></progress>`;
+    statusStr += `<div class="progress-line"><span class="field-name">${servoNames[i]} ${servo.pos} current ${servo.current} status ${servo.status.toString(16)}</span><meter class="flag-info progress" min="-300" max="300" value="${servo.pos}"><span class="value" style="width:50%;"></span></meter></div>`;
   }
 
   return statusStr;
