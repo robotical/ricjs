@@ -1,7 +1,7 @@
 import { RICConnector } from "../../src/RICConnector";
 import RICLog from "../../src/RICLog";
 import { ROSSerialIMU, ROSSerialRGBT, ROSSerialRobotStatus, ROSSerialSmartServos } from "../../src/RICROSSerial";
-import { RICAddOnList, RICCalibInfo, RICHWElem, RICSystemInfo } from "../../src/RICTypes";
+import { Dictionary, RICAddOnList, RICCalibInfo, RICHWElem, RICSystemInfo } from "../../src/RICTypes";
 
 declare global {
     var ricConnector: RICConnector;
@@ -43,8 +43,36 @@ export function robotStatusFormat(name:string, robotStatus:ROSSerialRobotStatus)
 const tohex = (d:number) => Number(d).toString(16).padStart(2, '0');
 
 function pixInfoFormat(idx: number, pixInfo: ROSSerialRGBT): string {
-  const colourStr = tohex(Math.min(pixInfo.r * 4, 0xff)) + tohex(Math.min(pixInfo.g * 4, 0xff)) + tohex(Math.min(pixInfo.b * 4, 0xff));
-  return `<div class="pix-info"><div class="pix-info-idx">LED ${idx}</div><div class="pix-info-rgb" style="background-color:#${colourStr}"></div></div>`;
+  let colourStr = `#${tohex(pixInfo.r)}${tohex(pixInfo.g)}${tohex(pixInfo.b)}`;
+
+  // Convert any single colour to bright version of that colour
+  // And any white to solid white
+  if (pixInfo.r != 0) {
+    if ((pixInfo.g | pixInfo.b) == 0) {
+      colourStr = "#ff0000";
+    } else if ((pixInfo.r != 0) && (pixInfo.b != 0)) {
+      colourStr = "#ffffff";
+    }
+  } else if (pixInfo.g != 0) {
+    if (pixInfo.b == 0) {
+      colourStr = "#00ff00";
+    }
+  } else if (pixInfo.b != 0) {
+    colourStr = "#0000ff";
+  }
+
+  // Other conversions
+  const colourMappings: Dictionary<string> = {
+    "#101010": "#c0c0c0",
+    "#000040": "#0000ff",
+    "#002000": "#00ff00",
+    "#100000": "#ff0000",
+  };
+  // const colourStr = tohex(Math.min(pixInfo.r * 4, 0xff)) + tohex(Math.min(pixInfo.g * 4, 0xff)) + tohex(Math.min(pixInfo.b * 4, 0xff));
+  if (colourStr in colourMappings) {
+    colourStr = colourMappings[colourStr];
+  }
+  return `<div class="pix-info"><div class="pix-info-idx">LED ${idx}</div><div class="pix-info-rgb" style="background-color:${colourStr}"></div></div>`;
 }
 
 export function imuStatusFormat(name:string, imuStatus:ROSSerialIMU): string {

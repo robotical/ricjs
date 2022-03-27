@@ -364,18 +364,6 @@ export default class RICMsgHandler {
       `sendMsgAndWaitForReply ${RICUtils.bufferToHex(framedMsg)}`,
     );
 
-    // // Send
-    // let isOk = false;
-    // try {
-    //   isOk = await this._msgSender.sendTxMsg(framedMsg, withResponse);
-    // } catch (excp: unknown) {
-    //   RICLog.warn(`sendMsgAndWaitForReply failed ${excp}`);
-    // }
-    // if (!isOk)
-    // {
-    //   throw new Error('sendMsgAndWaitForReply returned false');
-    // }
-
     // Return a promise that will be resolved when a reply is received or timeout occurs
     const promise = new Promise<T>(async (resolve, reject) => {
 
@@ -393,35 +381,6 @@ export default class RICMsgHandler {
     return promise;
 
   }
-
-  // async sendMsgNoWaitForReply(
-  //   msgPayload: Uint8Array,
-  //   msgDirection: RICCommsMsgTypeCode,
-  //   msgProtocol: RICCommsMsgProtocol,
-  //   withResponse: boolean,
-  // ): Promise<boolean> {
-
-  //   // Check there is a sender
-  //   if (!this._msgSender) {
-  //     throw new Error('No message sender');
-  //   }
-
-  //   // Frame the message
-  //   const framedMsg = this.frameCommsMsg(msgPayload, msgDirection, msgProtocol, false);
-
-  //   // Debug
-  //   RICLog.debug(
-  //     `sendCommsMsg Message tx unnumbered ${RICUtils.bufferToHex(framedMsg)}`,
-  //   );
-
-  //   // Send
-  //   try {
-  //     return await this._msgSender.sendTxMsg(framedMsg, withResponse).catch((excp) => { throw excp; });
-  //   } catch (excp: unknown) {
-  //     RICLog.warn(`sendMsgNoWaitForReply sendTxMsg failed ${excp}`);
-  //     return false;
-  //   }
-  // }
 
   frameCommsMsg(
     msgPayload: Uint8Array,
@@ -588,10 +547,19 @@ export default class RICMsgHandler {
           if (this._msgTrackInfos[checkIdx].retryCount < RICMsgTrackInfo.MSG_RETRY_COUNT) {
             this._msgTrackInfos[checkIdx].retryCount++;
             try {
-              await this._msgSender.sendTxMsg(
+
+              // Send the message
+              if (!await this._msgSender.sendTxMsg(
                 this._msgTrackInfos[checkIdx].msgFrame,
-                this._msgTrackInfos[checkIdx].withResponse,
-              );
+                this._msgTrackInfos[checkIdx].withResponse)) {
+                RICLog.warn(`msgTrackTimer Message send failed msgNum ${checkIdx}`);
+                this._msgCompleted(checkIdx, RICMsgResultCode.MESSAGE_RESULT_FAIL, null);
+                this._commsStats.recordMsgNoConnection();
+              }
+
+              // Message sent ok so break here
+              break;
+
             } catch (error: unknown) {
               RICLog.warn(`Retry message failed ${error}`);
             }

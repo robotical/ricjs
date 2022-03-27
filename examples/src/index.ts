@@ -31,7 +31,7 @@ function updateStatus() {
   statusContainer.innerHTML = "";
   const status = document.createElement('div');
   const timeStr = ((Date.now() - startTime)/1000).toFixed(1);
-  const connStr = globalThis.ricConnector.isConnected() ? "Connected" : "Disconnected";
+  const connStr = globalThis.ricConnector.isConnected() ? "Connected to " + globalThis.ricConnector.getConnMethod() : "Disconnected";
   const connClass = globalThis.ricConnector.isConnected() ? "status-conn" : "status-disconn";
   const ricIMU = JSON.stringify(globalThis.ricConnector.getRICState().imuData, null, 2);
   status.innerHTML = `<div>Elapsed time ${timeStr}</div><div class="${connClass}">${connStr}</div>`;

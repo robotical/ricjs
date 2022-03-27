@@ -17,8 +17,11 @@ export type LedLcdColours = Array<RICLEDPatternCheckerColour>;
 
 export class RICConnector {
 
-  // Channels
+  // Channel
   private _ricChannel: RICChannel | null = null;
+
+  // Channel connection method
+  private _channelConnMethod: string = "";
 
   // Comms stats
   private _commsStats: RICCommsStats = new RICCommsStats();
@@ -70,8 +73,12 @@ export class RICConnector {
 
   isConnected() {
     // Check if connected
-    const isConnected = this._ricChannel ? this._ricChannel.isConnected(true) : false;
+    const isConnected = this._ricChannel ? this._ricChannel.isConnected() : false;
     return isConnected;
+  }
+
+  getConnMethod(): string {
+    return this._channelConnMethod;
   }
 
   getRICSystem(): RICSystem {
@@ -92,24 +99,37 @@ export class RICConnector {
    */
   async connect(method: string, locator: string | object): Promise<boolean> {
 
+    // Ensure disconnected
+    try {
+      await this.disconnect();
+    } catch (err) {
+      // Ignore
+    }
+
     // Check connection method
+    let connMethod = "";
     if (method === 'WebBLE' && typeof locator === 'object') {
 
       // Create channel
       this._ricChannel = new RICChannelWebBLE();
+      connMethod = 'WebBLE';
 
     } else if (((method.toLocaleLowerCase() === 'WebSocket') || (method.toLocaleLowerCase() === 'wifi')) && (typeof locator === 'string')) {
 
       // Create channel
       this._ricChannel = new RICChannelWebSocket();
-
+      connMethod = 'WebSocket';
     }
 
     // Check channel established
     if (this._ricChannel !== null) {
 
+      // Connection method
+      this._channelConnMethod = connMethod;
+
       // Set message handler
       this._ricChannel.setMsgHandler(this._ricMsgHandler);
+      this._ricChannel.setOnDisconnected(this);
 
       // Message handling in and out
       this._ricMsgHandler.registerForResults(this);
@@ -122,6 +142,8 @@ export class RICConnector {
         RICLog.error(`RICConnector.connect() error: ${error}`);
         return false;
       }
+    } else {
+      this._channelConnMethod = "";
     }
 
     return false;
@@ -273,15 +295,10 @@ export class RICConnector {
     // Stop refreshing LED pattern on RIC
     this._clearLedPatternRefreshTimer();
 
-    // Check if connected
-    const isConnected = this._ricChannel ? this._ricChannel.isConnected(true) : false;
-
     // Stop the LED pattern checker if connected
-    if (isConnected) {
+    if (this.isConnected()) {
       this._ledPatternChecker.clearRICColors(this._ricMsgHandler);
-    }
-
-    if (!isConnected || !confirmCorrectRIC) {
+    } else if (!confirmCorrectRIC) {
       // Indicate as rejected if we're not connected or if user didn't confirm
       return false;
     }
@@ -302,8 +319,7 @@ export class RICConnector {
 
     // Check connected
     RICLog.debug(`_verificationRepeat getting isConnected`);
-    const isConnected = this._ricChannel ? await this._ricChannel.isConnected(true) : false;
-    if (!isConnected) {
+    if (!this.isConnected()) {
       console.warn('_verificationRepeat no longer connected to BLE');
       return false;
     }
@@ -395,9 +411,13 @@ export class RICConnector {
 
   // Mark: Streaming --------------------------------------------------------------------------------
   streamAudio(streamContents: Uint8Array, clearExisting: boolean): void {
-    if (this._ricStreamHandler) {
+    if (this._ricStreamHandler && this.isConnected()) {
       this._ricStreamHandler.streamAudio(streamContents, clearExisting);
     }
   }
 
+  // On disconnected
+  onDisconnected(): void {
+    this._ricSystem.invalidate();
+  }
 }

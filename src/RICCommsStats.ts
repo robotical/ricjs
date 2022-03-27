@@ -32,6 +32,7 @@ export default class RICCommsStats {
   _msgAddOnPub = 0;
   _msgRobotStatus = 0;
   _msgOtherTopic = 0;
+  _msgNoConnection = 0;
 
   clear() {
     this._msgRxCount = 0;
@@ -56,6 +57,7 @@ export default class RICCommsStats {
     this._msgAddOnPub = 0;
     this._msgRobotStatus = 0;
     this._msgOtherTopic = 0;
+    this._msgNoConnection = 0;
   }
 
   msgRx(): void {
@@ -128,6 +130,10 @@ export default class RICCommsStats {
 
   recordMsgTimeout(): void {
     this._msgTimeout++;
+  }
+
+  recordMsgNoConnection(): void {
+    this._msgNoConnection++;
   }
 
   recordMsgRetry(): void {

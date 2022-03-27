@@ -157,14 +157,14 @@ export default class RICStreamHandler {
     }
 
     // Extract params
-    if (streamStartResp.rslt === 'ok') {
+    if (streamStartResp && (streamStartResp.rslt === 'ok')) {
       this._streamID = streamStartResp.streamID;
       this._maxBlockSize = streamStartResp.maxBlockSize || this.DEFAULT_MAX_BLOCK_SIZE;
       RICLog.verbose(
         `sendStreamStartMsg streamID ${this._streamID} maxBlockSize ${this._maxBlockSize} streamType ${streamTypeEnum}`,
       );
     } else {
-      RICLog.warn(`sendStreamStartMsg failed ${streamStartResp.rslt}`);
+      RICLog.warn(`sendStreamStartMsg failed ${streamStartResp ? streamStartResp.rslt : 'no response'}`);
       return false;
     }
     return true;

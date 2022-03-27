@@ -64,12 +64,14 @@ export default class RICSystem {
    * invalidate
    */
   invalidate() {
+    // Invalidate system info
     this._systemInfo = null;
     this._hwElems = new Array<RICHWElem>();
     this._addOnManager.clear();
     this._calibInfo = null;
     this._ricFriendlyName = null;
     this._ricFriendlyNameIsSet = false;
+    RICLog.debug('RICSystem information invalidated');
   }
 
   /**

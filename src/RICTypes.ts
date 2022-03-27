@@ -35,6 +35,10 @@ export interface RICSubscription {
   remove(): void;
 }
 
+export interface RICDisconnectHandler {
+  onDisconnected(): void;
+}
+
 export type RICFriendlyName = {
   friendlyName: string;
 };

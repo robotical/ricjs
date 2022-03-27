@@ -3,6 +3,7 @@ import WebSocket from "isomorphic-ws";
 import RICMsgHandler from "./RICMsgHandler";
 import RICLog from "./RICLog";
 import RICUtils from "./RICUtils";
+import { RICDisconnectHandler } from "./RICTypes";
 
 export default class RICChannelWebSocket implements RICChannel {
 
@@ -19,8 +20,11 @@ export default class RICChannelWebSocket implements RICChannel {
   // Is connected
   private _isConnected = false;
 
+  // Disconnection handler
+  private _onDisconnectHandler: RICDisconnectHandler | null = null;
+  
   // isConnected
-  isConnected(_forceCheck: boolean): boolean {
+  isConnected(): boolean {
     return this._isConnected;
   }
 
@@ -39,6 +43,12 @@ export default class RICChannelWebSocket implements RICChannel {
     return true;
   }
 
+  // Set onDisconnected handler
+  setOnDisconnected(disconnectHandler: RICDisconnectHandler): void {
+    this._onDisconnectHandler = disconnectHandler;
+  }
+
+  
   // Disconnection event
   onDisconnected() {
 
@@ -50,6 +60,11 @@ export default class RICChannelWebSocket implements RICChannel {
     
     // Disconnect websocket
     this._webSocket?.close(1000);
+
+    // On disconnected handler
+    if (this._onDisconnectHandler) {
+      this._onDisconnectHandler.onDisconnected();
+    }
   }
 
   // Connect to a device
@@ -171,7 +186,7 @@ export default class RICChannelWebSocket implements RICChannel {
   async _wsConnect(locator: string | object): Promise<boolean> {
 
     // Check already connected
-    if (await this.isConnected(false)) {
+    if (await this.isConnected()) {
       return true;
     }
 

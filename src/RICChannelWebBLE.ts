@@ -1,6 +1,7 @@
 import RICChannel from "./RICChannel";
 import RICLog from "./RICLog";
 import RICMsgHandler from "./RICMsgHandler";
+import { RICDisconnectHandler } from "./RICTypes";
 
 export default class RICChannelWebBLE implements RICChannel {
 
@@ -16,6 +17,9 @@ export default class RICChannelWebBLE implements RICChannel {
 
   // Message handler
   private _ricMsgHandler: RICMsgHandler | null = null;
+
+  // Disconnection handler
+  private _onDisconnectHandler: RICDisconnectHandler | null = null;
 
   // Last message tx time
   private _msgTxTimeLast = Date.now();
@@ -48,7 +52,7 @@ export default class RICChannelWebBLE implements RICChannel {
   }
 
   // isConnected
-  isConnected(_forceCheck: boolean): boolean {
+  isConnected(): boolean {
     return (this._bleDevice !== null) && this._isConnected;
   }
 
@@ -57,11 +61,19 @@ export default class RICChannelWebBLE implements RICChannel {
     // TODO 2022 - Not implemented yet
   }
 
+  // Set onDisconnected handler
+  setOnDisconnected(disconnectHandler: RICDisconnectHandler): void {
+    this._onDisconnectHandler = disconnectHandler;
+  }
+
   // Disconnection event
   onDisconnected(event: Event) {
     const device = event.target;
     RICLog.debug(`RICChannelWebBLE.onDisconnected ${device}`);
     this._isConnected = false;
+    if (this._onDisconnectHandler) {
+      this._onDisconnectHandler.onDisconnected();
+    }
   }
 
   // Connect to a device
