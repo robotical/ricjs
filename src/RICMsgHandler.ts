@@ -89,20 +89,16 @@ export interface RICMessageSender {
   ): Promise<boolean>;
 }
 
-// Message tracking
-const MAX_MSG_NUM = 255;
-const MSG_RESPONSE_TIMEOUT_MS = 5000;
-const MSG_RETRY_COUNT = 5;
-
 export default class RICMsgHandler {
   // Message numbering and tracking
   _currentMsgNumber = 1;
   _currentMsgHandle = 1;
   _msgTrackInfos: Array<RICMsgTrackInfo> = new Array<RICMsgTrackInfo>(
-    MAX_MSG_NUM + 1,
+    RICMsgTrackInfo.MAX_MSG_NUM + 1,
   );
   _msgTrackCheckTimer: ReturnType<typeof setTimeout> | null = null;
-  _msgTrackTimerMs = 100;
+  _msgTrackTimerMs = 50;
+  _msgTrackLastCheckIdx = 0;
 
   // report message callback dictionary. Add a callback to subscribe to report messages
   _reportMsgCallbacks = new Map<string, (report: RICReportMsg) => void>();
@@ -135,7 +131,7 @@ export default class RICMsgHandler {
 
     // Timer for checking messages
     this._msgTrackCheckTimer = setTimeout(async () => {
-      this._onMsgTrackTimer();
+      this._onMsgTrackTimer(true);
     }, this._msgTrackTimerMs);
 
     // HDLC used to encode/decode the RICREST protocol
@@ -359,23 +355,26 @@ export default class RICMsgHandler {
 
     // Frame the message
     const framedMsg = this.frameCommsMsg(msgPayload, msgDirection, msgProtocol, true);
+    if (!framedMsg) {
+      throw new Error('sendMsgAndWaitForReply failed to frame message');
+    }
 
     // Debug
     RICLog.verbose(
       `sendMsgAndWaitForReply ${RICUtils.bufferToHex(framedMsg)}`,
     );
 
-    // Send
-    let isOk = false;
-    try {
-      isOk = await this._msgSender.sendTxMsg(framedMsg, withResponse);
-    } catch (excp: unknown) {
-      RICLog.warn(`sendMsgAndWaitForReply failed ${excp}`);
-    }
-    if (!isOk)
-    {
-      throw new Error('sendMsgAndWaitForReply returned false');
-    }
+    // // Send
+    // let isOk = false;
+    // try {
+    //   isOk = await this._msgSender.sendTxMsg(framedMsg, withResponse);
+    // } catch (excp: unknown) {
+    //   RICLog.warn(`sendMsgAndWaitForReply failed ${excp}`);
+    // }
+    // if (!isOk)
+    // {
+    //   throw new Error('sendMsgAndWaitForReply returned false');
+    // }
 
     // Return a promise that will be resolved when a reply is received or timeout occurs
     const promise = new Promise<T>(async (resolve, reject) => {
@@ -391,112 +390,38 @@ export default class RICMsgHandler {
       this._currentMsgHandle++;
     });
 
-    // // Add a catch to the promise
-    // promise.catch((error: unknown) => {
-    //   if (error instanceof Error) {
-    //     RICLog.warn(`sendCommsMsg ${error.toString()}`);
-    //     promise.finally(() => {
-    //       RICLog.warn(`sendCommsMsg FINALLY`);
-    //     });
-    //   }
-    // });
-
     return promise;
 
   }
 
-  async sendMsgNoWaitForReply(
-    msgPayload: Uint8Array,
-    msgDirection: RICCommsMsgTypeCode,
-    msgProtocol: RICCommsMsgProtocol,
-    withResponse: boolean,
-  ): Promise<boolean> {
-
-    // Check there is a sender
-    if (!this._msgSender) {
-      throw new Error('No message sender');
-    }
-
-    // Frame the message
-    const framedMsg = this.frameCommsMsg(msgPayload, msgDirection, msgProtocol, false);
-
-    // Debug
-    RICLog.debug(
-      `sendCommsMsg Message tx unnumbered ${RICUtils.bufferToHex(framedMsg)}`,
-    );
-
-    // Send
-    try {
-      return await this._msgSender.sendTxMsg(framedMsg, withResponse).catch((excp) => { throw excp; });
-    } catch (excp: unknown) {
-      RICLog.warn(`sendMsgNoWaitForReply sendTxMsg failed ${excp}`);
-      return false;
-    }
-  }
-
-  // TODO 2022 - Investigate whether these lint errors are actually an issue
-  /* eslint-disable no-async-promise-executor */
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  // async sendCommsMsg<T>(
+  // async sendMsgNoWaitForReply(
   //   msgPayload: Uint8Array,
   //   msgDirection: RICCommsMsgTypeCode,
   //   msgProtocol: RICCommsMsgProtocol,
-  //   isNumbered: boolean,
   //   withResponse: boolean,
-  //   msgTimeoutMs: number | undefined,
-  // ): Promise<T> {
+  // ): Promise<boolean> {
 
+  //   // Check there is a sender
+  //   if (!this._msgSender) {
+  //     throw new Error('No message sender');
+  //   }
+
+  //   // Frame the message
+  //   const framedMsg = this.frameCommsMsg(msgPayload, msgDirection, msgProtocol, false);
+
+  //   // Debug
+  //   RICLog.debug(
+  //     `sendCommsMsg Message tx unnumbered ${RICUtils.bufferToHex(framedMsg)}`,
+  //   );
+
+  //   // Send
   //   try {
-  //     // Check there is a sender
-  //     if (!this._msgSender) {
-  //       throw new Error('No message sender');
-  //     }
-
-  //     // Debug
-  //     RICLog.debug(
-  //       `sendCommsMsg Message tx msgNum ${isNumbered ? this._currentMsgNumber : 'unnumbered'
-  //       } data ${RICUtils.bufferToHex(msgBuf)}`,
-  //     );
-
-  //     // Send
-  //     await this._msgSender.sendTxMsg(framedMsg, withResponse).catch((excp) => { throw excp; });
-
-  //     // Check if numbered
-  //     if (!isNumbered) {
-  //       return;
-  //     }
-
-  //     const promise = new Promise<T>(async (resolve, reject) => {
-
-  //         // Update message tracking
-  //           this.msgTrackingTxCmdMsg<T>(
-  //             framedMsg,
-  //             withResponse,
-  //             msgTimeoutMs,
-  //             resolve,
-  //             reject,
-  //           );
-  //           this._currentMsgHandle++;
-  //         }
-  //     });
-  //     promise.catch((error: unknown) => {
-  //       if (error instanceof Error) {
-  //         RICLog.warn(`sendCommsMsg ${error.toString()}`);
-  //         promise.finally(() => {
-  //           RICLog.warn(`sendCommsMsg FINALLY`);
-  //         });
-  //       }
-  //     });
-
-  //     return promise;
-
-  //   } catch (error: unknown) {
-  //     RICLog.warn(`sendCommsMsg Failed to send message rejecting ${error}`);
-  //     throw error;
+  //     return await this._msgSender.sendTxMsg(framedMsg, withResponse).catch((excp) => { throw excp; });
+  //   } catch (excp: unknown) {
+  //     RICLog.warn(`sendMsgNoWaitForReply sendTxMsg failed ${excp}`);
+  //     return false;
   //   }
   // }
-  /* eslint-enable no-async-promise-executor */
-  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   frameCommsMsg(
     msgPayload: Uint8Array,
@@ -552,7 +477,7 @@ export default class RICMsgHandler {
     this._commsStats.msgTx();
 
     // Bump msg number
-    if (this._currentMsgNumber == MAX_MSG_NUM) {
+    if (this._currentMsgNumber == RICMsgTrackInfo.MAX_MSG_NUM) {
       this._currentMsgNumber = 1;
     } else {
       this._currentMsgNumber++;
@@ -571,7 +496,7 @@ export default class RICMsgHandler {
         this._msgResultHandler.onRxUnnumberedMsg(msgRsltJsonObj);
       return;
     }
-    if (msgNum > MAX_MSG_NUM) {
+    if (msgNum > RICMsgTrackInfo.MAX_MSG_NUM) {
       RICLog.warn('msgTrackingRxRespMsg msgNum > 255');
       return;
     }
@@ -633,50 +558,62 @@ export default class RICMsgHandler {
   }
 
   // Check message timeouts
-  async _onMsgTrackTimer(): Promise<void> {
-    // Check message timeouts
-    for (let i = 0; i < MAX_MSG_NUM + 1; i++) {
-      if (!this._msgTrackInfos[i].msgOutstanding) continue;
-      let msgTimeoutMs = this._msgTrackInfos[i].msgTimeoutMs;
-      if (msgTimeoutMs === undefined)
-        msgTimeoutMs = MSG_RESPONSE_TIMEOUT_MS;
-      if (
-        Date.now() >
-        this._msgTrackInfos[i].msgSentMs + msgTimeoutMs
-      ) {
-        RICLog.debug(`msgTrackTimer Message response timeout msgNum ${i} retrying`);
-        RICLog.verbose(`msgTrackTimer retryMsg ${RICUtils.bufferToHex(this._msgTrackInfos[i].msgFrame)}`);
-        if (this._msgTrackInfos[i].retryCount < MSG_RETRY_COUNT) {
-          this._msgTrackInfos[i].retryCount++;
-          if (
-            this._msgSender !== null &&
-            this._msgTrackInfos[i].msgFrame !== null
-          ) {
+  async _onMsgTrackTimer(chainRecall: boolean): Promise<void> {
+   
+    if (this._msgSender !== null) {
+      // Handle message tracking
+      for (let loopIdx = 0; loopIdx < this._msgTrackInfos.length; loopIdx++) {
+
+        // Index to check
+        const checkIdx = this._msgTrackLastCheckIdx;
+        this._msgTrackLastCheckIdx = (checkIdx + 1) % this._msgTrackInfos.length;
+        
+        // Check if message is outstanding
+        if (!this._msgTrackInfos[checkIdx].msgOutstanding) continue;
+
+        // Get message timeout and ensure valid
+        let msgTimeoutMs = this._msgTrackInfos[checkIdx].msgTimeoutMs;
+        if (msgTimeoutMs === undefined) {
+          msgTimeoutMs = RICMsgTrackInfo.MSG_RESPONSE_TIMEOUT_MS;
+        }
+
+        // Check for timeout (or never sent)
+        if ((this._msgTrackInfos[checkIdx].retryCount === 0) || (Date.now() > this._msgTrackInfos[checkIdx].msgSentMs + msgTimeoutMs)) {
+
+          // Debug
+          RICLog.debug(`msgTrackTimer Message response timeout msgNum ${checkIdx} ${this._msgTrackInfos[checkIdx].retryCount === 0 ? 'first send' : 'timeout - retrying'}`);
+          // RICLog.verbose(`msgTrackTimer msg ${RICUtils.bufferToHex(this._msgTrackInfos[i].msgFrame)}`);
+    
+          // Handle timeout (or first send)
+          if (this._msgTrackInfos[checkIdx].retryCount < RICMsgTrackInfo.MSG_RETRY_COUNT) {
+            this._msgTrackInfos[checkIdx].retryCount++;
             try {
               await this._msgSender.sendTxMsg(
-                this._msgTrackInfos[i].msgFrame,
-                this._msgTrackInfos[i].withResponse,
+                this._msgTrackInfos[checkIdx].msgFrame,
+                this._msgTrackInfos[checkIdx].withResponse,
               );
             } catch (error: unknown) {
               RICLog.warn(`Retry message failed ${error}`);
             }
+            this._commsStats.recordMsgRetry();
+            this._msgTrackInfos[checkIdx].msgSentMs = Date.now();
+          } else {
+            RICLog.warn(
+              `msgTrackTimer TIMEOUT msgNum ${checkIdx} after ${RICMsgTrackInfo.MSG_RETRY_COUNT} retries`,
+            );
+            this._msgCompleted(checkIdx, RICMsgResultCode.MESSAGE_RESULT_TIMEOUT, null);
+            this._commsStats.recordMsgTimeout();
           }
-          this._commsStats.recordMsgRetry();
-          this._msgTrackInfos[i].msgSentMs = Date.now();
-        } else {
-          RICLog.warn(
-            `msgTrackTimer TIMEOUT msgNum ${i} after ${MSG_RETRY_COUNT} retries`,
-          );
-          this._msgCompleted(i, RICMsgResultCode.MESSAGE_RESULT_TIMEOUT, null);
-          this._commsStats.recordMsgTimeout();
         }
       }
     }
 
-    // Call again
-    this._msgTrackCheckTimer = setTimeout(async () => {
-      this._onMsgTrackTimer();
-    }, this._msgTrackTimerMs);
+    // Call again if required
+    if (chainRecall) {
+      this._msgTrackCheckTimer = setTimeout(async () => {
+        this._onMsgTrackTimer(true);
+      }, this._msgTrackTimerMs);
+    }
   }
 
   encodeFileStreamBlock(blockContents: Uint8Array,
@@ -745,6 +682,11 @@ export default class RICMsgHandler {
     blockStart: number,
     streamID: number,
   ): Promise<boolean> {
+
+    // Ensure any waiting messages are sent first
+    await this._onMsgTrackTimer(false);
+
+    // Encode message
     const msgBuf = this.encodeFileStreamBlock(blockContents, blockStart, streamID);
 
     // // Debug

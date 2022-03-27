@@ -19,7 +19,8 @@ export default class RICChannelWebBLE implements RICChannel {
 
   // Last message tx time
   private _msgTxTimeLast = Date.now();
-  private _msgTxMinTimeBetweenMs = 15;
+  private _msgTxMinTimeBetweenMs = 50;
+  private readonly maxRetries = 5;
 
   // Connected flag
   private _isConnected = false;
@@ -158,24 +159,30 @@ export default class RICChannelWebBLE implements RICChannel {
       return false;
     }
 
-    // Check for min time between messages
-    while (Date.now() - this._msgTxTimeLast < this._msgTxMinTimeBetweenMs) {
-      await new Promise(resolve => setTimeout(resolve, 5));
-    }
-    this._msgTxTimeLast = Date.now();
+    // Retry upto maxRetries
+    for (let retryIdx = 0; retryIdx < this.maxRetries; retryIdx++) {
+
+      // Check for min time between messages
+      while (Date.now() - this._msgTxTimeLast < this._msgTxMinTimeBetweenMs) {
+        await new Promise(resolve => setTimeout(resolve, 5));
+      }
+      this._msgTxTimeLast = Date.now();
 
     // Write to the characteristic
-    try {
-      if (this._characteristicTx) {
-        if (this._characteristicTx.writeValue) {
-          await this._characteristicTx.writeValue(msg);
-        } else if (this._characteristicTx.writeValueWithResponse) {
-          await this._characteristicTx.writeValueWithResponse(msg);
+      try {
+        if (this._characteristicTx) {
+          if (this._characteristicTx.writeValue) {
+            await this._characteristicTx.writeValue(msg);
+          } else if (this._characteristicTx.writeValueWithResponse) {
+            await this._characteristicTx.writeValueWithResponse(msg);
+          }
+        }
+        break;
+      } catch (error) {
+        if (retryIdx === this.maxRetries - 1) {
+          RICLog.debug(`RICChannelWebBLE.sendTxMsg ${error} retried ${retryIdx} times`);
         }
       }
-    } catch (error) {
-      RICLog.debug(`RICChannelWebBLE.sendTxMsg ${error}`);
-      return false;
     }
     return true;
   }
