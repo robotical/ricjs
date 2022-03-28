@@ -3,7 +3,7 @@ import WebSocket from "isomorphic-ws";
 import RICMsgHandler from "./RICMsgHandler";
 import RICLog from "./RICLog";
 import RICUtils from "./RICUtils";
-import { RICDisconnectHandler } from "./RICTypes";
+import { RICConnEvent, RICConnEventFn } from "./RICConnEvents";
 
 export default class RICChannelWebSocket implements RICChannel {
 
@@ -20,8 +20,8 @@ export default class RICChannelWebSocket implements RICChannel {
   // Is connected
   private _isConnected = false;
 
-  // Disconnection handler
-  private _onDisconnectHandler: RICDisconnectHandler | null = null;
+  // Conn event fn
+  private _onConnEvent: RICConnEventFn | null = null;
   
   // isConnected
   isConnected(): boolean {
@@ -43,44 +43,21 @@ export default class RICChannelWebSocket implements RICChannel {
     return true;
   }
 
-  // Set onDisconnected handler
-  setOnDisconnected(disconnectHandler: RICDisconnectHandler): void {
-    this._onDisconnectHandler = disconnectHandler;
-  }
-
-  
-  // Disconnection event
-  onDisconnected() {
-
-    // Debug
-    RICLog.debug(`RICChannelWebSocket.onDisconnected`);
-
-    // Not connected
-    this._isConnected = false;
-    
-    // Disconnect websocket
-    this._webSocket?.close(1000);
-
-    // On disconnected handler
-    if (this._onDisconnectHandler) {
-      this._onDisconnectHandler.onDisconnected();
-    }
+  // Set onConnEvent handler
+  setOnConnEvent(connEventFn: RICConnEventFn): void {
+    this._onConnEvent = connEventFn;
   }
 
   // Connect to a device
   async connect(locator: string | object): Promise<boolean> {
 
+    // Event
+    if (this._onConnEvent) {
+      this._onConnEvent(RICConnEvent.CONN_CONNECTING_RIC);
+    }
+
+    // Debug
     RICLog.debug("RICChannelWebSocket.connect " + locator.toString());
-
-
-    // TODO 2022 - event
-    // if (this._onStateChangeListener) {
-    //   this._onStateChangeListener(RICEvent.CONNECTING_RIC,
-    //     {
-    //       ipAddress: discoveredRIC.ipAddress,
-    //       ifType: RICIFType.RIC_INTERFACE_WIFI,
-    //     });
-    // }
 
     // Connect
     const connOk = await this._wsConnect("ws://" + locator + "/ws");
@@ -88,28 +65,16 @@ export default class RICChannelWebSocket implements RICChannel {
     // Check if ok
     if (!connOk) {
 
-      // TODO 2022 - event
-      // Inform of failure
-      // if (this._onStateChangeListener) {
-      //   this._onStateChangeListener(RICEvent.CONNECTING_RIC_FAIL,
-      //     {
-      //       ipAddress: discoveredRIC.ipAddress,
-      //       ifType: RICIFType.RIC_INTERFACE_WIFI,
-      //     });
-      //   return false;
-      // }
+      // Event
+      if (this._onConnEvent) {
+        this._onConnEvent(RICConnEvent.CONN_CONNECTION_FAILED);
+      }
     }
 
-    // TODO 2022
-    // Inform of success
-    // if (this._onStateChangeListener) {
-    //   this._onStateChangeListener(RICEvent.CONNECTED_RIC,
-    //     {
-    //       ipAddress: discoveredRIC.ipAddress,
-    //       name: this._ricToConnectTo.name,
-    //       ifType: RICIFType.RIC_INTERFACE_WIFI,
-    //     });
-    // }
+    // Event
+    if (this._onConnEvent) {
+      this._onConnEvent(RICConnEvent.CONN_CONNECTED_RIC);
+    }
 
     return true;
   }
@@ -222,14 +187,10 @@ export default class RICChannelWebSocket implements RICChannel {
           this._webSocket = null;
           this._isConnected = false;
 
-          // TODO 2022 
-          // // Report disconnection
-          // if (this._onStateChangeListener !== null) {
-          //   this._onStateChangeListener(RICEvent.DISCONNECTED_RIC,
-          //     {
-          //       ifType: RICIFType.RIC_INTERFACE_WIFI,
-          //     });
-          // }
+          // Event handler
+          if (this._onConnEvent) {
+            this._onConnEvent(RICConnEvent.CONN_DISCONNECTED_RIC);
+          }
         }
 
         // Resolve the promise - success

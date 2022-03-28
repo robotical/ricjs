@@ -4,7 +4,7 @@ import RICMsgHandler, { RICMsgResultCode } from "./RICMsgHandler";
 import RICChannelWebSocket from "./RICChannelWebSocket";
 import RICLEDPatternChecker, { RICLEDPatternCheckerColour } from "./RICLEDPatternChecker";
 import RICCommsStats from "./RICCommsStats";
-import { RICOKFail, RICStateInfo } from "./RICTypes";
+import { RICEventFn, RICOKFail, RICStateInfo } from "./RICTypes";
 import RICAddOnManager from "./RICAddOnManager";
 import RICSystem from "./RICSystem";
 import RICFileHandler from "./RICFileHandler";
@@ -12,6 +12,7 @@ import RICStreamHandler from "./RICStreamHandler";
 import { ROSSerialAddOnStatusList, ROSSerialIMU, ROSSerialPowerStatus, ROSSerialRobotStatus, ROSSerialSmartServos } from "./RICROSSerial";
 import RICUtils from "./RICUtils";
 import RICLog from "./RICLog";
+import { RICConnEvent, RICConnEventNames } from "./RICConnEvents";
 
 export type LedLcdColours = Array<RICLEDPatternCheckerColour>;
 
@@ -66,11 +67,18 @@ export class RICConnector {
     this._commsStats,
   );
 
+  // Event listener
+  private _onEventFn: RICEventFn | null = null;
+
   constructor() {
     // Debug
     RICLog.debug('RICConnector starting up');
   }
 
+  setEventListener(onEventFn: RICEventFn): void {
+    this._onEventFn = onEventFn;
+  }
+  
   isConnected() {
     // Check if connected
     const isConnected = this._ricChannel ? this._ricChannel.isConnected() : false;
@@ -129,7 +137,7 @@ export class RICConnector {
 
       // Set message handler
       this._ricChannel.setMsgHandler(this._ricMsgHandler);
-      this._ricChannel.setOnDisconnected(this);
+      this._ricChannel.setOnConnEvent(this.onConnEvent.bind(this));
 
       // Message handling in and out
       this._ricMsgHandler.registerForResults(this);
@@ -416,8 +424,19 @@ export class RICConnector {
     }
   }
 
-  // On disconnected
-  onDisconnected(): void {
-    this._ricSystem.invalidate();
+  // On connection event
+  onConnEvent(eventEnum: RICConnEvent, data: object | string | null | undefined): void {
+
+    // Handle information clearing on disconnect
+    switch(eventEnum) {
+      case RICConnEvent.CONN_DISCONNECTED_RIC:
+        this._ricSystem.invalidate();
+        break;
+    }
+
+    // Notify
+    if (this._onEventFn) {
+      this._onEventFn("conn", eventEnum, RICConnEventNames[eventEnum], data);
+    }
   }
 }

@@ -9,6 +9,7 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+import { RICConnEvent } from './RICConnEvents';
 import {
   ROSSerialSmartServos,
   ROSSerialIMU,
@@ -16,6 +17,7 @@ import {
   ROSSerialAddOnStatusList,
   ROSSerialRobotStatus,
 } from './RICROSSerial';
+import { RICUpdateEvent } from './RICUpdateEvents';
 
 export enum RICIFType {
   RIC_INTERFACE_BLE,
@@ -31,12 +33,15 @@ export enum RICStreamType {
   RIC_REAL_TIME_STREAM,
 }
 
+export type RICEventFn = (
+  eventType: string,
+  eventEnum: RICConnEvent | RICUpdateEvent,
+  eventName: string,
+  data?: object | string | null,
+) => void;
+
 export interface RICSubscription {
   remove(): void;
-}
-
-export interface RICDisconnectHandler {
-  onDisconnected(): void;
 }
 
 export type RICFriendlyName = {

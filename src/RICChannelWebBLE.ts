@@ -1,7 +1,7 @@
 import RICChannel from "./RICChannel";
+import { RICConnEvent, RICConnEventFn } from "./RICConnEvents";
 import RICLog from "./RICLog";
 import RICMsgHandler from "./RICMsgHandler";
-import { RICDisconnectHandler } from "./RICTypes";
 
 export default class RICChannelWebBLE implements RICChannel {
 
@@ -18,8 +18,8 @@ export default class RICChannelWebBLE implements RICChannel {
   // Message handler
   private _ricMsgHandler: RICMsgHandler | null = null;
 
-  // Disconnection handler
-  private _onDisconnectHandler: RICDisconnectHandler | null = null;
+  // Conn event fn
+  private _onConnEvent: RICConnEventFn | null = null;
 
   // Last message tx time
   private _msgTxTimeLast = Date.now();
@@ -28,6 +28,9 @@ export default class RICChannelWebBLE implements RICChannel {
 
   // Connected flag
   private _isConnected = false;
+
+  // Event listener fn
+  private _eventListenerFn: (event: Event) => void | null = null;
 
   // Set message handler
   setMsgHandler(ricMsgHandler: RICMsgHandler): void {
@@ -61,32 +64,43 @@ export default class RICChannelWebBLE implements RICChannel {
     // TODO 2022 - Not implemented yet
   }
 
-  // Set onDisconnected handler
-  setOnDisconnected(disconnectHandler: RICDisconnectHandler): void {
-    this._onDisconnectHandler = disconnectHandler;
+  // Set onConnEvent handler
+  setOnConnEvent(connEventFn: RICConnEventFn): void {
+    this._onConnEvent = connEventFn;
   }
 
   // Disconnection event
   onDisconnected(event: Event) {
     const device = event.target;
     RICLog.debug(`RICChannelWebBLE.onDisconnected ${device}`);
+    if (this._bleDevice) {
+      this._bleDevice.removeEventListener('gattserverdisconnected', this._eventListenerFn);
+    }
     this._isConnected = false;
-    if (this._onDisconnectHandler) {
-      this._onDisconnectHandler.onDisconnected();
+    if (this._onConnEvent) {
+      this._onConnEvent(RICConnEvent.CONN_DISCONNECTED_RIC);
     }
   }
 
   // Connect to a device
   async connect(locator: string | object): Promise<boolean> {
+
+    // Event
+    if (this._onConnEvent) {
+      this._onConnEvent(RICConnEvent.CONN_CONNECTING_RIC);
+    }
+
     // RICLog.debug(`Selected device: ${deviceID}`);
     this._bleDevice = locator as BluetoothDevice;
     if (this._bleDevice && this._bleDevice.gatt) {
       try {
+
         await this._bleDevice.gatt.connect();
         RICLog.debug(`RICChannelWebBLE.connect - starting connection to device ${this._bleDevice.name}`);
 
         // Add disconnect listener
-        this._bleDevice.addEventListener('gattserverdisconnected', this.onDisconnected.bind(this));
+        this._eventListenerFn = this.onDisconnected.bind(this);
+        this._bleDevice.addEventListener('gattserverdisconnected', this._eventListenerFn);
 
         // Get service
         try {
@@ -115,6 +129,11 @@ export default class RICChannelWebBLE implements RICChannel {
             // Connected
             this._isConnected = true;
 
+            // Event
+            if (this._onConnEvent) {
+              this._onConnEvent(RICConnEvent.CONN_CONNECTED_RIC);
+            }
+
             return true;
 
           } catch (error) {
@@ -127,6 +146,12 @@ export default class RICChannelWebBLE implements RICChannel {
         RICLog.warn(`${error}`);
       }
     }
+
+    // Event
+    if (this._onConnEvent) {
+      this._onConnEvent(RICConnEvent.CONN_CONNECTION_FAILED);
+    }
+
     return false;
   }
 

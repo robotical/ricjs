@@ -3,9 +3,23 @@ import { connectBLE, connectWiFi, disconnectBLE, disconnectWiFi } from './connec
 import { sendREST, streamSoundFile } from './stream';
 import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet } from './system';
 import { Dictionary } from '../../src/RICTypes';
+import { RICConnEvent } from '../../src/RICConnEvents';
+import { RICUpdateEvent } from '../../src/RICUpdateEvents';
 
 let startTime = Date.now();
 globalThis.ricConnector = new RICConnector();
+if (globalThis.ricConnector) {
+  globalThis.ricConnector.setEventListener((eventType: string, eventEnum: RICConnEvent | RICUpdateEvent, eventName: string, eventData?:object | string | null) => {
+    const eventField = document.getElementById("event-field") as HTMLElement;
+    if (eventField) {
+      if (eventField.innerHTML.length === 0) {
+        eventField.innerHTML = "<div>Events</div>";
+      }
+      const timeStr = ((Date.now() - startTime)/1000).toFixed(1);
+      eventField.innerHTML += `<div><span class="event-time-info">${timeStr}</span><span class="event-info">${eventName}<span></div>`;
+    };
+  });
+}
 
 const prevStatus: Dictionary<string> = {};
 
@@ -74,9 +88,15 @@ function addFields(defs: Array<{name: string, elId: string}>, container: Element
   });
 }
 
-function genStatusBlock(id: string, elclass: string, parent: Element): Element {
+function genStatusBlock(id: string, elclass: string | Array<string>, parent: Element): Element {
   const statusBlock = document.createElement('div');
-  statusBlock.classList.add(elclass);
+  if (typeof elclass === 'string') {
+    statusBlock.classList.add(elclass);
+  } else {
+    elclass.forEach(cls => {
+      statusBlock.classList.add(cls);
+    });
+  }
   statusBlock.id = id;
   parent.appendChild(statusBlock);
   return statusBlock;
@@ -98,6 +118,7 @@ function component() {
   statusContainer.classList.add('status-container');
   statusContainer.id = 'status-container';
 
+  genStatusBlock('event-field', ['info-status-container', 'info-status-scroll'], statusContainer);
   genStatusBlock('time-status-container', 'info-status-container', statusContainer);
   genStatusBlock('robot-status-container', 'info-status-container', statusContainer);
   genStatusBlock('imu-status-container', 'info-status-container', statusContainer);
