@@ -24,9 +24,9 @@ async function getBleDevice(): Promise<BluetoothDevice | null> {
 export async function connectBLE(params: Array<string>): Promise<void> {
     const dev = await getBleDevice();
     if (await globalThis.ricConnector.connect("WebBLE", dev)) {
-        console.log("Connected to device " + dev.name);
+        console.log("connectBLE - connected to device " + dev.name);
     } else {
-        console.log("User cancelled");
+        console.log("connectBLE - failed to connect");
         return;
     }
 }
