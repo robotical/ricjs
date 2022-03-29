@@ -1,7 +1,7 @@
 import { RICConnector } from '../../src/RICConnector';
 import { connectBLE, connectWiFi, disconnectBLE, disconnectWiFi } from './connect';
 import { sendREST, streamSoundFile } from './stream';
-import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet } from './system';
+import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest } from './system';
 import { Dictionary } from '../../src/RICTypes';
 import { RICConnEvent } from '../../src/RICConnEvents';
 import { RICUpdateEvent } from '../../src/RICUpdateEvents';
@@ -120,6 +120,7 @@ function component() {
 
   genStatusBlock('event-field', ['info-status-container', 'info-status-scroll'], statusContainer);
   genStatusBlock('time-status-container', 'info-status-container', statusContainer);
+  genStatusBlock('conn-perf-status-container', 'info-status-container', statusContainer);
   genStatusBlock('robot-status-container', 'info-status-container', statusContainer);
   genStatusBlock('imu-status-container', 'info-status-container', statusContainer);
   genStatusBlock('servo-status-container', 'info-status-container', statusContainer);
@@ -152,6 +153,7 @@ function component() {
   ]
 
   const buttonDefs = [
+    {name: "Conn Perf", button: "Perf Test", func: connPerfTest, params: []},
     {name: "Get SysInfo", button: "Get SysInfo", func: sysInfoGet, params: []},
     {name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["test440ToneQuietShort.mp3"]},
     {name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["completed_tone_low_br.mp3"]},

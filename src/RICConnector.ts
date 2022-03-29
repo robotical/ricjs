@@ -61,9 +61,9 @@ export class RICConnector {
   private _subscribeRateHz = 10;
 
   // Connection performance checker
-  // private _connPerfTimer: typeof setTimeout | null = null;
-  // private _testConnPerfBlockSize = 500;
-  // private _testConnPerfNumBlocks = 7;
+  private readonly _testConnPerfBlockSize = 500;
+  private readonly _testConnPerfNumBlocks = 7;
+  private readonly _connPerfRsltDelayMs = 4000;
 
   // File handler
   private _ricFileHandler: RICFileHandler = new RICFileHandler(
@@ -88,7 +88,7 @@ export class RICConnector {
   setEventListener(onEventFn: RICEventFn): void {
     this._onEventFn = onEventFn;
   }
-  
+
   isConnected() {
     // Check if connected
     const isConnected = this._ricChannel ? this._ricChannel.isConnected() : false;
@@ -434,11 +434,54 @@ export class RICConnector {
     }
   }
 
-  // On connection event
+  // Mark: Connection performance--------------------------------------------------------------------------
+
+  parkmiller_next(seed: number) {
+    let hi = Math.round(16807 * (seed & 0xffff));
+    let lo = Math.round(16807 * (seed >> 16));
+    lo += (hi & 0x7fff) << 16;
+    lo += hi >> 15;
+    if (lo > 0x7fffffff)
+      lo -= 0x7fffffff;
+    return lo;
+  }
+
+  async checkConnPerformance(): Promise<number | undefined> {
+
+    // Send empty blocks of data - these will be ignored by RIC - but will still be counted for performance
+    // evaluation
+    let prbsState = 1;
+    const testData = new Uint8Array(this._testConnPerfBlockSize);
+    for (let i = 0; i < this._testConnPerfNumBlocks; i++) {
+      testData.set([0, (i >> 24) & 0xff, (i >> 16) & 0xff, (i >> 8) & 0xff, i & 0xff, 0x1f, 0x9d, 0xf4, 0x7a, 0xb5]);
+      for (let j = 10; j < this._testConnPerfBlockSize; j++) {
+        prbsState = this.parkmiller_next(prbsState);
+        testData[j] = prbsState & 0xff;
+      }
+      if (this._ricChannel) {
+        await this._ricChannel.sendTxMsg(testData, false);
+      }
+    }
+
+    // Wait a little to allow RIC to process the data
+    await new Promise(resolve => setTimeout(resolve, this._connPerfRsltDelayMs));
+
+    // Get performance
+    const blePerf = await this._ricSystem.getSysModInfoBLEMan();
+    if (blePerf) {
+      console.log(`startConnPerformanceCheck timer rate = ${blePerf.tBPS}BytesPS`);
+      return blePerf.tBPS;
+    } else {
+      throw new Error('checkConnPerformance: failed to get BLE performance');
+    }
+  }
+
+  // Mark: Connection event --------------------------------------------------------------------------
+  
   onConnEvent(eventEnum: RICConnEvent, data: object | string | null | undefined): void {
 
     // Handle information clearing on disconnect
-    switch(eventEnum) {
+    switch (eventEnum) {
       case RICConnEvent.CONN_DISCONNECTED_RIC:
         this._ricSystem.invalidate();
         break;
@@ -449,4 +492,6 @@ export class RICConnector {
       this._onEventFn("conn", eventEnum, RICConnEventNames[eventEnum], data);
     }
   }
+
+
 }
