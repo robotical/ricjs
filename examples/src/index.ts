@@ -153,7 +153,7 @@ function component() {
   ]
 
   const buttonDefs = [
-    {name: "Conn Perf", button: "Perf Test", func: connPerfTest, params: []},
+    {name: "BLE Perf", button: "Perf Test BLE", func: connPerfTest, params: []},
     {name: "Get SysInfo", button: "Get SysInfo", func: sysInfoGet, params: []},
     {name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["test440ToneQuietShort.mp3"]},
     {name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["completed_tone_low_br.mp3"]},

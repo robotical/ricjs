@@ -43,6 +43,7 @@ body {
 
 .example-name {
     flex-grow: 3;
+    padding-right: 5px;
 }
 
 .example-button {
