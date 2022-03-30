@@ -32,7 +32,7 @@ export class RICConnector {
   private _ricChannel: RICChannel | null = null;
 
   // Channel connection method and locator
-  private _channelConnMethod: string = "";
+  private _channelConnMethod = "";
   private _channelConnLocator: string | object = "";
 
   // Comms stats
@@ -416,8 +416,8 @@ export class RICConnector {
       if (this._ricChannel.requiresSubscription()) {
         try {
           await this.subscribeForUpdates(true);
-        } catch (error: any) {
-          RICLog.warn(`eventConnect - subscribe for updates failed ${error.toString()}`)
+        } catch (error: unknown) {
+          RICLog.warn(`eventConnect - subscribe for updates failed ${error}`)
         }
       }
       return true;
@@ -453,8 +453,8 @@ export class RICConnector {
 
       // Debug
       RICLog.debug(`subscribe enable/disable returned ${JSON.stringify(ricResp)}`);
-    } catch (error: any) {
-      RICLog.warn(`getRICCalibInfo Failed subscribe for updates ${error.toString()}`);
+    } catch (error: unknown) {
+      RICLog.warn(`getRICCalibInfo Failed subscribe for updates ${error}`);
     }
   }
 
@@ -468,7 +468,7 @@ export class RICConnector {
   // Mark: Connection performance--------------------------------------------------------------------------
 
   parkmiller_next(seed: number) {
-    let hi = Math.round(16807 * (seed & 0xffff));
+    const hi = Math.round(16807 * (seed & 0xffff));
     let lo = Math.round(16807 * (seed >> 16));
     lo += (hi & 0x7fff) << 16;
     lo += hi >> 15;

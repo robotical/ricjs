@@ -31,7 +31,7 @@ export default class RICStreamHandler {
   private _msgHandler: RICMsgHandler;
 
   // RICCommsStats
-  // private _commsStats: RICCommsStats;
+  private _commsStats: RICCommsStats;
 
   // Cancel flag
   private _isCancelled = false;
@@ -40,9 +40,9 @@ export default class RICStreamHandler {
   private _soktoReceived = false;
   private _soktoPos = 0;
 
-  constructor(msgHandler: RICMsgHandler, _commsStats: RICCommsStats) {
+  constructor(msgHandler: RICMsgHandler, commsStats: RICCommsStats) {
     this._msgHandler = msgHandler;
-    // this._commsStats = commsStats;
+    this._commsStats = commsStats;
     this.onSoktoMsg = this.onSoktoMsg.bind(this);
   }
 
@@ -243,6 +243,7 @@ export default class RICStreamHandler {
       const block = streamContents.slice(streamPos, streamPos + blockSize);
       if (block.length > 0) {
         const sentOk = await this._msgHandler.sendStreamBlock(block, streamPos, this._streamID);
+        this._commsStats.recordStreamBytes(block.length);
 
         RICLog.verbose(
           `sendStreamContents ${sentOk ? "OK" : "FAILED"} ${Date.now()-streamStartTime}ms pos ${streamPos} ${blockSize} ${block.length} ${this._soktoPos}`,

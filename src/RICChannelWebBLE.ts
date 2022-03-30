@@ -199,7 +199,7 @@ export default class RICChannelWebBLE implements RICChannel {
   // Send a message
   async sendTxMsg(
     msg: Uint8Array,
-    _sendWithResponse: boolean
+//    _sendWithResponse: boolean
   ): Promise<boolean> {
     // Check valid
     if (this._bleDevice === null) {
@@ -237,7 +237,7 @@ export default class RICChannelWebBLE implements RICChannel {
   // Send message without awaiting response
   async sendTxMsgNoAwait(
     msg: Uint8Array,
-    _sendWithResponse: boolean
+//    _sendWithResponse: boolean
   ): Promise<boolean> {
 
     // Check valid

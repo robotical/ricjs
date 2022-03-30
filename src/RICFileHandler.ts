@@ -179,6 +179,7 @@ export default class RICFileHandler {
     try {
       await this.awaitOutstandingMsgPromises(true);
     } catch (err) {
+      // Ignore
     }
 
     // Send

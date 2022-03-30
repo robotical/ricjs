@@ -152,7 +152,7 @@ export default class RICChannelWebSocket implements RICChannel {
     // }
     this._webSocket = null;
     return new Promise((resolve: (value: boolean | PromiseLike<boolean>) => void,
-      reject: (reason?: any) => void) => {
+      reject: (reason?: unknown) => void) => {
       this._webSocketOpen(wsURL).then((ws) => {
         this._webSocket = ws;
         RICLog.debug(`_wsConnect - opened connection`);
@@ -203,7 +203,7 @@ export default class RICChannelWebSocket implements RICChannel {
         // Open socket
         webSocket.binaryType = "arraybuffer";
         webSocket.onopen = (_evt: WebSocket.Event) => {
-          RICLog.debug(`RICChannelWebSocket._webSocketOpen - onopen`);
+          RICLog.debug(`RICChannelWebSocket._webSocketOpen - onopen ${_evt.toString()}`);
           // // We're connected
           this._isConnected = true;
           resolve(webSocket);
@@ -212,8 +212,8 @@ export default class RICChannelWebSocket implements RICChannel {
           RICLog.warn(`RICChannelWebSocket._webSocketOpen - onerror: ${evt.message}`);
           reject(evt);
         }
-      } catch (error: any) {
-        RICLog.warn(`RICChannelWebSocket._webSocketOpen - open failed ${error.toString()}`);
+      } catch (error: unknown) {
+        RICLog.warn(`RICChannelWebSocket._webSocketOpen - open failed ${error}`);
         reject(error);
       }
     });

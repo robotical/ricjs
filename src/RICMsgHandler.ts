@@ -364,7 +364,7 @@ export default class RICMsgHandler {
     );
 
     // Return a promise that will be resolved when a reply is received or timeout occurs
-    const promise = new Promise<T>(async (resolve, reject) => {
+    const promise = new Promise<T>((resolve, reject) => {
 
       // Update message tracking
       this.msgTrackingTxCmdMsg<T>(
@@ -495,7 +495,7 @@ export default class RICMsgHandler {
     if (resolve) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       RICLog.debug(`_msgCompleted resolve ${msgRsltCode} ${JSON.stringify(msgRsltObj)}`);
-      (resolve as any)(msgRsltObj);
+      (resolve as ((arg: object | null) => void))(msgRsltObj);
     }
     // } else {
     //   const reject = this._msgTrackInfos[msgNum].reject;
