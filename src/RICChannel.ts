@@ -20,6 +20,5 @@ export default interface RICChannel
     setMsgHandler(ricMsgHandler: RICMsgHandler): void;
     sendTxMsg(msg: Uint8Array, sendWithResponse: boolean): Promise<boolean>;
     sendTxMsgNoAwait(msg: Uint8Array, sendWithResponse: boolean): Promise<boolean>;
-    setRetryConnectionIfLost(retry: boolean): void;
     requiresSubscription(): boolean;
 }

@@ -70,11 +70,6 @@ export default class RICChannelWebBLE implements RICChannel {
     return (this._bleDevice !== null) && this._isConnected;
   }
 
-  // Set retry channel mode
-  setRetryConnectionIfLost(_retry: boolean): void {
-    // TODO 2022 - Not implemented yet
-  }
-
   // Set onConnEvent handler
   setOnConnEvent(connEventFn: RICConnEventFn): void {
     this._onConnEvent = connEventFn;
@@ -95,11 +90,6 @@ export default class RICChannelWebBLE implements RICChannel {
 
   // Connect to a device
   async connect(locator: string | object): Promise<boolean> {
-
-    // Event
-    if (this._onConnEvent) {
-      this._onConnEvent(RICConnEvent.CONN_CONNECTING_RIC);
-    }
 
     // RICLog.debug(`Selected device: ${deviceID}`);
     this._bleDevice = locator as BluetoothDevice;
@@ -144,12 +134,6 @@ export default class RICChannelWebBLE implements RICChannel {
 
               // Connected
               this._isConnected = true;
-
-              // Event
-              if (this._onConnEvent) {
-                this._onConnEvent(RICConnEvent.CONN_CONNECTED_RIC);
-              }
-
               return true;
 
             } catch (error) {
@@ -174,10 +158,6 @@ export default class RICChannelWebBLE implements RICChannel {
         } catch (error) {
           RICLog.warn(`RICChannelWebBLE.connect - cannot disconnect ${error}`);
         }
-      }
-      // Event
-      if (this._onConnEvent) {
-        this._onConnEvent(RICConnEvent.CONN_CONNECTION_FAILED);
       }
     }
 

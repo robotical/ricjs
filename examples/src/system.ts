@@ -28,6 +28,12 @@ export async function connPerfTest(params: Array<string>): Promise<void> {
   }
 }
 
+export async function setReconnect(params: Array<string | number | boolean>): Promise<void> {
+  if (globalThis.ricConnector.isConnected()) {
+    globalThis.ricConnector.setRetryConnectionIfLost(params[0] as boolean, params[1] as number);
+  }
+}
+
 export function robotStatusFormat(name:string, robotStatus:ROSSerialRobotStatus): string {
 
   // robotStatus = JSON.parse('{ "robotStatus": { "flags": 0, "isMoving": false, "isPaused": false, "isFwUpdating": false, "workQCount": 0, "heapFree": 77280, "heapMin": 56540, "pixRGBT": [ { "r": 0, "g": 0, "b": 64, "t": 1 }, { "r": 0, "g": 0, "b": 0, "t": 0 }, { "r": 0, "g": 0, "b": 32, "t": 1 } ], "loopMsAvg": 2, "loopMsMax": 5 } }');

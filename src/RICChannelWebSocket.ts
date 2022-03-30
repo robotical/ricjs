@@ -43,11 +43,6 @@ export default class RICChannelWebSocket implements RICChannel {
     this._ricMsgHandler = ricMsgHandler;
   }
 
-  // Set retry channel mode
-  setRetryConnectionIfLost(_retry: boolean): void {
-    // TODO 2022 - Not implemented yet
-  }
-
   // WebSocket interfaces require subscription to published messages
   requiresSubscription(): boolean {
     return true;
@@ -61,32 +56,12 @@ export default class RICChannelWebSocket implements RICChannel {
   // Connect to a device
   async connect(locator: string | object): Promise<boolean> {
 
-    // Event
-    if (this._onConnEvent) {
-      this._onConnEvent(RICConnEvent.CONN_CONNECTING_RIC);
-    }
-
     // Debug
     RICLog.debug("RICChannelWebSocket.connect " + locator.toString());
 
     // Connect
     const connOk = await this._wsConnect("ws://" + locator + "/ws");
-
-    // Check if ok
-    if (!connOk) {
-
-      // Event
-      if (this._onConnEvent) {
-        this._onConnEvent(RICConnEvent.CONN_CONNECTION_FAILED);
-      }
-    }
-
-    // Event
-    if (this._onConnEvent) {
-      this._onConnEvent(RICConnEvent.CONN_CONNECTED_RIC);
-    }
-
-    return true;
+    return connOk;
   }
 
   // Disconnect

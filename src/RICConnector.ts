@@ -31,8 +31,9 @@ export class RICConnector {
   // Channel
   private _ricChannel: RICChannel | null = null;
 
-  // Channel connection method
+  // Channel connection method and locator
   private _channelConnMethod: string = "";
+  private _channelConnLocator: string | object = "";
 
   // Comms stats
   private _commsStats: RICCommsStats = new RICCommsStats();
@@ -65,6 +66,13 @@ export class RICConnector {
   private readonly _testConnPerfNumBlocks = 7;
   private readonly _connPerfRsltDelayMs = 4000;
 
+  // Retry connection if lost
+  private _retryIfLostEnabled = true;
+  private _retryIfLostForSecs = 10;
+  private _retryIfLostIsConnected = false;
+  private _retryIfLostDisconnectTime: number | null = null;
+  private readonly _retryIfLostRetryDelayMs = 500;
+
   // File handler
   private _ricFileHandler: RICFileHandler = new RICFileHandler(
     this._ricMsgHandler,
@@ -91,10 +99,20 @@ export class RICConnector {
 
   isConnected() {
     // Check if connected
-    const isConnected = this._ricChannel ? this._ricChannel.isConnected() : false;
+    const isConnected = this._retryIfLostIsConnected || (this._ricChannel ? this._ricChannel.isConnected() : false);
     return isConnected;
   }
 
+  // Set retry channel mode
+  setRetryConnectionIfLost(enableRetry: boolean, retryForSecs: number): void {
+    this._retryIfLostEnabled = enableRetry;
+    this._retryIfLostForSecs = retryForSecs;
+    if (!this._retryIfLostEnabled) {
+      this._retryIfLostIsConnected = false;
+    }
+    RICLog.debug(`setRetryConnectionIfLost ${enableRetry} retry for ${retryForSecs}`);
+  }
+  
   getConnMethod(): string {
     return this._channelConnMethod;
   }
@@ -140,10 +158,12 @@ export class RICConnector {
     }
 
     // Check channel established
+    let connOk = false;
     if (this._ricChannel !== null) {
 
-      // Connection method
+      // Connection method and locator
       this._channelConnMethod = connMethod;
+      this._channelConnLocator = locator;
 
       // Set message handler
       this._ricChannel.setMsgHandler(this._ricMsgHandler);
@@ -155,20 +175,34 @@ export class RICConnector {
 
       // Connect
       try {
-        return await this._ricChannel.connect(locator);
-      } catch (error) {
-        RICLog.error(`RICConnector.connect() error: ${error}`);
-        return false;
+
+        // Event
+        this.onConnEvent(RICConnEvent.CONN_CONNECTING_RIC);
+
+        // Connect
+        connOk = await this._connectToChannel();
+      } catch (err) {
+        RICLog.error('RICConnector.connect - error: ' + err);
       }
+
+      // Events
+      if (connOk) {
+        this.onConnEvent(RICConnEvent.CONN_CONNECTED_RIC);
+      } else {
+        // Failed Event
+        this.onConnEvent(RICConnEvent.CONN_CONNECTION_FAILED);
+      }
+
     } else {
       this._channelConnMethod = "";
     }
 
-    return false;
+    return connOk;
   }
 
   async disconnect(): Promise<void> {
     // Disconnect
+    this._retryIfLostIsConnected = false;
     if (this._ricChannel) {
       this._ricChannel.disconnect();
     }
@@ -386,9 +420,6 @@ export class RICConnector {
           RICLog.warn(`eventConnect - subscribe for updates failed ${error.toString()}`)
         }
       }
-
-      // Set retry mode
-      this._ricChannel.setRetryConnectionIfLost(true);
       return true;
     }
     return false;
@@ -478,11 +509,32 @@ export class RICConnector {
 
   // Mark: Connection event --------------------------------------------------------------------------
   
-  onConnEvent(eventEnum: RICConnEvent, data: object | string | null | undefined): void {
+  onConnEvent(eventEnum: RICConnEvent, data: object | string | null | undefined = undefined): void {
 
     // Handle information clearing on disconnect
     switch (eventEnum) {
       case RICConnEvent.CONN_DISCONNECTED_RIC:
+
+        // Disconnect time
+        this._retryIfLostDisconnectTime = Date.now();
+
+        // Check if retry required
+        if (this._retryIfLostIsConnected && this._retryIfLostEnabled) {
+
+          // Indicate connection disrupted
+          if (this._onEventFn) {
+            this._onEventFn("conn", RICConnEvent.CONN_ISSUE_DETECTED, RICConnEventNames[RICConnEvent.CONN_ISSUE_DETECTED]);
+          }
+
+          // Retry connection
+          this._retryConnection();
+
+          // Don't allow disconnection to propagate until retries have occurred
+          return;
+
+        }
+
+        // Invalidate connection details
         this._ricSystem.invalidate();
         break;
     }
@@ -493,5 +545,59 @@ export class RICConnector {
     }
   }
 
+  _retryConnection(): void {
 
+    // Check timeout
+    if ((this._retryIfLostDisconnectTime !== null) &&
+        (Date.now() - this._retryIfLostDisconnectTime < this._retryIfLostForSecs*1000)) {
+
+          // Set timer to try to reconnect
+          setTimeout(async () => {
+
+            // Try to connect
+            const isConn = await this._connectToChannel();
+            if (!isConn) {
+              this._retryConnection();
+            } else {
+
+              // No longer retrying
+              this._retryIfLostDisconnectTime = null;
+
+              // Indicate connection problem resolved
+              if (this._onEventFn) {
+                this._onEventFn("conn", RICConnEvent.CONN_ISSUE_RESOLVED, RICConnEventNames[RICConnEvent.CONN_ISSUE_RESOLVED]);
+              }
+
+            }
+          }, this._retryIfLostRetryDelayMs);
+    } else {
+
+      // No longer connected after retry timeout
+      this._retryIfLostIsConnected = false;
+
+      // Indicate disconnection
+      if (this._onEventFn) {
+        this._onEventFn("conn", RICConnEvent.CONN_DISCONNECTED_RIC, RICConnEventNames[RICConnEvent.CONN_DISCONNECTED_RIC]);
+      }
+
+      // Invalidate connection details
+      this._ricSystem.invalidate();
+    }
+  }
+
+  async _connectToChannel(): Promise<boolean> {
+    // Connect
+    try {
+      if (this._ricChannel) {
+        const connected =  await this._ricChannel.connect(this._channelConnLocator);
+        if (connected) {
+          this._retryIfLostIsConnected = true;
+          return true;
+        }
+      }
+    } catch (error) {
+      RICLog.error(`RICConnector.connect() error: ${error}`);
+    }
+    return false;
+  }
 }

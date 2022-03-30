@@ -1,7 +1,7 @@
 import { RICConnector } from '../../src/RICConnector';
 import { connectBLE, connectWiFi, disconnectBLE, disconnectWiFi } from './connect';
 import { sendREST, streamSoundFile } from './stream';
-import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest } from './system';
+import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest, setReconnect } from './system';
 import { Dictionary } from '../../src/RICTypes';
 import { RICConnEvent } from '../../src/RICConnEvents';
 import { RICUpdateEvent } from '../../src/RICUpdateEvents';
@@ -66,11 +66,14 @@ function updateStatus() {
   formatStatus("wifiStatus", globalThis.ricConnector.getRICSystem().getCachedWifiStatus(), tableFormat, "wifi-status-container");
 }
 
-function addButtons(defs: Array<{name: string, button: string, func: any, params: Array<string>}>, container: Element) {
+function addButtons(defs: Array<{name: string, button: string, func: any, params: Array<string | number | boolean>}>, container: Element) {
   defs.forEach(def => {
     const buttonDiv = document.createElement('div');
     buttonDiv.classList.add('button-row');
-    const buttonText = def.button.replace("%1", def.params[0]);
+    let buttonText = def.button;
+    if (buttonText === "%1") {
+      buttonText = def.params[0] as string;
+    }
     buttonDiv.innerHTML = `<div class = "button-container"><span class="example-name">${def.name}</span><button class="list-button">${buttonText}</button></div>`;
     buttonDiv.addEventListener('click', () => {
       def.func(def.params);
@@ -154,6 +157,8 @@ function component() {
 
   const buttonDefs = [
     {name: "BLE Perf", button: "Perf Test BLE", func: connPerfTest, params: []},
+    {name: "Enable reconnect", button: "Reconnect 10s", func: setReconnect, params: [true, 10]},
+    {name: "Disable reconnect", button: "No Reconnect", func: setReconnect, params: [false, 0]},
     {name: "Get SysInfo", button: "Get SysInfo", func: sysInfoGet, params: []},
     {name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["test440ToneQuietShort.mp3"]},
     {name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["completed_tone_low_br.mp3"]},
