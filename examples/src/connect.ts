@@ -31,7 +31,7 @@ export async function connectBLE(params: Array<string>): Promise<void> {
     }
 }
 
-export async function disconnectBLE(params: Array<string>): Promise<void> {
+export async function disconnect(params: Array<string>): Promise<void> {
     globalThis.ricConnector.disconnect();
 }
 
@@ -41,9 +41,5 @@ export async function connectWiFi(params: Array<string>): Promise<void> {
   const wifiIPAddr = wifiIP.value;
   const wifiPwStr = wifiPw.value;
   globalThis.ricConnector.connect("WiFi", wifiIPAddr);
-}
-
-export async function disconnectWiFi(params: Array<string>): Promise<void> {
-  globalThis.ricConnector.disconnect();
 }
 

@@ -1,5 +1,5 @@
 import { RICConnector } from '../../src/RICConnector';
-import { connectBLE, connectWiFi, disconnectBLE, disconnectWiFi } from './connect';
+import { connectBLE, connectWiFi, disconnect } from './connect';
 import { sendREST, streamSoundFile } from './stream';
 import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest, setReconnect } from './system';
 import { Dictionary } from '../../src/RICTypes';
@@ -138,8 +138,8 @@ function component() {
 
   // Buttons
   const bleConnDefs = [
+    {name: "Disconnect", button: "Disconnect", func: disconnect, params: [] as Array<string>},
     {name: "Connect BLE", button: "Connect", func: connectBLE, params: [] as Array<string>},
-    {name: "Disconnect BLE", button: "Disconnect", func: disconnectBLE, params: []},
   ]
 
   const wifiIPDefs = [
@@ -152,7 +152,6 @@ function component() {
 
   const wifiConnDefs = [
     {name: "Connect WiFi", button: "Connect", func: connectWiFi, params: [] as Array<string>},
-    {name: "Disconnect WiFi", button: "Disconnect", func: disconnectWiFi, params: [] as Array<string>},
   ]
 
   const buttonDefs = [

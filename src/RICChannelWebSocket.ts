@@ -145,7 +145,7 @@ export default class RICChannelWebSocket implements RICChannel {
 
     // Connect to websocket
     // try {
-    //     this._webSocket = await this.webSocketOpen(wsURL);
+    //     this._webSocket = await this._webSocketOpen(wsURL);
     // } catch (error: any) {
     //     RICLog.debug(`Unable to create WebSocket ${error.toString()}`);
     //     return false;
@@ -153,7 +153,7 @@ export default class RICChannelWebSocket implements RICChannel {
     this._webSocket = null;
     return new Promise((resolve: (value: boolean | PromiseLike<boolean>) => void,
       reject: (reason?: any) => void) => {
-      this.webSocketOpen(wsURL).then((ws) => {
+      this._webSocketOpen(wsURL).then((ws) => {
         this._webSocket = ws;
         RICLog.debug(`_wsConnect - opened connection`);
 
@@ -190,7 +190,7 @@ export default class RICChannelWebSocket implements RICChannel {
     });
   }
 
-  async webSocketOpen(url: string): Promise<WebSocket> {
+  private async _webSocketOpen(url: string): Promise<WebSocket> {
     return new Promise((resolve, reject) => {
 
       // Debug
@@ -203,17 +203,17 @@ export default class RICChannelWebSocket implements RICChannel {
         // Open socket
         webSocket.binaryType = "arraybuffer";
         webSocket.onopen = (_evt: WebSocket.Event) => {
-          RICLog.debug(`RICChannelWebSocket.webSocketOpen - onopen`);
+          RICLog.debug(`RICChannelWebSocket._webSocketOpen - onopen`);
           // // We're connected
           this._isConnected = true;
           resolve(webSocket);
         };
         webSocket.onerror = function (evt: WebSocket.ErrorEvent) {
-          RICLog.warn(`RICChannelWebSocket.webSocketOpen - onerror: ${evt.message}`);
+          RICLog.warn(`RICChannelWebSocket._webSocketOpen - onerror: ${evt.message}`);
           reject(evt);
         }
       } catch (error: any) {
-        RICLog.warn(`RICChannelWebSocket.webSocketOpen - open failed ${error.toString()}`);
+        RICLog.warn(`RICChannelWebSocket._webSocketOpen - open failed ${error.toString()}`);
         reject(error);
       }
     });
