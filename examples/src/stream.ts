@@ -1,4 +1,4 @@
-import { RICConnector } from "../../src/RICConnector";
+import RICConnector from "../../src/RICConnector";
 import { RICStreamType } from "../../src/RICTypes";
 
 declare global {

@@ -1,10 +1,10 @@
-import { RICConnector } from '../../src/RICConnector';
 import { connectBLE, connectWiFi, disconnect } from './connect';
 import { sendREST, streamSoundFile } from './stream';
 import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest, setReconnect } from './system';
 import { Dictionary } from '../../src/RICTypes';
 import { RICConnEvent } from '../../src/RICConnEvents';
 import { RICUpdateEvent } from '../../src/RICUpdateEvents';
+import RICConnector from '../../src/RICConnector';
 
 let startTime = Date.now();
 globalThis.ricConnector = new RICConnector();

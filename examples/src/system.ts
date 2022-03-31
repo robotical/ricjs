@@ -1,4 +1,4 @@
-import { RICConnector } from "../../src/RICConnector";
+import RICConnector from "../../src/RICConnector";
 import RICLog from "../../src/RICLog";
 import { ROSSerialIMU, ROSSerialRGBT, ROSSerialRobotStatus, ROSSerialSmartServos } from "../../src/RICROSSerial";
 import { Dictionary, RICAddOnList, RICCalibInfo, RICHWElem, RICSystemInfo } from "../../src/RICTypes";

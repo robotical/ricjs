@@ -1,4 +1,4 @@
-import { RICConnector } from "../../src/RICConnector";
+import RICConnector from "../../src/RICConnector";
 
 const RICServiceUUID = 'aa76677e-9cfd-4626-a510-0d305be57c8d';
 
