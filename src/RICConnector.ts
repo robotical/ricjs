@@ -24,9 +24,9 @@ import RICUtils from "./RICUtils";
 import RICLog from "./RICLog";
 import { RICConnEvent, RICConnEventNames } from "./RICConnEvents";
 
-export type LedLcdColours = Array<RICLEDPatternCheckerColour>;
+export type RICLedLcdColours = Array<RICLEDPatternCheckerColour>;
 
-export class RICConnector {
+export default class RICConnector {
 
   // Channel
   private _ricChannel: RICChannel | null = null;
@@ -312,10 +312,10 @@ export class RICConnector {
    *  @return boolean - true if started ok
    *
    */
-  async checkCorrectRICStart(ledLcdColours: LedLcdColours): Promise<boolean> {
+  async checkCorrectRICStart(RICLedLcdColours: RICLedLcdColours): Promise<boolean> {
 
     // Set colour pattern checker colours
-    this._ledPatternChecker.setup(ledLcdColours);
+    this._ledPatternChecker.setup(RICLedLcdColours);
 
     // Start timer to repeat checking LED pattern
     RICLog.debug(`checkCorrectRICStart: starting LED pattern checker`);
