@@ -8,6 +8,8 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+import { RICLedLcdColours } from "./RICTypes";
+
 export enum RICConnEvent {
     CONN_CONNECTING_RIC,
     CONN_CONNECTED_RIC,
@@ -40,5 +42,5 @@ export const RICConnEventNames = {
   
 export type RICConnEventFn = (
   eventType: RICConnEvent,
-  data?: object | string | null,
+  data?: string[] | string | null,
 ) => void;

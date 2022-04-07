@@ -12,7 +12,7 @@ export { default as RICAddOnBase } from './RICAddOnBase';
 export { default as RICAddOnManager, RICAddOnRegistry, RICAddOnCreator } from './RICAddOnManager';
 export { default as RICCommsStats } from './RICCommsStats';
 export * from './RICConnEvents';
-export { default as RICConnector, RICLedLcdColours } from './RICConnector';
+export { default as RICConnector } from './RICConnector';
 export { default as RICChannel } from './RICChannel';
 export { default as RICChannelWebBLE } from './RICChannelWebBLE';
 export { default as RICChannelWebSocket } from './RICChannelWebSocket';

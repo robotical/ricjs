@@ -60,20 +60,22 @@ const tohex = (d:number) => Number(d).toString(16).padStart(2, '0');
 
 function pixInfoFormat(idx: number, pixInfo: ROSSerialRGBT): string {
   let colourStr = `#${tohex(pixInfo.r)}${tohex(pixInfo.g)}${tohex(pixInfo.b)}`;
+  return pixGetColourStr(idx, colourStr);
+}
 
-  // Convert any single colour to bright version of that colour
-  // And any white to solid white
-  if (pixInfo.r != 0) {
-    if ((pixInfo.g | pixInfo.b) == 0) {
+export function pixGetColourStr(idx:number, colourStr: string) {
+  // Convert any single colour to bright version of that colour and any white to solid white
+  if (colourStr.slice(1,3) !== "00") {
+    if (colourStr.slice(3,7) === "0000") {
       colourStr = "#ff0000";
-    } else if ((pixInfo.r != 0) && (pixInfo.b != 0)) {
+    } else {
       colourStr = "#ffffff";
     }
-  } else if (pixInfo.g != 0) {
-    if (pixInfo.b == 0) {
+  } else if (colourStr.slice(3,5) !== "00") {
+    if (colourStr.slice(5,7) === "00") {
       colourStr = "#00ff00";
     }
-  } else if (pixInfo.b != 0) {
+  } else if (colourStr.slice(5,7) !== "00") {
     colourStr = "#0000ff";
   }
 

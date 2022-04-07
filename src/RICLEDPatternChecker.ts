@@ -10,12 +10,7 @@
 
 import RICLog from './RICLog'
 import RICMsgHandler from './RICMsgHandler';
-import { RICOKFail } from './RICTypes';
-
-export type RICLEDPatternCheckerColour = {
-  led: string;
-  lcd: string;
-}
+import { RICLEDPatternCheckerColour, RICOKFail } from './RICTypes';
 
 export default class RICLEDPatternChecker {
 

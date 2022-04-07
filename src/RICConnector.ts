@@ -12,9 +12,9 @@ import RICChannel from "./RICChannel";
 import RICChannelWebBLE from "./RICChannelWebBLE";
 import RICMsgHandler, { RICMsgResultCode } from "./RICMsgHandler";
 import RICChannelWebSocket from "./RICChannelWebSocket";
-import RICLEDPatternChecker, { RICLEDPatternCheckerColour } from "./RICLEDPatternChecker";
+import RICLEDPatternChecker from "./RICLEDPatternChecker";
 import RICCommsStats from "./RICCommsStats";
-import { RICEventFn, RICOKFail, RICStateInfo } from "./RICTypes";
+import { RICEventFn, RICLedLcdColours, RICOKFail, RICStateInfo } from "./RICTypes";
 import RICAddOnManager from "./RICAddOnManager";
 import RICSystem from "./RICSystem";
 import RICFileHandler from "./RICFileHandler";
@@ -23,8 +23,6 @@ import { ROSSerialAddOnStatusList, ROSSerialIMU, ROSSerialPowerStatus, ROSSerial
 import RICUtils from "./RICUtils";
 import RICLog from "./RICLog";
 import { RICConnEvent, RICConnEventNames } from "./RICConnEvents";
-
-export type RICLedLcdColours = Array<RICLEDPatternCheckerColour>;
 
 export default class RICConnector {
 
@@ -312,16 +310,19 @@ export default class RICConnector {
    *  @return boolean - true if started ok
    *
    */
-  async checkCorrectRICStart(RICLedLcdColours: RICLedLcdColours): Promise<boolean> {
+  async checkCorrectRICStart(ricLedLcdColours: RICLedLcdColours): Promise<boolean> {
 
     // Set colour pattern checker colours
-    this._ledPatternChecker.setup(RICLedLcdColours);
+    const randomColours = this._ledPatternChecker.setup(ricLedLcdColours);
 
     // Start timer to repeat checking LED pattern
     RICLog.debug(`checkCorrectRICStart: starting LED pattern checker`);
-    if (!this._checkCorrectRICRefreshLEDs()) {
+    if (!await this._checkCorrectRICRefreshLEDs()) {
       return false;
     }
+
+    // Event
+    this.onConnEvent(RICConnEvent.CONN_VERIFYING_CORRECT_RIC, randomColours);
 
     // Start timer to repeat sending of LED pattern
     // This is because RIC's LED pattern override times out after a while
@@ -350,10 +351,17 @@ export default class RICConnector {
     // Stop the LED pattern checker if connected
     if (this.isConnected()) {
       this._ledPatternChecker.clearRICColors(this._ricMsgHandler);
-    } else if (!confirmCorrectRIC) {
+    }
+    
+    // Check correct
+    if (!confirmCorrectRIC) {
+      // Event
+      this.onConnEvent(RICConnEvent.CONN_REJECTED_RIC);
       // Indicate as rejected if we're not connected or if user didn't confirm
       return false;
     }
+    // Event
+    this.onConnEvent(RICConnEvent.CONN_VERIFIED_CORRECT_RIC);
     return true;
   }
 
@@ -372,7 +380,7 @@ export default class RICConnector {
     // Check connected
     RICLog.debug(`_verificationRepeat getting isConnected`);
     if (!this.isConnected()) {
-      console.warn('_verificationRepeat no longer connected to BLE');
+      console.warn('_verificationRepeat not connected');
       return false;
     }
 

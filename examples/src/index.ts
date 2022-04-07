@@ -1,24 +1,54 @@
-import { connectBLE, connectWiFi, disconnect } from './connect';
+import { acceptCheckCorrectRIC, connectBLE, connectWiFi, disconnect, rejectCheckCorrectRIC, startCheckCorrectRIC } from './connect';
 import { sendREST, streamSoundFile } from './stream';
-import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest, setReconnect } from './system';
-import { Dictionary } from '../../src/RICTypes';
+import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest, setReconnect, pixGetColourStr } from './system';
+import { Dictionary, RICLedLcdColours } from '../../src/RICTypes';
 import { RICConnEvent } from '../../src/RICConnEvents';
 import { RICUpdateEvent } from '../../src/RICUpdateEvents';
 import RICConnector from '../../src/RICConnector';
 
 let startTime = Date.now();
+function eventListener(eventType: string, eventEnum: RICConnEvent | RICUpdateEvent, eventName: string, eventData?: object | string | null) {
+  const eventField = document.getElementById("event-field") as HTMLElement;
+  if (eventField) {
+    if (eventField.innerHTML.length === 0) {
+      eventField.innerHTML = "<div>Events</div>";
+    }
+    const timeStr = ((Date.now() - startTime) / 1000).toFixed(1);
+    eventField.innerHTML += `<div><span class="event-time-info">${timeStr}</span><span class="event-info">${eventName}<span></div>`;
+  }
+
+  // Handle specific events
+  const checkField = document.getElementById("check-correct-ric-container") as HTMLElement;
+  if (checkField) {
+    if (eventType === 'conn') {
+      switch (eventEnum) {
+        case RICConnEvent.CONN_VERIFYING_CORRECT_RIC:
+          {
+            checkField.innerHTML = `<div>Check LEDs</div>`;
+            const eventLeds = eventData! as Array<string>;
+            for (let idx = 0; idx < eventLeds.length; idx++) {
+              checkField.innerHTML += pixGetColourStr(idx, eventLeds[idx]);
+            }
+            break;
+          }
+        case RICConnEvent.CONN_VERIFIED_CORRECT_RIC:
+          {
+            checkField.innerHTML = `<div>Check LEDs ACCEPTED</div>`;
+            break;
+          }
+        case RICConnEvent.CONN_REJECTED_RIC:
+          {
+            checkField.innerHTML = `<div>Check LEDs REJECTED</div>`;
+            break;
+          }
+      }
+    }
+  }
+}
+
 globalThis.ricConnector = new RICConnector();
 if (globalThis.ricConnector) {
-  globalThis.ricConnector.setEventListener((eventType: string, eventEnum: RICConnEvent | RICUpdateEvent, eventName: string, eventData?:object | string | null) => {
-    const eventField = document.getElementById("event-field") as HTMLElement;
-    if (eventField) {
-      if (eventField.innerHTML.length === 0) {
-        eventField.innerHTML = "<div>Events</div>";
-      }
-      const timeStr = ((Date.now() - startTime)/1000).toFixed(1);
-      eventField.innerHTML += `<div><span class="event-time-info">${timeStr}</span><span class="event-info">${eventName}<span></div>`;
-    };
-  });
+  globalThis.ricConnector.setEventListener(eventListener);
 }
 
 const prevStatus: Dictionary<string> = {};
@@ -44,7 +74,7 @@ function updateStatus() {
   const statusContainer = document.getElementById('time-status-container');
   statusContainer.innerHTML = "";
   const status = document.createElement('div');
-  const timeStr = ((Date.now() - startTime)/1000).toFixed(1);
+  const timeStr = ((Date.now() - startTime) / 1000).toFixed(1);
   const connStr = globalThis.ricConnector.isConnected() ? "Connected to " + globalThis.ricConnector.getConnMethod() : "Disconnected";
   const connClass = globalThis.ricConnector.isConnected() ? "status-conn" : "status-disconn";
   const ricIMU = JSON.stringify(globalThis.ricConnector.getRICState().imuData, null, 2);
@@ -58,15 +88,16 @@ function updateStatus() {
   formatStatus("sysInfoStatus", globalThis.ricConnector.getRICSystem().getCachedSystemInfo(), tableFormat, "sysinfo-list-container");
   formatStatus("addonsStatus", globalThis.ricConnector.getRICSystem().getCachedHWElemList(), addonListFormat, "addon-list-container");
   formatStatus("calibStatus", globalThis.ricConnector.getRICSystem().getCachedCalibInfo(), tableFormat, "calib-list-container");
-  formatStatus("nameStatus", {"friendlyName":globalThis.ricConnector.getRICSystem().getFriendlyName(),
-                "RICName":globalThis.ricConnector.getRICSystem().getCachedRICName(),
-                "RICNameIsSet":globalThis.ricConnector.getRICSystem().getCachedRICNameIsSet(),
-            }, tableFormat, "friendlyname-list-container");
+  formatStatus("nameStatus", {
+    "friendlyName": globalThis.ricConnector.getRICSystem().getFriendlyName(),
+    "RICName": globalThis.ricConnector.getRICSystem().getCachedRICName(),
+    "RICNameIsSet": globalThis.ricConnector.getRICSystem().getCachedRICNameIsSet(),
+  }, tableFormat, "friendlyname-list-container");
   // formatStatus("calibStatus", globalThis.ricConnector.getRICSystem().getCachedCalibInfo(), tableFormat, "calib-list-container");
   formatStatus("wifiStatus", globalThis.ricConnector.getRICSystem().getCachedWifiStatus(), tableFormat, "wifi-status-container");
 }
 
-function addButtons(defs: Array<{name: string, button: string, func: any, params: Array<string | number | boolean>}>, container: Element) {
+function addButtons(defs: Array<{ name: string, button: string, func: any, params: Array<string | number | boolean> }>, container: Element) {
   defs.forEach(def => {
     const buttonDiv = document.createElement('div');
     buttonDiv.classList.add('button-row');
@@ -82,7 +113,7 @@ function addButtons(defs: Array<{name: string, button: string, func: any, params
   });
 }
 
-function addFields(defs: Array<{name: string, elId: string}>, container: Element): void {
+function addFields(defs: Array<{ name: string, elId: string }>, container: Element): void {
   defs.forEach(def => {
     const fieldDiv = document.createElement('div');
     fieldDiv.classList.add('field-row');
@@ -123,6 +154,7 @@ function component() {
 
   genStatusBlock('event-field', ['info-status-container', 'info-status-scroll'], statusContainer);
   genStatusBlock('time-status-container', 'info-status-container', statusContainer);
+  genStatusBlock('check-correct-ric-container', ['info-status-container', 'info-status-scroll'], statusContainer);
   genStatusBlock('conn-perf-status-container', 'info-status-container', statusContainer);
   genStatusBlock('robot-status-container', 'info-status-container', statusContainer);
   genStatusBlock('imu-status-container', 'info-status-container', statusContainer);
@@ -132,42 +164,45 @@ function component() {
   genStatusBlock('calib-list-container', 'info-status-container', statusContainer);
   genStatusBlock('friendlyname-list-container', 'info-status-container', statusContainer);
   genStatusBlock('wifi-status-container', 'info-status-container', statusContainer);
-  
+
   const buttonsContainer = document.createElement('div');
   buttonsContainer.classList.add('buttons-container');
 
   // Buttons
   const bleConnDefs = [
-    {name: "Disconnect", button: "Disconnect", func: disconnect, params: [] as Array<string>},
-    {name: "Connect BLE", button: "Connect", func: connectBLE, params: [] as Array<string>},
+    { name: "Disconnect", button: "Disconnect", func: disconnect, params: [] as Array<string> },
+    { name: "Connect BLE", button: "Connect", func: connectBLE, params: [] as Array<string> },
   ]
 
   const wifiIPDefs = [
-    {name: "Wifi IP", elId: "wifi-ip"},
+    { name: "Wifi IP", elId: "wifi-ip" },
   ]
 
   const wifiPWDefs = [
-    {name: "Wifi PW", elId: "wifi-pw"},
+    { name: "Wifi PW", elId: "wifi-pw" },
   ]
 
   const wifiConnDefs = [
-    {name: "Connect WiFi", button: "Connect", func: connectWiFi, params: [] as Array<string>},
+    { name: "Connect WiFi", button: "Connect", func: connectWiFi, params: [] as Array<string> },
   ]
 
   const buttonDefs = [
-    {name: "BLE Perf", button: "Perf Test BLE", func: connPerfTest, params: []},
-    {name: "Enable reconnect", button: "Reconnect 10s", func: setReconnect, params: [true, 10]},
-    {name: "Disable reconnect", button: "No Reconnect", func: setReconnect, params: [false, 0]},
-    {name: "Get SysInfo", button: "Get SysInfo", func: sysInfoGet, params: []},
-    {name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["test440ToneQuietShort.mp3"]},
-    {name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["completed_tone_low_br.mp3"]},
-    {name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["unplgivy.mp3"]},
-    {name: "Circle", button: "%1", func: sendREST, params: ["traj/circle"]},
-    {name: "Kick", button: "%1", func: sendREST, params: ["traj/kick"]},
-    {name: "Walk", button: "%1", func: sendREST, params: ["traj/dance"]},
-    {name: "Wiggle", button: "%1", func: sendREST, params: ["traj/wiggle"]},
-    {name: "Eyes Wide", button: "%1", func: sendREST, params: ["traj/eyesWide"]},
-    {name: "Eyes Normal", button: "%1", func: sendREST, params: ["traj/eyesNormal"]},
+    { name: "BLE Perf", button: "Perf Test BLE", func: connPerfTest, params: [] },
+    { name: "Enable reconnect", button: "Reconnect 10s", func: setReconnect, params: [true, 10] },
+    { name: "Disable reconnect", button: "No Reconnect", func: setReconnect, params: [false, 0] },
+    { name: "Correct RIC?", button: "Check LEDs", func: startCheckCorrectRIC, params: [false, 0] },
+    { name: "Correct RIC?", button: "Accept RIC", func: acceptCheckCorrectRIC, params: [false, 0] },
+    { name: "Correct RIC?", button: "Reject RIC", func: rejectCheckCorrectRIC, params: [false, 0] },
+    { name: "Get SysInfo", button: "Get SysInfo", func: sysInfoGet, params: [] },
+    { name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["test440ToneQuietShort.mp3"] },
+    { name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["completed_tone_low_br.mp3"] },
+    { name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["unplgivy.mp3"] },
+    { name: "Circle", button: "%1", func: sendREST, params: ["traj/circle"] },
+    { name: "Kick", button: "%1", func: sendREST, params: ["traj/kick"] },
+    { name: "Walk", button: "%1", func: sendREST, params: ["traj/dance"] },
+    { name: "Wiggle", button: "%1", func: sendREST, params: ["traj/wiggle"] },
+    { name: "Eyes Wide", button: "%1", func: sendREST, params: ["traj/eyesWide"] },
+    { name: "Eyes Normal", button: "%1", func: sendREST, params: ["traj/eyesNormal"] },
   ]
 
   // Add buttonDefs

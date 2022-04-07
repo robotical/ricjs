@@ -312,6 +312,13 @@ export interface RICFileDownloadIF {
     downloadFile(downloadUrl: string, progressCB:RICProgressCBType): Promise<RICFileDownloadResult>;
 }
 
+export type RICLEDPatternCheckerColour = {
+  led: string;
+  lcd: string;
+}
+
+export type RICLedLcdColours = Array<RICLEDPatternCheckerColour>;
+
 export interface Dictionary<T> {
   [key: string]: T;
 }

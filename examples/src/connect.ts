@@ -43,3 +43,21 @@ export async function connectWiFi(params: Array<string>): Promise<void> {
   globalThis.ricConnector.connect("WiFi", wifiIPAddr);
 }
 
+export async function startCheckCorrectRIC(params: Array<string>): Promise<void> {
+  const availableColours = [
+    { led: "#202000", lcd: "#FFFF00" },
+    { led: "#880000", lcd: "#FF0000" },
+    { led: "#000040", lcd: "#0080FF" },
+  ];
+
+  // Set the colours to display on LEDs
+  globalThis.ricConnector.checkCorrectRICStart(availableColours);
+}
+
+export async function acceptCheckCorrectRIC(params: Array<string>): Promise<void> {
+  globalThis.ricConnector.checkCorrectRICStop(true);
+}
+
+export async function rejectCheckCorrectRIC(params: Array<string>): Promise<void> {
+  globalThis.ricConnector.checkCorrectRICStop(false);
+}
