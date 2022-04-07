@@ -1,6 +1,9 @@
+import { table } from "console";
+import { head } from "lodash";
+import RICCommsStats from "../../src/RICCommsStats";
 import RICConnector from "../../src/RICConnector";
 import RICLog from "../../src/RICLog";
-import { ROSSerialIMU, ROSSerialRGBT, ROSSerialRobotStatus, ROSSerialSmartServos } from "../../src/RICROSSerial";
+import { ROSSerialIMU, ROSSerialPowerStatus, ROSSerialRGBT, ROSSerialRobotStatus, ROSSerialSmartServos } from "../../src/RICROSSerial";
 import { Dictionary, RICAddOnList, RICCalibInfo, RICHWElem, RICSystemInfo } from "../../src/RICTypes";
 
 declare global {
@@ -54,6 +57,22 @@ export function robotStatusFormat(name:string, robotStatus:ROSSerialRobotStatus)
   statusStr += `<div class="flag-info">LoopMax ${innerStatus.loopMsMax}ms</div>`;
 
   return statusStr; // + JSON.stringify(robotStatus, null, 2);
+}
+
+export function powerStatusFormat(name:string, powerStatus:ROSSerialPowerStatus): string {
+  return tableFormat(name, powerStatus.powerStatus, {
+    "battRemainCapacityPercent": "Remain%",
+    "battTempDegC": "TempDegC",
+    "battRemainCapacityMAH": "RemainMAH",
+    "battFullCapacityMAH": "FullMAH",
+    "battCurrentMA": "CurrMA",
+    "power5VOnTimeSecs": "5vOnSecs",
+    "power5VIsOn": "5vOn",
+    "powerUSBIsConnected": "USB",
+    "battInfoValid": "BattValid",
+    "powerUSBIsValid": "USBValid",
+    "powerFlags": "Flags",
+  });
 }
 
 const tohex = (d:number) => Number(d).toString(16).padStart(2, '0');
@@ -145,13 +164,19 @@ export function addonListFormat(name:string, addons:Array<RICHWElem>): string {
   return statusStr;
 }
 
-export function tableFormat(infoStr:string, infoObj:object): string {
+export function tableFormat(infoStr:string, infoObj:object, headings:Dictionary<string> | undefined = undefined): string {
   let statusStr = "";
-  statusStr += `<div class="table-head">${infoStr}</div>`;
+  if (infoStr.length > 0) {
+    statusStr += `<div class="table-head">${infoStr}</div>`;
+  }
   statusStr += "<table class='table table-striped table-bordered'>";
   statusStr += "<tr>";
   for (const [key, value] of Object.entries(infoObj)) {
-    statusStr += `<th>${key}</th>`;
+    if (headings) {
+      statusStr += `<th>${headings[key]}</th>`;
+    } else {
+      statusStr += `<td>${key}</td>`;
+    }
   }
   statusStr += "</tr>";
   statusStr += "<tr>";
@@ -161,4 +186,54 @@ export function tableFormat(infoStr:string, infoObj:object): string {
   statusStr += "</tr>";
   statusStr += "</table>";
   return statusStr;
+}
+
+const prevCommsStatsJSON = "";
+export function commsStatusFormat(name:string, commsStats:RICCommsStats): string {
+
+  if (prevCommsStatsJSON !== JSON.stringify(commsStats)) {
+    const rxTxStats = {
+      "RxCount": commsStats._msgRxCount,
+      "RxRate": commsStats._msgRxRate,
+      "TxCount": commsStats._msgTxCount,
+      "TxRate": commsStats._msgTxRate,
+      "MsgNumColl": commsStats._msgNumCollisions,
+      "TooShort": commsStats._msgTooShort,
+      "Unmatched": commsStats._msgNumUnmatched,
+      "Timeout": commsStats._msgTimeout,
+      "Retry": commsStats._msgRetry,
+      "RTWorstMs": commsStats._msgRoundtripWorstMs,
+      "RTBestMs": commsStats._msgRoundtripBestMs,
+      "NoConn": commsStats._msgNoConnection,
+    };
+
+    const pubStats = {
+      "SmartServos": commsStats._msgSmartServos,
+      "IMU": commsStats._msgIMU,
+      "PowerStatus": commsStats._msgPowerStatus,
+      "AddOnPub": commsStats._msgAddOnPub,
+      "RobotStatus": commsStats._msgRobotStatus,
+      "OtherTopic": commsStats._msgOtherTopic,
+      "StreamBytes": commsStats._streamBytes,
+    };
+
+    // const innerStatus = robotStatus.robotStatus;
+    // let statusStr = "";
+    // let pixIdx = 0;
+    // for (let pixInfo of innerStatus.pixRGBT) {
+    //   statusStr += pixInfoFormat(pixIdx, pixInfo);
+    //   pixIdx++;
+    // }
+    // statusStr += `<div class="flag-info">${innerStatus.isMoving ? "Moving" : "Stopped"}</div>`;
+    // statusStr += `<div class="flag-info">${innerStatus.isPaused ? "Paused" : "Running"}</div>`;
+    // statusStr += `<div class="flag-info">${innerStatus.isFwUpdating ? "FW Update" : "No FW Update"}</div>`;
+    // statusStr += `<div class="flag-line-sep"></div>`;
+    // statusStr += `<div class="flag-info">HeapFree ${innerStatus.heapFree}</div>`;
+    // statusStr += `<div class="flag-info">HeapMin ${innerStatus.heapMin}</div>`;
+    // statusStr += `<div class="flag-info">LoopAvg ${innerStatus.loopMsAvg}ms</div>`;
+    // statusStr += `<div class="flag-info">LoopMax ${innerStatus.loopMsMax}ms</div>`;
+
+    return tableFormat(name, rxTxStats) + tableFormat("", pubStats);
+  }
+  return "";
 }

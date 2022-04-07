@@ -307,10 +307,7 @@ export class RICFileDownloadResult
     downloadedOk = false;
 }
 
-export interface RICFileDownloadIF {
-    // Download file
-    downloadFile(downloadUrl: string, progressCB:RICProgressCBType): Promise<RICFileDownloadResult>;
-}
+export type RICFileDownloadFn = (downloadUrl: string, progressCB:RICProgressCBType) => Promise<RICFileDownloadResult>;
 
 export type RICLEDPatternCheckerColour = {
   led: string;

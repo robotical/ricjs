@@ -19,6 +19,7 @@ export enum RICUpdateEvent {
     UPDATE_SUCCESS_ALL,
     UPDATE_SUCCESS_MAIN_ONLY,
     UPDATE_CANCELLING,
+    UPDATE_NOT_CONFIGURED
 }
 
 export const RICUpdateEventNames = {
@@ -32,14 +33,10 @@ export const RICUpdateEventNames = {
     [RICUpdateEvent.UPDATE_SUCCESS_ALL]: 'SUCCESS_ALL',
     [RICUpdateEvent.UPDATE_SUCCESS_MAIN_ONLY]: 'SUCCESS_MAIN_ONLY',
     [RICUpdateEvent.UPDATE_CANCELLING]: 'CANCELLING',
+    [RICUpdateEvent.UPDATE_NOT_CONFIGURED]: 'NOT_CONFIGURED',
 };
 
 export type RICUpdateEventFn = (
   eventType: RICUpdateEvent,
   data?: object | string | null,
 ) => void;
-
-export interface RICUpdateEventIF {
-    onUpdateManagerEvent: RICUpdateEventFn;
-}
-  

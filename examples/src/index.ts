@@ -1,10 +1,11 @@
 import { acceptCheckCorrectRIC, connectBLE, connectWiFi, disconnect, rejectCheckCorrectRIC, startCheckCorrectRIC } from './connect';
 import { sendREST, streamSoundFile } from './stream';
-import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest, setReconnect, pixGetColourStr } from './system';
-import { Dictionary, RICLedLcdColours } from '../../src/RICTypes';
+import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest, setReconnect, pixGetColourStr, commsStatusFormat, powerStatusFormat } from './system';
+import { Dictionary } from '../../src/RICTypes';
 import { RICConnEvent } from '../../src/RICConnEvents';
 import { RICUpdateEvent } from '../../src/RICUpdateEvents';
 import RICConnector from '../../src/RICConnector';
+import { fileDownloader, otaUpdateCancel, otaUpdateCheck, otaUpdateStart } from './update';
 
 let startTime = Date.now();
 function eventListener(eventType: string, eventEnum: RICConnEvent | RICUpdateEvent, eventName: string, eventData?: object | string | null) {
@@ -46,7 +47,9 @@ function eventListener(eventType: string, eventEnum: RICConnEvent | RICUpdateEve
   }
 }
 
-globalThis.ricConnector = new RICConnector();
+globalThis.ricConnector = new RICConnector("2.0.0", 
+    `https://updates.robotical.io/live/martyv2/rev{HWRevNo}/current_version.json`, 
+    fileDownloader);
 if (globalThis.ricConnector) {
   globalThis.ricConnector.setEventListener(eventListener);
 }
@@ -64,9 +67,11 @@ function formatStatus(name: string, status: any, formatFn: any, elId: string) {
   const curStatusJSON = JSON.stringify(status);
   if (!(name in prevStatus) || (prevStatus[name] !== curStatusJSON)) {
     const newStatusHTML = formatFn(name, status);
-    const container = document.getElementById(elId);
-    container.innerHTML = newStatusHTML;
-    prevStatus[name] = curStatusJSON;
+    if (newStatusHTML !== "") {
+      const container = document.getElementById(elId);
+      container.innerHTML = newStatusHTML;
+      prevStatus[name] = curStatusJSON;
+    }
   }
 }
 
@@ -82,7 +87,9 @@ function updateStatus() {
   status.classList.add('status');
   statusContainer.appendChild(status);
 
+  formatStatus("commsStatus", globalThis.ricConnector.getCommsStats(), commsStatusFormat, "comms-stats-container");
   formatStatus("robotStatus", globalThis.ricConnector.getRICState().robotStatus, robotStatusFormat, "robot-status-container");
+  formatStatus("powerStatus", globalThis.ricConnector.getRICState().power, powerStatusFormat, "power-status-container");
   formatStatus("imuStatus", globalThis.ricConnector.getRICState().imuData, imuStatusFormat, "imu-status-container");
   formatStatus("servoStatus", globalThis.ricConnector.getRICState().smartServos, servoStatusFormat, "servo-status-container");
   formatStatus("sysInfoStatus", globalThis.ricConnector.getRICSystem().getCachedSystemInfo(), tableFormat, "sysinfo-list-container");
@@ -95,6 +102,7 @@ function updateStatus() {
   }, tableFormat, "friendlyname-list-container");
   // formatStatus("calibStatus", globalThis.ricConnector.getRICSystem().getCachedCalibInfo(), tableFormat, "calib-list-container");
   formatStatus("wifiStatus", globalThis.ricConnector.getRICSystem().getCachedWifiStatus(), tableFormat, "wifi-status-container");
+  setTimeout(updateStatus, 200);
 }
 
 function addButtons(defs: Array<{ name: string, button: string, func: any, params: Array<string | number | boolean> }>, container: Element) {
@@ -155,8 +163,10 @@ function component() {
   genStatusBlock('event-field', ['info-status-container', 'info-status-scroll'], statusContainer);
   genStatusBlock('time-status-container', 'info-status-container', statusContainer);
   genStatusBlock('check-correct-ric-container', ['info-status-container', 'info-status-scroll'], statusContainer);
+  genStatusBlock('update-container', ['info-status-container', 'info-status-scroll'], statusContainer);
   genStatusBlock('conn-perf-status-container', 'info-status-container', statusContainer);
   genStatusBlock('robot-status-container', 'info-status-container', statusContainer);
+  genStatusBlock('power-status-container', 'info-status-container', statusContainer);
   genStatusBlock('imu-status-container', 'info-status-container', statusContainer);
   genStatusBlock('servo-status-container', 'info-status-container', statusContainer);
   genStatusBlock('sysinfo-list-container', 'info-status-container', statusContainer);
@@ -164,6 +174,7 @@ function component() {
   genStatusBlock('calib-list-container', 'info-status-container', statusContainer);
   genStatusBlock('friendlyname-list-container', 'info-status-container', statusContainer);
   genStatusBlock('wifi-status-container', 'info-status-container', statusContainer);
+  genStatusBlock('comms-stats-container', 'info-status-container', statusContainer);
 
   const buttonsContainer = document.createElement('div');
   buttonsContainer.classList.add('buttons-container');
@@ -194,6 +205,9 @@ function component() {
     { name: "Correct RIC?", button: "Accept RIC", func: acceptCheckCorrectRIC, params: [false, 0] },
     { name: "Correct RIC?", button: "Reject RIC", func: rejectCheckCorrectRIC, params: [false, 0] },
     { name: "Get SysInfo", button: "Get SysInfo", func: sysInfoGet, params: [] },
+    { name: "Update", button: "Check", func: otaUpdateCheck, params: [] },
+    { name: "Update", button: "Perform", func: otaUpdateStart, params: [] },
+    { name: "Update", button: "Cancel", func: otaUpdateCancel, params: [] },
     { name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["test440ToneQuietShort.mp3"] },
     { name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["completed_tone_low_br.mp3"] },
     { name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["unplgivy.mp3"] },
@@ -203,6 +217,8 @@ function component() {
     { name: "Wiggle", button: "%1", func: sendREST, params: ["traj/wiggle"] },
     { name: "Eyes Wide", button: "%1", func: sendREST, params: ["traj/eyesWide"] },
     { name: "Eyes Normal", button: "%1", func: sendREST, params: ["traj/eyesNormal"] },
+    { name: "5V On", button: "%1", func: sendREST, params: ["pwrctrl/5von"] },
+    { name: "5V Off", button: "%1", func: sendREST, params: ["pwrctrl/5voff"] },
   ]
 
   // Add buttonDefs
@@ -218,7 +234,7 @@ function component() {
   element.appendChild(infoColumns);
 
   startTime = Date.now();
-  setInterval(updateStatus, 100);
+  setTimeout(updateStatus, 0);
 
   return element;
 }

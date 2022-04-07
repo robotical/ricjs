@@ -37,6 +37,10 @@ body {
     background-color: #efefef;
 }
 
+.buttons-container {
+    margin-bottom: auto;
+}
+
 .button-container {
     width: 100%
 }
