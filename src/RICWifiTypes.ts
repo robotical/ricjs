@@ -20,6 +20,7 @@ export class RICWifiConnStatus {
   hostname = '';
   ssid = '';
   bssid = '';
+  validMs = 0;
 }
 
 export class RICSysModInfoWiFi {

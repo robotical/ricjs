@@ -12,7 +12,7 @@ import { RICSysModInfoWiFi, RICWifiConnState, RICWifiConnStatus } from './RICWif
 import RICAddOnManager from "./RICAddOnManager";
 import RICLog from "./RICLog"
 import RICMsgHandler from "./RICMsgHandler";
-import { RICAddOnList, RICCalibInfo, RICFileList, RICFriendlyName, RICHWElem, RICHWElemList, RICNameResponse, RICOKFail, RICReportMsg, RICSysModInfoBLEMan, RICSystemInfo } from "./RICTypes";
+import { RICAddOnList, RICCalibInfo, RICFileList, RICFriendlyName, RICHWElem, RICHWElemList, RICOKFail, RICReportMsg, RICSysModInfoBLEMan, RICSystemInfo } from "./RICTypes";
 
 export default class RICSystem {
 
@@ -25,9 +25,8 @@ export default class RICSystem {
   // System info
   _systemInfo: RICSystemInfo | null = null;
 
-  // RIC friendly name
-  _ricFriendlyName: string | null = null;
-  _ricFriendlyNameIsSet = false;
+  // RIC naming
+  _ricFriendlyName: RICFriendlyName | null = null;
 
   // HWElems (connected to RIC)
   _hwElems: Array<RICHWElem> = new Array<RICHWElem>();
@@ -55,7 +54,7 @@ export default class RICSystem {
    * 
    * @returns friendly name
    */
-  getFriendlyName(): string | null {
+  getFriendlyName(): RICFriendlyName | null {
     return this._ricFriendlyName;
   }
 
@@ -69,7 +68,6 @@ export default class RICSystem {
     this._addOnManager.clear();
     this._calibInfo = null;
     this._ricFriendlyName = null;
-    this._ricFriendlyNameIsSet = false;
     RICLog.debug('RICSystem information invalidated');
   }
 
@@ -139,6 +137,7 @@ export default class RICSystem {
     try {
       this._systemInfo = await this._ricMsgHandler.sendRICRESTURL<RICSystemInfo>('v');
       RICLog.debug('getRICSystemInfo returned ' + JSON.stringify(this._systemInfo));
+      this._systemInfo.validMs = Date.now();
       return this._systemInfo;
     } catch (error) {
       RICLog.debug(`getRICSystemInfo Failed to get version ${error}`);
@@ -159,6 +158,7 @@ export default class RICSystem {
     try {
       this._calibInfo = await this._ricMsgHandler.sendRICRESTURL<RICCalibInfo>('calibrate');
       RICLog.debug('getRICCalibInfo returned ' + this._calibInfo);
+      this._calibInfo.validMs = Date.now();
       return this._calibInfo;
     } catch (error) {
       RICLog.debug(`getRICCalibInfo Failed to get version ${error}`);
@@ -175,12 +175,19 @@ export default class RICSystem {
    */
   async setRICName(newName: string): Promise<boolean> {
     try {
-      const msgRsltJsonObj = await this._ricMsgHandler.sendRICRESTURL<RICFriendlyName>(`friendlyname/${newName}`);
-      const nameThatHasBeenSet = msgRsltJsonObj.friendlyName;
-      this._ricFriendlyName = nameThatHasBeenSet;
-      this._ricFriendlyNameIsSet = true;
+      this._ricFriendlyName = await this._ricMsgHandler.sendRICRESTURL<RICFriendlyName>(`friendlyname/${newName}`);
+      if (this._ricFriendlyName) {
+        this._ricFriendlyName.friendlyNameIsSet = false;
+        this._ricFriendlyName.validMs = Date.now();
+        if (this._ricFriendlyName && this._ricFriendlyName.rslt && (this._ricFriendlyName.rslt.toLowerCase() === 'ok')) {
+          this._ricFriendlyName.friendlyNameIsSet = true;
+        }
+        RICLog.debug('setRICName returned ' + JSON.stringify(this._ricFriendlyName));
+        return true;
+      }
       return true;
     } catch (error) {
+      this._ricFriendlyName = null;
       return false;
     }
   }
@@ -191,17 +198,19 @@ export default class RICSystem {
    * @returns Promise<RICNameResponse> (object containing rslt)
    *
    */
-  async getRICName(): Promise<RICNameResponse> {
+  async getRICName(): Promise<RICFriendlyName> {
     try {
-      const msgRsltJsonObj = await this._ricMsgHandler.sendRICRESTURL<RICNameResponse>('friendlyname');
-      if (msgRsltJsonObj.rslt === 'ok') {
-        this._ricFriendlyName = msgRsltJsonObj.friendlyName;
-        this._ricFriendlyNameIsSet = msgRsltJsonObj.friendlyNameIsSet != 0;
+      this._ricFriendlyName = await this._ricMsgHandler.sendRICRESTURL<RICFriendlyName>('friendlyname');
+      if (this._ricFriendlyName && this._ricFriendlyName.rslt && (this._ricFriendlyName.rslt === 'ok')) {
+        this._ricFriendlyName.friendlyNameIsSet = (this._ricFriendlyName.friendlyNameIsSet ? true : false);
+      } else {
+        this._ricFriendlyName.friendlyNameIsSet = false;
       }
-      RICLog.debug("Friendly name set to: " + this._ricFriendlyName);
-      return msgRsltJsonObj;
+      this._ricFriendlyName.validMs = Date.now();
+      RICLog.debug("Friendly name set is: " + JSON.stringify(this._ricFriendlyName));
+      return this._ricFriendlyName;
     } catch (error) {
-      return new RICNameResponse();
+      return new RICFriendlyName();
     }
   }
 
@@ -349,7 +358,7 @@ export default class RICSystem {
     if (!friendlyName) {
       return this._defaultWiFiHostname;
     }
-    let hostname = friendlyName;
+    let hostname = friendlyName.friendlyName;
     hostname = hostname?.replace(/ /g, '-');
     hostname = hostname.replace(/\W+/g, '');
     return hostname;
@@ -381,12 +390,14 @@ export default class RICSystem {
         this._ricWifiConnStatus.hostname = ricSysModInfoWiFi.Hostname;
         this._ricWifiConnStatus.ssid = ricSysModInfoWiFi.SSID;
         this._ricWifiConnStatus.bssid = ricSysModInfoWiFi.WiFiMAC;
+        this._ricWifiConnStatus.validMs = Date.now();
         return (
           ricSysModInfoWiFi.isConn !== 0 || ricSysModInfoWiFi.isPaused !== 0
         );
       }
     } catch (error) {
       RICLog.debug(`[DEBUG]: wifiConnStatus sysmodinfo failed ${error}`);
+      this._ricWifiConnStatus.validMs = 0;
     }
     this._ricWifiConnStatus.connState = RICWifiConnState.WIFI_CONN_NONE;
     this._ricWifiConnStatus.isPaused = false;
@@ -488,12 +499,8 @@ export default class RICSystem {
     return this._calibInfo;
   }
 
-  getCachedRICName(): string | null {
+  getCachedRICName(): RICFriendlyName | null {
     return this._ricFriendlyName;
-  }
-
-  getCachedRICNameIsSet(): boolean {
-    return this._ricFriendlyNameIsSet;
   }
 
   getCachedWifiStatus(): RICWifiConnStatus {

@@ -1,10 +1,10 @@
 import { acceptCheckCorrectRIC, connectBLE, connectWiFi, disconnect, rejectCheckCorrectRIC, startCheckCorrectRIC } from './connect';
 import { sendREST, streamSoundFile } from './stream';
-import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest, setReconnect, pixGetColourStr } from './system';
-import { Dictionary, RICLedLcdColours } from '../../src/RICTypes';
+import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest, setReconnect, pixGetColourStr, commsStatusFormat, powerStatusFormat } from './system';
 import { RICConnEvent } from '../../src/RICConnEvents';
 import { RICUpdateEvent } from '../../src/RICUpdateEvents';
 import RICConnector from '../../src/RICConnector';
+import { fileDownloader, otaUpdateCancel, otaUpdateCheck, otaUpdateStart } from './update';
 
 let startTime = Date.now();
 function eventListener(eventType: string, eventEnum: RICConnEvent | RICUpdateEvent, eventName: string, eventData?: object | string | null) {
@@ -14,7 +14,7 @@ function eventListener(eventType: string, eventEnum: RICConnEvent | RICUpdateEve
       eventField.innerHTML = "<div>Events</div>";
     }
     const timeStr = ((Date.now() - startTime) / 1000).toFixed(1);
-    eventField.innerHTML += `<div><span class="event-time-info">${timeStr}</span><span class="event-info">${eventName}<span></div>`;
+    eventField.innerHTML += `<div><span class="event-time-info">${timeStr}</span><span class="event-info">${eventName}</span><span class="event-info">${eventData?JSON.stringify(eventData):""}</span></div>`;
   }
 
   // Handle specific events
@@ -46,27 +46,39 @@ function eventListener(eventType: string, eventEnum: RICConnEvent | RICUpdateEve
   }
 }
 
-globalThis.ricConnector = new RICConnector();
+globalThis.ricConnector = new RICConnector("2.0.0", 
+    `https://updates.robotical.io/live/martyv2/rev{HWRevNo}/current_version.json`, 
+    fileDownloader);
 if (globalThis.ricConnector) {
   globalThis.ricConnector.setEventListener(eventListener);
 }
+globalThis.ricPrevData = {};
 
-const prevStatus: Dictionary<string> = {};
-
-function formatStatus(name: string, status: any, formatFn: any, elId: string) {
+function formatStatus(name: string, status: any, validMs:number | undefined | null, formatFn: any, elId: string) {
   if (!globalThis.ricConnector.isConnected() || !status) {
-    if (prevStatus[name]) {
+    if (globalThis.ricPrevData[name]) {
       document.getElementById(elId).innerHTML = "";
-      delete prevStatus[name];
+      delete globalThis.ricPrevData[name];
     }
     return;
   }
+  if (validMs === 0) {
+    document.getElementById(elId).innerHTML = "";
+    return;
+  }
   const curStatusJSON = JSON.stringify(status);
-  if (!(name in prevStatus) || (prevStatus[name] !== curStatusJSON)) {
+  if (!(name in globalThis.ricPrevData) || (globalThis.ricPrevData[name] !== curStatusJSON)) {
     const newStatusHTML = formatFn(name, status);
-    const container = document.getElementById(elId);
-    container.innerHTML = newStatusHTML;
-    prevStatus[name] = curStatusJSON;
+    if (newStatusHTML !== "") {
+      const container = document.getElementById(elId);
+      container.innerHTML = newStatusHTML;
+      globalThis.ricPrevData[name] = curStatusJSON;
+      if ((validMs === null) || (validMs === undefined) || (Date.now() < validMs + 2000)) {
+        container.classList.add("status-valid");
+      } else {
+        container.classList.remove("status-invalid");
+      }
+    }
   }
 }
 
@@ -77,24 +89,23 @@ function updateStatus() {
   const timeStr = ((Date.now() - startTime) / 1000).toFixed(1);
   const connStr = globalThis.ricConnector.isConnected() ? "Connected to " + globalThis.ricConnector.getConnMethod() : "Disconnected";
   const connClass = globalThis.ricConnector.isConnected() ? "status-conn" : "status-disconn";
-  const ricIMU = JSON.stringify(globalThis.ricConnector.getRICState().imuData, null, 2);
   status.innerHTML = `<div>Elapsed time ${timeStr}</div><div class="${connClass}">${connStr}</div>`;
   status.classList.add('status');
   statusContainer.appendChild(status);
 
-  formatStatus("robotStatus", globalThis.ricConnector.getRICState().robotStatus, robotStatusFormat, "robot-status-container");
-  formatStatus("imuStatus", globalThis.ricConnector.getRICState().imuData, imuStatusFormat, "imu-status-container");
-  formatStatus("servoStatus", globalThis.ricConnector.getRICState().smartServos, servoStatusFormat, "servo-status-container");
-  formatStatus("sysInfoStatus", globalThis.ricConnector.getRICSystem().getCachedSystemInfo(), tableFormat, "sysinfo-list-container");
-  formatStatus("addonsStatus", globalThis.ricConnector.getRICSystem().getCachedHWElemList(), addonListFormat, "addon-list-container");
-  formatStatus("calibStatus", globalThis.ricConnector.getRICSystem().getCachedCalibInfo(), tableFormat, "calib-list-container");
-  formatStatus("nameStatus", {
-    "friendlyName": globalThis.ricConnector.getRICSystem().getFriendlyName(),
-    "RICName": globalThis.ricConnector.getRICSystem().getCachedRICName(),
-    "RICNameIsSet": globalThis.ricConnector.getRICSystem().getCachedRICNameIsSet(),
-  }, tableFormat, "friendlyname-list-container");
-  // formatStatus("calibStatus", globalThis.ricConnector.getRICSystem().getCachedCalibInfo(), tableFormat, "calib-list-container");
-  formatStatus("wifiStatus", globalThis.ricConnector.getRICSystem().getCachedWifiStatus(), tableFormat, "wifi-status-container");
+  const ricState = globalThis.ricConnector.getRICState();
+  const ricSystem = globalThis.ricConnector.getRICSystem()
+  formatStatus("commsStats", globalThis.ricConnector.getCommsStats(), null, commsStatusFormat, "comms-stats-container");
+  formatStatus("robotStatus", ricState.robotStatus, ricState.robotStatusValidMs, robotStatusFormat, "robot-status-container");
+  formatStatus("powerStatus", ricState.power, ricState.powerValidMs, powerStatusFormat, "power-status-container");
+  formatStatus("imuStatus", ricState.imuData, ricState.imuDataValidMs, imuStatusFormat, "imu-status-container");
+  formatStatus("servoStatus", ricState.smartServos, ricState.smartServosValidMs, servoStatusFormat, "servo-status-container");
+  formatStatus("sysInfoStatus", ricSystem.getCachedSystemInfo(), ricSystem.getCachedSystemInfo()?.validMs, tableFormat, "sysinfo-list-container");
+  formatStatus("addonsStatus", ricSystem.getCachedHWElemList(), null, addonListFormat, "addon-list-container");
+  formatStatus("calibStatus", ricSystem.getCachedCalibInfo(), ricSystem.getCachedCalibInfo()?.validMs, tableFormat, "calib-list-container");
+  formatStatus("nameStatus", ricSystem.getCachedRICName(), ricSystem.getCachedRICName()?.validMs, tableFormat, "friendlyname-list-container");
+  formatStatus("wifiStatus", ricSystem.getCachedWifiStatus(), ricSystem.getCachedWifiStatus().validMs, tableFormat, "wifi-status-container");
+  setTimeout(updateStatus, 200);
 }
 
 function addButtons(defs: Array<{ name: string, button: string, func: any, params: Array<string | number | boolean> }>, container: Element) {
@@ -155,8 +166,10 @@ function component() {
   genStatusBlock('event-field', ['info-status-container', 'info-status-scroll'], statusContainer);
   genStatusBlock('time-status-container', 'info-status-container', statusContainer);
   genStatusBlock('check-correct-ric-container', ['info-status-container', 'info-status-scroll'], statusContainer);
+  genStatusBlock('update-container', ['info-status-container', 'info-status-scroll'], statusContainer);
   genStatusBlock('conn-perf-status-container', 'info-status-container', statusContainer);
   genStatusBlock('robot-status-container', 'info-status-container', statusContainer);
+  genStatusBlock('power-status-container', 'info-status-container', statusContainer);
   genStatusBlock('imu-status-container', 'info-status-container', statusContainer);
   genStatusBlock('servo-status-container', 'info-status-container', statusContainer);
   genStatusBlock('sysinfo-list-container', 'info-status-container', statusContainer);
@@ -164,6 +177,7 @@ function component() {
   genStatusBlock('calib-list-container', 'info-status-container', statusContainer);
   genStatusBlock('friendlyname-list-container', 'info-status-container', statusContainer);
   genStatusBlock('wifi-status-container', 'info-status-container', statusContainer);
+  genStatusBlock('comms-stats-container', 'info-status-container', statusContainer);
 
   const buttonsContainer = document.createElement('div');
   buttonsContainer.classList.add('buttons-container');
@@ -194,6 +208,9 @@ function component() {
     { name: "Correct RIC?", button: "Accept RIC", func: acceptCheckCorrectRIC, params: [false, 0] },
     { name: "Correct RIC?", button: "Reject RIC", func: rejectCheckCorrectRIC, params: [false, 0] },
     { name: "Get SysInfo", button: "Get SysInfo", func: sysInfoGet, params: [] },
+    { name: "Update", button: "Check", func: otaUpdateCheck, params: [] },
+    { name: "Update", button: "Perform", func: otaUpdateStart, params: [] },
+    { name: "Update", button: "Cancel", func: otaUpdateCancel, params: [] },
     { name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["test440ToneQuietShort.mp3"] },
     { name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["completed_tone_low_br.mp3"] },
     { name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["unplgivy.mp3"] },
@@ -203,6 +220,8 @@ function component() {
     { name: "Wiggle", button: "%1", func: sendREST, params: ["traj/wiggle"] },
     { name: "Eyes Wide", button: "%1", func: sendREST, params: ["traj/eyesWide"] },
     { name: "Eyes Normal", button: "%1", func: sendREST, params: ["traj/eyesNormal"] },
+    { name: "5V On", button: "%1", func: sendREST, params: ["pwrctrl/5von"] },
+    { name: "5V Off", button: "%1", func: sendREST, params: ["pwrctrl/5voff"] },
   ]
 
   // Add buttonDefs
@@ -218,7 +237,7 @@ function component() {
   element.appendChild(infoColumns);
 
   startTime = Date.now();
-  setInterval(updateStatus, 100);
+  setTimeout(updateStatus, 0);
 
   return element;
 }

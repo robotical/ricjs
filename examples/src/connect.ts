@@ -1,9 +1,11 @@
 import RICConnector from "../../src/RICConnector";
+import { Dictionary } from "../../src/RICTypes";
 
 const RICServiceUUID = 'aa76677e-9cfd-4626-a510-0d305be57c8d';
 
 declare global {
     var ricConnector: RICConnector;
+    var ricPrevData: Dictionary<string>;
 }
 
 async function getBleDevice(): Promise<BluetoothDevice | null> {

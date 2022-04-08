@@ -168,6 +168,7 @@ export default class RICChannelWebBLE implements RICChannel {
   async disconnect(): Promise<void> {
     if (this._bleDevice && this._bleDevice.gatt) {
       try {
+        RICLog.debug(`RICChannelWebBLE.disconnect GATT`);
         await this._bleDevice.gatt.disconnect();
       } catch (error) {
         RICLog.debug(`RICChannelWebBLE.disconnect ${error}`);

@@ -126,7 +126,7 @@ export default class RICFileHandler {
     const fileDest =
       fileType == RICFileSendType.RIC_FIRMWARE_UPDATE ? 'ricfw' : 'fs';
     const fileLen = fileContents.length;
-    const cmdMsg = `{"cmdName":"ufStart","reqStr":"${reqStr}","fileType":"${fileDest}","fileName":"${fileName}","fileLen":${fileLen}}`;
+    const cmdMsg = `{"cmdName":"ufStart","reqStr":"${reqStr}","fileType":"${fileDest}","fileName":"${fileName}","fileLen":${fileLen},"batchMsgSize":${this._fileBlockSize},"batchAckSize":${this._batchAckSize}}`;
 
     // Debug
     RICLog.debug(`sendFileStartMsg ${cmdMsg}`);

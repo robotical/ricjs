@@ -1,10 +1,26 @@
+import RICCommsStats from "../../src/RICCommsStats";
 import RICConnector from "../../src/RICConnector";
 import RICLog from "../../src/RICLog";
-import { ROSSerialIMU, ROSSerialRGBT, ROSSerialRobotStatus, ROSSerialSmartServos } from "../../src/RICROSSerial";
-import { Dictionary, RICAddOnList, RICCalibInfo, RICHWElem, RICSystemInfo } from "../../src/RICTypes";
+import { ROSSerialIMU, ROSSerialPowerStatus, ROSSerialRGBT, ROSSerialRobotStatus, ROSSerialSmartServos } from "../../src/RICROSSerial";
+import { Dictionary, RICHWElem } from "../../src/RICTypes";
 
 declare global {
     var ricConnector: RICConnector;
+    var ricPrevData: Dictionary<string>;
+}
+
+export function checkNewData(name: string, data: object) {
+  // if (name in globalThis.ricPrevData) {
+  //   const jsonData = JSON.stringify(data);
+  //   const isNew = globalThis.ricPrevData[name] != jsonData;
+  //   if (!isNew) {
+  //     globalThis.ricPrevData[name] = jsonData;
+  //     return false;
+  //   }
+  // } else {
+  //   globalThis.ricPrevData[name] = JSON.stringify(data);
+  // }
+  return true;
 }
 
 export async function sysInfoGet(params: Array<string>): Promise<void> {
@@ -56,6 +72,25 @@ export function robotStatusFormat(name:string, robotStatus:ROSSerialRobotStatus)
   return statusStr; // + JSON.stringify(robotStatus, null, 2);
 }
 
+export function powerStatusFormat(name:string, powerStatus:ROSSerialPowerStatus): string {
+  if (!checkNewData(name, powerStatus)) {
+    return "";
+  }
+  return tableFormat(name, powerStatus.powerStatus, {
+    "battRemainCapacityPercent": "Remain%",
+    "battTempDegC": "TempDegC",
+    "battRemainCapacityMAH": "RemainMAH",
+    "battFullCapacityMAH": "FullMAH",
+    "battCurrentMA": "CurrMA",
+    "power5VOnTimeSecs": "5vOnSecs",
+    "power5VIsOn": "5vOn",
+    "powerUSBIsConnected": "USB",
+    "battInfoValid": "BattValid",
+    "powerUSBIsValid": "USBValid",
+    "powerFlags": "Flags",
+  });
+}
+
 const tohex = (d:number) => Number(d).toString(16).padStart(2, '0');
 
 function pixInfoFormat(idx: number, pixInfo: ROSSerialRGBT): string {
@@ -105,6 +140,9 @@ export function imuStatusFormat(name:string, imuStatus:ROSSerialIMU): string {
 }
 
 export function servoStatusFormat(name:string, servoStatus:ROSSerialSmartServos): string {
+  if (!checkNewData(name, servoStatus)) {
+    return "";
+  }  
   const servoNames = ["LeftHip","LeftTwist","LeftKnee","RightHip","RightTwist","RightKnee","LeftArm","RightArm","Eyes"];
 
   // servoStatus = JSON.parse(`{"smartServos":[{"id":0,"pos":0,"current":0,"status":0},{"id":1,"pos":0,"current":0,"status":0},{"id":2,"pos":0,"current":0,"status":0},{"id":3,"pos":0,"current":0,"status":0},{"id":4,"pos":0,"current":0,"status":0},{"id":5,"pos":0,"current":0,"status":0},{"id":6,"pos":54,"current":0,"status":0},{"id":7,"pos":45,"current":0,"status":0},{"id":8,"pos":1,"current":0,"status":0}]}`);
@@ -119,6 +157,9 @@ export function servoStatusFormat(name:string, servoStatus:ROSSerialSmartServos)
 }
 
 export function addonListFormat(name:string, addons:Array<RICHWElem>): string {
+  if (!checkNewData(name, addons)) {
+    return "";
+  }  
   let statusStr = "";
   // addons = JSON.parse('[{"name":"LeftHip","type":"SmartServo","busName":"I2CA","addr":"0x10","addrValid":1,"IDNo":0,"whoAmI":"","whoAmITypeCode":"ffffffff","SN":"","versionStr":"0.0.0","commsOk":"N"},{"name":"LeftTwist","type":"SmartServo","busName":"I2CA","addr":"0x11","addrValid":1,"IDNo":1,"whoAmI":"","whoAmITypeCode":"ffffffff","SN":"","versionStr":"0.0.0","commsOk":"N"},{"name":"LeftKnee","type":"SmartServo","busName":"I2CA","addr":"0x12","addrValid":1,"IDNo":2,"whoAmI":"","whoAmITypeCode":"ffffffff","SN":"","versionStr":"0.0.0","commsOk":"N"},{"name":"RightHip","type":"SmartServo","busName":"I2CA","addr":"0x13","addrValid":1,"IDNo":3,"whoAmI":"","whoAmITypeCode":"ffffffff","SN":"","versionStr":"0.0.0","commsOk":"N"},{"name":"RightTwist","type":"SmartServo","busName":"I2CA","addr":"0x14","addrValid":1,"IDNo":4,"whoAmI":"","whoAmITypeCode":"ffffffff","SN":"","versionStr":"0.0.0","commsOk":"N"},{"name":"RightKnee","type":"SmartServo","busName":"I2CA","addr":"0x15","addrValid":1,"IDNo":5,"whoAmI":"","whoAmITypeCode":"ffffffff","SN":"","versionStr":"0.0.0","commsOk":"N"},{"name":"LeftArm","type":"SmartServo","busName":"I2CA","addr":"0x16","addrValid":1,"IDNo":6,"whoAmI":"LArmMotor","whoAmITypeCode":"00000081","SN":"9c13e2a90bcb92ec","versionStr":"1.0.0","commsOk":"N"},{"name":"RightArm","type":"SmartServo","busName":"I2CA","addr":"0x17","addrValid":1,"IDNo":7,"whoAmI":"RArmMotor","whoAmITypeCode":"00000081","SN":"9c13e2a90bcb92ec","versionStr":"1.0.0","commsOk":"N"},{"name":"Eyes","type":"SmartServo","busName":"I2CA","addr":"0x18","addrValid":1,"IDNo":8,"whoAmI":"EyeMotor","whoAmITypeCode":"00000082","SN":"9c13e2a90bcb92ec","versionStr":"1.0.0","commsOk":"N"},{"name":"IMU0","type":"IMU","busName":"I2CA","addr":"0x1d","addrValid":1,"IDNo":19,"whoAmI":"MMA8452Q","whoAmITypeCode":"10018452","SN":"","versionStr":"0.0.0","commsOk":"Y"},{"name":"AudioOut","type":"I2SOut","busName":"","addr":"0x00","addrValid":0,"IDNo":40,"whoAmI":"","whoAmITypeCode":"ffffffff","SN":"","versionStr":"0.0.0","commsOk":"Y"},{"name":"BusPixels0","type":"BusPixels","busName":"","addr":"0x00","addrValid":0,"IDNo":39,"whoAmI":"BusPix19","whoAmITypeCode":"10020013","SN":"","versionStr":"0.0.0","commsOk":"Y"},{"name":"RicButton0","type":"GPIO","busName":"","addr":"0x00","addrValid":0,"IDNo":38,"whoAmI":"GPIO5","whoAmITypeCode":"10040005","SN":"","versionStr":"0.0.0","commsOk":"Y"},{"name":"FuelGauge0","type":"FuelGauge","busName":"I2CA","addr":"0x55","addrValid":1,"IDNo":37,"whoAmI":"","whoAmITypeCode":"ffffffff","SN":"","versionStr":"0.0.0","commsOk":"N"},{"name":"PowerCtrl","type":"PowerCtrl","busName":"","addr":"0x00","addrValid":0,"IDNo":36,"whoAmI":"RICPower","whoAmITypeCode":"10030000","SN":"","versionStr":"0.0.0","commsOk":"Y"}]');
   if (addons.length > 0) {
@@ -145,13 +186,19 @@ export function addonListFormat(name:string, addons:Array<RICHWElem>): string {
   return statusStr;
 }
 
-export function tableFormat(infoStr:string, infoObj:object): string {
+export function tableFormat(infoStr:string, infoObj:object, headings:Dictionary<string> | undefined = undefined): string {
   let statusStr = "";
-  statusStr += `<div class="table-head">${infoStr}</div>`;
+  if (infoStr.length > 0) {
+    statusStr += `<div class="table-head">${infoStr}</div>`;
+  }
   statusStr += "<table class='table table-striped table-bordered'>";
   statusStr += "<tr>";
   for (const [key, value] of Object.entries(infoObj)) {
-    statusStr += `<th>${key}</th>`;
+    if (headings) {
+      statusStr += `<th>${headings[key]}</th>`;
+    } else {
+      statusStr += `<td>${key}</td>`;
+    }
   }
   statusStr += "</tr>";
   statusStr += "<tr>";
@@ -161,4 +208,53 @@ export function tableFormat(infoStr:string, infoObj:object): string {
   statusStr += "</tr>";
   statusStr += "</table>";
   return statusStr;
+}
+
+export function commsStatusFormat(name:string, commsStats:RICCommsStats): string {
+  if (!checkNewData(name, commsStats)) {
+    return "";
+  }
+
+  const rxTxStats = {
+    "RxCount": commsStats._msgRxCount,
+    "RxRate": commsStats._msgRxRate,
+    "TxCount": commsStats._msgTxCount,
+    "TxRate": commsStats._msgTxRate,
+    "MsgNumColl": commsStats._msgNumCollisions,
+    "TooShort": commsStats._msgTooShort,
+    "Unmatched": commsStats._msgNumUnmatched,
+    "Timeout": commsStats._msgTimeout,
+    "Retry": commsStats._msgRetry,
+    "RTWorstMs": commsStats._msgRoundtripWorstMs,
+    "RTBestMs": commsStats._msgRoundtripBestMs,
+    "NoConn": commsStats._msgNoConnection,
+  };
+
+  const pubStats = {
+    "SmartServos": commsStats._msgSmartServos,
+    "IMU": commsStats._msgIMU,
+    "PowerStatus": commsStats._msgPowerStatus,
+    "AddOnPub": commsStats._msgAddOnPub,
+    "RobotStatus": commsStats._msgRobotStatus,
+    "OtherTopic": commsStats._msgOtherTopic,
+    "StreamBytes": commsStats._streamBytes,
+  };
+
+  // const innerStatus = robotStatus.robotStatus;
+  // let statusStr = "";
+  // let pixIdx = 0;
+  // for (let pixInfo of innerStatus.pixRGBT) {
+  //   statusStr += pixInfoFormat(pixIdx, pixInfo);
+  //   pixIdx++;
+  // }
+  // statusStr += `<div class="flag-info">${innerStatus.isMoving ? "Moving" : "Stopped"}</div>`;
+  // statusStr += `<div class="flag-info">${innerStatus.isPaused ? "Paused" : "Running"}</div>`;
+  // statusStr += `<div class="flag-info">${innerStatus.isFwUpdating ? "FW Update" : "No FW Update"}</div>`;
+  // statusStr += `<div class="flag-line-sep"></div>`;
+  // statusStr += `<div class="flag-info">HeapFree ${innerStatus.heapFree}</div>`;
+  // statusStr += `<div class="flag-info">HeapMin ${innerStatus.heapMin}</div>`;
+  // statusStr += `<div class="flag-info">LoopAvg ${innerStatus.loopMsAvg}ms</div>`;
+  // statusStr += `<div class="flag-info">LoopMax ${innerStatus.loopMsMax}ms</div>`;
+
+  return tableFormat(name, rxTxStats) + tableFormat("", pubStats);
 }

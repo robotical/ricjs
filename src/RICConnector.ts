@@ -14,7 +14,7 @@ import RICMsgHandler, { RICMsgResultCode } from "./RICMsgHandler";
 import RICChannelWebSocket from "./RICChannelWebSocket";
 import RICLEDPatternChecker from "./RICLEDPatternChecker";
 import RICCommsStats from "./RICCommsStats";
-import { RICEventFn, RICLedLcdColours, RICOKFail, RICStateInfo } from "./RICTypes";
+import { RICEventFn, RICFileDownloadFn, RICLedLcdColours, RICOKFail, RICStateInfo } from "./RICTypes";
 import RICAddOnManager from "./RICAddOnManager";
 import RICSystem from "./RICSystem";
 import RICFileHandler from "./RICFileHandler";
@@ -23,6 +23,8 @@ import { ROSSerialAddOnStatusList, ROSSerialIMU, ROSSerialPowerStatus, ROSSerial
 import RICUtils from "./RICUtils";
 import RICLog from "./RICLog";
 import { RICConnEvent, RICConnEventNames } from "./RICConnEvents";
+import RICUpdateManager from "./RICUpdateManager";
+import { RICUpdateEvent, RICUpdateEventNames } from "./RICUpdateEvents";
 
 export default class RICConnector {
 
@@ -83,12 +85,30 @@ export default class RICConnector {
     this._commsStats,
   );
 
+  // Update manager
+  private _ricUpdateManager: RICUpdateManager | null = null;
+
   // Event listener
   private _onEventFn: RICEventFn | null = null;
 
-  constructor() {
+  constructor(appVersion: string, appUpdateURL: string, fileDownloader: RICFileDownloadFn) {
     // Debug
     RICLog.debug('RICConnector starting up');
+
+    // Setup update manager
+    const firmwareTypeStrForMainFw = 'main';
+    const nonFirmwareElemTypes = ['sound', 'traj'];
+    this._ricUpdateManager = new RICUpdateManager(
+      this._ricMsgHandler,
+      this._ricFileHandler,
+      this._ricSystem,
+      this._onUpdateEvent.bind(this),
+      firmwareTypeStrForMainFw,
+      nonFirmwareElemTypes,
+      appVersion,
+      fileDownloader,
+      appUpdateURL
+    );
   }
 
   setEventListener(onEventFn: RICEventFn): void {
@@ -110,7 +130,7 @@ export default class RICConnector {
     }
     RICLog.debug(`setRetryConnectionIfLost ${enableRetry} retry for ${retryForSecs}`);
   }
-  
+
   getConnMethod(): string {
     return this._channelConnMethod;
   }
@@ -121,6 +141,10 @@ export default class RICConnector {
 
   getRICState(): RICStateInfo {
     return this._ricStateInfo;
+  }
+
+  getCommsStats(): RICCommsStats {
+    return this._commsStats;
   }
 
   /**
@@ -202,6 +226,7 @@ export default class RICConnector {
     // Disconnect
     this._retryIfLostIsConnected = false;
     if (this._ricChannel) {
+      // await this.sendRICRESTMsg("bledisc", {});
       this._ricChannel.disconnect();
     }
   }
@@ -352,7 +377,7 @@ export default class RICConnector {
     if (this.isConnected()) {
       this._ledPatternChecker.clearRICColors(this._ricMsgHandler);
     }
-    
+
     // Check correct
     if (!confirmCorrectRIC) {
       // Event
@@ -516,7 +541,7 @@ export default class RICConnector {
   }
 
   // Mark: Connection event --------------------------------------------------------------------------
-  
+
   onConnEvent(eventEnum: RICConnEvent, data: object | string | null | undefined = undefined): void {
 
     // Handle information clearing on disconnect
@@ -557,27 +582,27 @@ export default class RICConnector {
 
     // Check timeout
     if ((this._retryIfLostDisconnectTime !== null) &&
-        (Date.now() - this._retryIfLostDisconnectTime < this._retryIfLostForSecs*1000)) {
+      (Date.now() - this._retryIfLostDisconnectTime < this._retryIfLostForSecs * 1000)) {
 
-          // Set timer to try to reconnect
-          setTimeout(async () => {
+      // Set timer to try to reconnect
+      setTimeout(async () => {
 
-            // Try to connect
-            const isConn = await this._connectToChannel();
-            if (!isConn) {
-              this._retryConnection();
-            } else {
+        // Try to connect
+        const isConn = await this._connectToChannel();
+        if (!isConn) {
+          this._retryConnection();
+        } else {
 
-              // No longer retrying
-              this._retryIfLostDisconnectTime = null;
+          // No longer retrying
+          this._retryIfLostDisconnectTime = null;
 
-              // Indicate connection problem resolved
-              if (this._onEventFn) {
-                this._onEventFn("conn", RICConnEvent.CONN_ISSUE_RESOLVED, RICConnEventNames[RICConnEvent.CONN_ISSUE_RESOLVED]);
-              }
+          // Indicate connection problem resolved
+          if (this._onEventFn) {
+            this._onEventFn("conn", RICConnEvent.CONN_ISSUE_RESOLVED, RICConnEventNames[RICConnEvent.CONN_ISSUE_RESOLVED]);
+          }
 
-            }
-          }, this._retryIfLostRetryDelayMs);
+        }
+      }, this._retryIfLostRetryDelayMs);
     } else {
 
       // No longer connected after retry timeout
@@ -597,7 +622,7 @@ export default class RICConnector {
     // Connect
     try {
       if (this._ricChannel) {
-        const connected =  await this._ricChannel.connect(this._channelConnLocator);
+        const connected = await this._ricChannel.connect(this._channelConnLocator);
         if (connected) {
           this._retryIfLostIsConnected = true;
           return true;
@@ -607,5 +632,32 @@ export default class RICConnector {
       RICLog.error(`RICConnector.connect() error: ${error}`);
     }
     return false;
+  }
+
+  // Mark: OTA Update -----------------------------------------------------------------------------------------
+
+  _onUpdateEvent(eventEnum: RICUpdateEvent, data: object | string | null | undefined = undefined): void {
+    // Notify
+    if (this._onEventFn) {
+      this._onEventFn("ota", eventEnum, RICUpdateEventNames[eventEnum], data);
+    }
+  }
+
+  async otaUpdateCheck(): Promise<RICUpdateEvent> {
+    if (!this._ricUpdateManager)
+      return RICUpdateEvent.UPDATE_NOT_CONFIGURED;
+    return await this._ricUpdateManager.checkForUpdate(this._ricSystem.getCachedSystemInfo());
+  }
+
+  async otaUpdateStart(): Promise<RICUpdateEvent> {
+    if (!this._ricUpdateManager)
+      return RICUpdateEvent.UPDATE_NOT_CONFIGURED;
+    return await this._ricUpdateManager.firmwareUpdate();
+  }
+
+  async otaUpdateCancel(): Promise<void> {
+    if (!this._ricUpdateManager)
+      return;
+    return await this._ricUpdateManager.firmwareUpdateCancel();
   }
 }

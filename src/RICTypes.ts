@@ -43,15 +43,12 @@ export interface RICSubscription {
   remove(): void;
 }
 
-export type RICFriendlyName = {
-  friendlyName: string;
-};
-
-export class RICNameResponse {
+export class RICFriendlyName {
   friendlyName = '';
-  friendlyNameIsSet = 0;
-  req = '';
-  rslt = 'commsFail';
+  friendlyNameIsSet? = false;
+  req? = '';
+  rslt? = 'commsFail';
+  validMs? = 0;
 }
 
 export class RICSystemInfo {
@@ -59,11 +56,15 @@ export class RICSystemInfo {
   SystemName = 'Unknown';
   SystemVersion = '0.0.0';
   RicHwRevNo = 0;
+  MAC? = "";
+  SerialNo? = "";
+  validMs? = 0;
 }
 
 export class RICCalibInfo {
   rslt = '';
   calDone = 0;
+  validMs? = 0;
 }
 
 export class RICOKFail {
@@ -307,10 +308,7 @@ export class RICFileDownloadResult
     downloadedOk = false;
 }
 
-export interface RICFileDownloadIF {
-    // Download file
-    downloadFile(downloadUrl: string, progressCB:RICProgressCBType): Promise<RICFileDownloadResult>;
-}
+export type RICFileDownloadFn = (downloadUrl: string, progressCB:RICProgressCBType) => Promise<RICFileDownloadResult>;
 
 export type RICLEDPatternCheckerColour = {
   led: string;
