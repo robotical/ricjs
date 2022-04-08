@@ -1,9 +1,10 @@
 import RICConnector from "../../src/RICConnector";
-import { RICFileDownloadResult, RICProgressCBType } from "../../src/RICTypes";
+import { Dictionary, RICFileDownloadResult, RICProgressCBType } from "../../src/RICTypes";
 import { RICUpdateEventNames } from "../../src/RICUpdateEvents";
 
 declare global {
     var ricConnector: RICConnector;
+    var ricPrevData: Dictionary<string>;
 }
 
 export async function otaUpdateCheck(params: Array<string>): Promise<void> {

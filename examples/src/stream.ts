@@ -1,8 +1,9 @@
 import RICConnector from "../../src/RICConnector";
-import { RICStreamType } from "../../src/RICTypes";
+import { Dictionary, RICStreamType } from "../../src/RICTypes";
 
 declare global {
     var ricConnector: RICConnector;
+    var ricPrevData: Dictionary<string>;
 }
 
 export async function streamSoundFile(params: Array<string>): Promise<void> {
