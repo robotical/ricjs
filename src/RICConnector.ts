@@ -754,7 +754,7 @@ export default class RICConnector {
     // Issue the command to connect WiFi
     try {
       console.log("Attempting to connect to wifi");
-      let RICRESTURL_wifiCredentials =
+      const RICRESTURL_wifiCredentials =
         "w/" + ssid + "/" + password + "/" + this.getHostnameFromFriendlyName();
       console.log("RESTURL: " + RICRESTURL_wifiCredentials);
 
@@ -970,7 +970,7 @@ export default class RICConnector {
       this._hwElems = ricHWList.hw;
       this._addOnManager.setHWElems(this._hwElems);
 
-      let reports: Array<RICReportMsg> = [];
+      const reports: Array<RICReportMsg> = [];
       // add callback to subscribe to report messages and store in reports array
       this._ricMsgHandler._reportMsgCallbacks.set("getHWElemCB", function (
         report
