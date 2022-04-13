@@ -14,18 +14,39 @@ import RICMsgHandler, { RICMsgResultCode } from "./RICMsgHandler";
 import RICChannelWebSocket from "./RICChannelWebSocket";
 import RICLEDPatternChecker from "./RICLEDPatternChecker";
 import RICCommsStats from "./RICCommsStats";
-import { RICEventFn, RICLedLcdColours, RICOKFail, RICStateInfo } from "./RICTypes";
+import {
+  RICAddOnList,
+  RICEventFn,
+  RICFriendlyName,
+  RICHWElem,
+  RICHWElemList,
+  RICLedLcdColours,
+  RICNameResponse,
+  RICOKFail,
+  RICReportMsg,
+  RICStateInfo,
+} from "./RICTypes";
 import RICAddOnManager from "./RICAddOnManager";
 import RICSystem from "./RICSystem";
 import RICFileHandler from "./RICFileHandler";
 import RICStreamHandler from "./RICStreamHandler";
-import { ROSSerialAddOnStatusList, ROSSerialIMU, ROSSerialPowerStatus, ROSSerialRobotStatus, ROSSerialSmartServos } from "./RICROSSerial";
+import {
+  ROSSerialAddOnStatusList,
+  ROSSerialIMU,
+  ROSSerialPowerStatus,
+  ROSSerialRobotStatus,
+  ROSSerialSmartServos,
+} from "./RICROSSerial";
 import RICUtils from "./RICUtils";
 import RICLog from "./RICLog";
 import { RICConnEvent, RICConnEventNames } from "./RICConnEvents";
+import {
+  RICSysModInfoWiFi,
+  RICWifiConnState,
+  RICWifiConnStatus,
+} from "./RICWifiTypes";
 
 export default class RICConnector {
-
   // Channel
   private _ricChannel: RICChannel | null = null;
 
@@ -42,14 +63,20 @@ export default class RICConnector {
   // Add-on Manager
   private _addOnManager = new RICAddOnManager();
 
+  // HWElems (connected to RIC)
+  private _hwElems: Array<RICHWElem> = new Array<RICHWElem>();
+
   // Message handler
   private _ricMsgHandler: RICMsgHandler = new RICMsgHandler(
     this._commsStats,
-    this._addOnManager,
+    this._addOnManager
   );
 
   // RICSystem
-  private _ricSystem: RICSystem = new RICSystem(this._ricMsgHandler, this._addOnManager);
+  private _ricSystem: RICSystem = new RICSystem(
+    this._ricMsgHandler,
+    this._addOnManager
+  );
 
   // LED Pattern checker
   private _ledPatternChecker: RICLEDPatternChecker = new RICLEDPatternChecker();
@@ -74,21 +101,30 @@ export default class RICConnector {
   // File handler
   private _ricFileHandler: RICFileHandler = new RICFileHandler(
     this._ricMsgHandler,
-    this._commsStats,
+    this._commsStats
   );
 
   // Stream handler
   private _ricStreamHandler: RICStreamHandler = new RICStreamHandler(
     this._ricMsgHandler,
-    this._commsStats,
+    this._commsStats
   );
 
   // Event listener
   private _onEventFn: RICEventFn | null = null;
 
+  // WiFi connection info
+  _ricWifiConnStatus: RICWifiConnStatus = new RICWifiConnStatus();
+  _defaultWiFiHostname = "Marty";
+  _maxSecsToWaitForWiFiConn = 20;
+
+  // RIC friendly name
+  _ricFriendlyName: string | null = null;
+  _ricFriendlyNameIsSet = false;
+
   constructor() {
     // Debug
-    RICLog.debug('RICConnector starting up');
+    RICLog.debug("RICConnector starting up");
   }
 
   setEventListener(onEventFn: RICEventFn): void {
@@ -97,7 +133,9 @@ export default class RICConnector {
 
   isConnected() {
     // Check if connected
-    const isConnected = this._retryIfLostIsConnected || (this._ricChannel ? this._ricChannel.isConnected() : false);
+    const isConnected =
+      this._retryIfLostIsConnected ||
+      (this._ricChannel ? this._ricChannel.isConnected() : false);
     return isConnected;
   }
 
@@ -108,9 +146,11 @@ export default class RICConnector {
     if (!this._retryIfLostEnabled) {
       this._retryIfLostIsConnected = false;
     }
-    RICLog.debug(`setRetryConnectionIfLost ${enableRetry} retry for ${retryForSecs}`);
+    RICLog.debug(
+      `setRetryConnectionIfLost ${enableRetry} retry for ${retryForSecs}`
+    );
   }
-  
+
   getConnMethod(): string {
     return this._channelConnMethod;
   }
@@ -123,6 +163,10 @@ export default class RICConnector {
     return this._ricStateInfo;
   }
 
+  getCommsStats(): RICCommsStats {
+    return this._commsStats;
+  }
+
   /**
    * Connect to a RIC
    *
@@ -132,7 +176,6 @@ export default class RICConnector {
    *
    */
   async connect(method: string, locator: string | object): Promise<boolean> {
-
     // Ensure disconnected
     try {
       await this.disconnect();
@@ -142,23 +185,23 @@ export default class RICConnector {
 
     // Check connection method
     let connMethod = "";
-    if (method === 'WebBLE' && typeof locator === 'object') {
-
+    if (method === "WebBLE" && typeof locator === "object") {
       // Create channel
       this._ricChannel = new RICChannelWebBLE();
-      connMethod = 'WebBLE';
-
-    } else if (((method.toLocaleLowerCase() === 'WebSocket') || (method.toLocaleLowerCase() === 'wifi')) && (typeof locator === 'string')) {
-
+      connMethod = "WebBLE";
+    } else if (
+      (method.toLocaleLowerCase() === "WebSocket" ||
+        method.toLocaleLowerCase() === "wifi") &&
+      typeof locator === "string"
+    ) {
       // Create channel
       this._ricChannel = new RICChannelWebSocket();
-      connMethod = 'WebSocket';
+      connMethod = "WebSocket";
     }
 
     // Check channel established
     let connOk = false;
     if (this._ricChannel !== null) {
-
       // Connection method and locator
       this._channelConnMethod = connMethod;
       this._channelConnLocator = locator;
@@ -173,14 +216,13 @@ export default class RICConnector {
 
       // Connect
       try {
-
         // Event
         this.onConnEvent(RICConnEvent.CONN_CONNECTING_RIC);
 
         // Connect
         connOk = await this._connectToChannel();
       } catch (err) {
-        RICLog.error('RICConnector.connect - error: ' + err);
+        RICLog.error("RICConnector.connect - error: " + err);
       }
 
       // Events
@@ -190,7 +232,6 @@ export default class RICConnector {
         // Failed Event
         this.onConnEvent(RICConnEvent.CONN_CONNECTION_FAILED);
       }
-
     } else {
       this._channelConnMethod = "";
     }
@@ -216,17 +257,20 @@ export default class RICConnector {
    * @returns Promise<RICOKFail>
    *
    */
-  async sendRICRESTMsg(commandName: string, params: object): Promise<RICOKFail> {
+  async sendRICRESTMsg(
+    commandName: string,
+    params: object
+  ): Promise<RICOKFail> {
     try {
       // Format the paramList as query string
       const paramEntries = Object.entries(params);
-      let paramQueryStr = '';
+      let paramQueryStr = "";
       for (const param of paramEntries) {
-        if (paramQueryStr.length > 0) paramQueryStr += '&';
-        paramQueryStr += param[0] + '=' + param[1];
+        if (paramQueryStr.length > 0) paramQueryStr += "&";
+        paramQueryStr += param[0] + "=" + param[1];
       }
       // Format the url to send
-      if (paramQueryStr.length > 0) commandName += '?' + paramQueryStr;
+      if (paramQueryStr.length > 0) commandName += "?" + paramQueryStr;
       return await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(commandName);
     } catch (error) {
       RICLog.warn(`runCommand failed ${error}`);
@@ -239,24 +283,24 @@ export default class RICConnector {
   onRxReply(
     msgHandle: number,
     msgRsltCode: RICMsgResultCode,
-    msgRsltJsonObj: object | null,
+    msgRsltJsonObj: object | null
   ): void {
     RICLog.verbose(
       `onRxReply msgHandle ${msgHandle} rsltCode ${msgRsltCode} obj ${JSON.stringify(
-        msgRsltJsonObj,
-      )}`,
+        msgRsltJsonObj
+      )}`
     );
   }
 
   onRxUnnumberedMsg(msgRsltJsonObj: { [key: string]: number | string }): void {
     RICLog.verbose(
-      `onRxUnnumberedMsg rsltCode obj ${JSON.stringify(msgRsltJsonObj)}`,
+      `onRxUnnumberedMsg rsltCode obj ${JSON.stringify(msgRsltJsonObj)}`
     );
 
     // Inform the file handler
-    if ('okto' in msgRsltJsonObj) {
+    if ("okto" in msgRsltJsonObj) {
       this._ricFileHandler.onOktoMsg(msgRsltJsonObj.okto as number);
-    } else if ('sokto' in msgRsltJsonObj) {
+    } else if ("sokto" in msgRsltJsonObj) {
       this._ricStreamHandler.onSoktoMsg(msgRsltJsonObj.sokto as number);
     }
   }
@@ -264,7 +308,11 @@ export default class RICConnector {
   // Mark: Published data handling -----------------------------------------------------------------------------------------
 
   onRxOtherROSSerialMsg(topicID: number, payload: Uint8Array): void {
-    RICLog.debug(`onRxOtherROSSerialMsg topicID ${topicID} payload ${RICUtils.bufferToHex(payload)}`);
+    RICLog.debug(
+      `onRxOtherROSSerialMsg topicID ${topicID} payload ${RICUtils.bufferToHex(
+        payload
+      )}`
+    );
   }
 
   onRxSmartServo(smartServos: ROSSerialSmartServos): void {
@@ -310,14 +358,15 @@ export default class RICConnector {
    *  @return boolean - true if started ok
    *
    */
-  async checkCorrectRICStart(ricLedLcdColours: RICLedLcdColours): Promise<boolean> {
-
+  async checkCorrectRICStart(
+    ricLedLcdColours: RICLedLcdColours
+  ): Promise<boolean> {
     // Set colour pattern checker colours
     const randomColours = this._ledPatternChecker.setup(ricLedLcdColours);
 
     // Start timer to repeat checking LED pattern
     RICLog.debug(`checkCorrectRICStart: starting LED pattern checker`);
-    if (!await this._checkCorrectRICRefreshLEDs()) {
+    if (!(await this._checkCorrectRICRefreshLEDs())) {
       return false;
     }
 
@@ -330,7 +379,7 @@ export default class RICConnector {
     this._ledPatternRefreshTimer = setInterval(async () => {
       RICLog.verbose(`checkCorrectRICStart: loop`);
       if (!this._checkCorrectRICRefreshLEDs()) {
-        RICLog.debug('checkCorrectRICStart no longer active - clearing timer');
+        RICLog.debug("checkCorrectRICStart no longer active - clearing timer");
         this._clearLedPatternRefreshTimer();
       }
     }, this._ledPatternTimeoutMs / 2.1);
@@ -344,7 +393,6 @@ export default class RICConnector {
    *
    */
   async checkCorrectRICStop(confirmCorrectRIC: boolean): Promise<boolean> {
-
     // Stop refreshing LED pattern on RIC
     this._clearLedPatternRefreshTimer();
 
@@ -352,7 +400,7 @@ export default class RICConnector {
     if (this.isConnected()) {
       this._ledPatternChecker.clearRICColors(this._ricMsgHandler);
     }
-    
+
     // Check correct
     if (!confirmCorrectRIC) {
       // Event
@@ -380,13 +428,16 @@ export default class RICConnector {
     // Check connected
     RICLog.debug(`_verificationRepeat getting isConnected`);
     if (!this.isConnected()) {
-      console.warn('_verificationRepeat not connected');
+      console.warn("_verificationRepeat not connected");
       return false;
     }
 
     // Repeat the LED pattern (RIC times out the LED override after ~10 seconds)
     RICLog.debug(`_verificationRepeat setting pattern`);
-    return await this._ledPatternChecker.setRICColors(this._ricMsgHandler, this._ledPatternTimeoutMs);
+    return await this._ledPatternChecker.setRICColors(
+      this._ricMsgHandler,
+      this._ledPatternTimeoutMs
+    );
   }
 
   _clearLedPatternRefreshTimer(): void {
@@ -405,7 +456,6 @@ export default class RICConnector {
    *
    */
   async retrieveMartySystemInfo(): Promise<boolean> {
-
     // Retrieve system info
     try {
       const retrieveResult = await this._ricSystem.retrieveInfo();
@@ -419,13 +469,12 @@ export default class RICConnector {
 
     // RIC verified and connected
     if (this._ricChannel) {
-
       // Subscribe for updates if required
       if (this._ricChannel.requiresSubscription()) {
         try {
           await this.subscribeForUpdates(true);
-        } catch (error: unknown) {
-          RICLog.warn(`eventConnect - subscribe for updates failed ${error}`)
+        } catch (error) {
+          RICLog.warn(`eventConnect - subscribe for updates failed ${error}`);
         }
       }
       return true;
@@ -444,24 +493,30 @@ export default class RICConnector {
    */
   async subscribeForUpdates(enable: boolean): Promise<void> {
     try {
-      const subscribeDisable = '{"cmdName":"subscription","action":"update",' +
+      const subscribeDisable =
+        '{"cmdName":"subscription","action":"update",' +
         '"pubRecs":[' +
         `{"name":"MultiStatus","rateHz":0,}` +
         '{"name":"PowerStatus","rateHz":0},' +
         `{"name":"AddOnStatus","rateHz":0}` +
-        ']}';
-      const subscribeEnable = '{"cmdName":"subscription","action":"update",' +
+        "]}";
+      const subscribeEnable =
+        '{"cmdName":"subscription","action":"update",' +
         '"pubRecs":[' +
         `{"name":"MultiStatus","rateHz":${this._subscribeRateHz.toString()}}` +
         `{"name":"PowerStatus","rateHz":1.0},` +
         `{"name":"AddOnStatus","rateHz":${this._subscribeRateHz.toString()}}` +
-        ']}';
+        "]}";
 
-      const ricResp = await this._ricMsgHandler.sendRICRESTCmdFrame<RICOKFail>(enable ? subscribeEnable : subscribeDisable);
+      const ricResp = await this._ricMsgHandler.sendRICRESTCmdFrame<RICOKFail>(
+        enable ? subscribeEnable : subscribeDisable
+      );
 
       // Debug
-      RICLog.debug(`subscribe enable/disable returned ${JSON.stringify(ricResp)}`);
-    } catch (error: unknown) {
+      RICLog.debug(
+        `subscribe enable/disable returned ${JSON.stringify(ricResp)}`
+      );
+    } catch (error) {
       RICLog.warn(`getRICCalibInfo Failed subscribe for updates ${error}`);
     }
   }
@@ -480,19 +535,28 @@ export default class RICConnector {
     let lo = Math.round(16807 * (seed >> 16));
     lo += (hi & 0x7fff) << 16;
     lo += hi >> 15;
-    if (lo > 0x7fffffff)
-      lo -= 0x7fffffff;
+    if (lo > 0x7fffffff) lo -= 0x7fffffff;
     return lo;
   }
 
   async checkConnPerformance(): Promise<number | undefined> {
-
     // Send empty blocks of data - these will be ignored by RIC - but will still be counted for performance
     // evaluation
     let prbsState = 1;
     const testData = new Uint8Array(this._testConnPerfBlockSize);
     for (let i = 0; i < this._testConnPerfNumBlocks; i++) {
-      testData.set([0, (i >> 24) & 0xff, (i >> 16) & 0xff, (i >> 8) & 0xff, i & 0xff, 0x1f, 0x9d, 0xf4, 0x7a, 0xb5]);
+      testData.set([
+        0,
+        (i >> 24) & 0xff,
+        (i >> 16) & 0xff,
+        (i >> 8) & 0xff,
+        i & 0xff,
+        0x1f,
+        0x9d,
+        0xf4,
+        0x7a,
+        0xb5,
+      ]);
       for (let j = 10; j < this._testConnPerfBlockSize; j++) {
         prbsState = this.parkmiller_next(prbsState);
         testData[j] = prbsState & 0xff;
@@ -503,35 +567,43 @@ export default class RICConnector {
     }
 
     // Wait a little to allow RIC to process the data
-    await new Promise(resolve => setTimeout(resolve, this._connPerfRsltDelayMs));
+    await new Promise((resolve) =>
+      setTimeout(resolve, this._connPerfRsltDelayMs)
+    );
 
     // Get performance
     const blePerf = await this._ricSystem.getSysModInfoBLEMan();
     if (blePerf) {
-      console.log(`startConnPerformanceCheck timer rate = ${blePerf.tBPS}BytesPS`);
+      console.log(
+        `startConnPerformanceCheck timer rate = ${blePerf.tBPS}BytesPS`
+      );
       return blePerf.tBPS;
     } else {
-      throw new Error('checkConnPerformance: failed to get BLE performance');
+      throw new Error("checkConnPerformance: failed to get BLE performance");
     }
   }
 
   // Mark: Connection event --------------------------------------------------------------------------
-  
-  onConnEvent(eventEnum: RICConnEvent, data: object | string | null | undefined = undefined): void {
 
+  onConnEvent(
+    eventEnum: RICConnEvent,
+    data: object | string | null | undefined = undefined
+  ): void {
     // Handle information clearing on disconnect
     switch (eventEnum) {
       case RICConnEvent.CONN_DISCONNECTED_RIC:
-
         // Disconnect time
         this._retryIfLostDisconnectTime = Date.now();
 
         // Check if retry required
         if (this._retryIfLostIsConnected && this._retryIfLostEnabled) {
-
           // Indicate connection disrupted
           if (this._onEventFn) {
-            this._onEventFn("conn", RICConnEvent.CONN_ISSUE_DETECTED, RICConnEventNames[RICConnEvent.CONN_ISSUE_DETECTED]);
+            this._onEventFn(
+              "conn",
+              RICConnEvent.CONN_ISSUE_DETECTED,
+              RICConnEventNames[RICConnEvent.CONN_ISSUE_DETECTED]
+            );
           }
 
           // Retry connection
@@ -539,7 +611,6 @@ export default class RICConnector {
 
           // Don't allow disconnection to propagate until retries have occurred
           return;
-
         }
 
         // Invalidate connection details
@@ -554,38 +625,43 @@ export default class RICConnector {
   }
 
   _retryConnection(): void {
-
     // Check timeout
-    if ((this._retryIfLostDisconnectTime !== null) &&
-        (Date.now() - this._retryIfLostDisconnectTime < this._retryIfLostForSecs*1000)) {
+    if (
+      this._retryIfLostDisconnectTime !== null &&
+      Date.now() - this._retryIfLostDisconnectTime <
+        this._retryIfLostForSecs * 1000
+    ) {
+      // Set timer to try to reconnect
+      setTimeout(async () => {
+        // Try to connect
+        const isConn = await this._connectToChannel();
+        if (!isConn) {
+          this._retryConnection();
+        } else {
+          // No longer retrying
+          this._retryIfLostDisconnectTime = null;
 
-          // Set timer to try to reconnect
-          setTimeout(async () => {
-
-            // Try to connect
-            const isConn = await this._connectToChannel();
-            if (!isConn) {
-              this._retryConnection();
-            } else {
-
-              // No longer retrying
-              this._retryIfLostDisconnectTime = null;
-
-              // Indicate connection problem resolved
-              if (this._onEventFn) {
-                this._onEventFn("conn", RICConnEvent.CONN_ISSUE_RESOLVED, RICConnEventNames[RICConnEvent.CONN_ISSUE_RESOLVED]);
-              }
-
-            }
-          }, this._retryIfLostRetryDelayMs);
+          // Indicate connection problem resolved
+          if (this._onEventFn) {
+            this._onEventFn(
+              "conn",
+              RICConnEvent.CONN_ISSUE_RESOLVED,
+              RICConnEventNames[RICConnEvent.CONN_ISSUE_RESOLVED]
+            );
+          }
+        }
+      }, this._retryIfLostRetryDelayMs);
     } else {
-
       // No longer connected after retry timeout
       this._retryIfLostIsConnected = false;
 
       // Indicate disconnection
       if (this._onEventFn) {
-        this._onEventFn("conn", RICConnEvent.CONN_DISCONNECTED_RIC, RICConnEventNames[RICConnEvent.CONN_DISCONNECTED_RIC]);
+        this._onEventFn(
+          "conn",
+          RICConnEvent.CONN_DISCONNECTED_RIC,
+          RICConnEventNames[RICConnEvent.CONN_DISCONNECTED_RIC]
+        );
       }
 
       // Invalidate connection details
@@ -597,7 +673,9 @@ export default class RICConnector {
     // Connect
     try {
       if (this._ricChannel) {
-        const connected =  await this._ricChannel.connect(this._channelConnLocator);
+        const connected = await this._ricChannel.connect(
+          this._channelConnLocator
+        );
         if (connected) {
           this._retryIfLostIsConnected = true;
           return true;
@@ -607,5 +685,319 @@ export default class RICConnector {
       RICLog.error(`RICConnector.connect() error: ${error}`);
     }
     return false;
+  }
+
+  // Mark: WiFi Connection ------------------------------------------------------------------------------------
+
+  getHostnameFromFriendlyName(): string {
+    if (!this._ricFriendlyName) {
+      return this._defaultWiFiHostname;
+    }
+    let hostname = this._ricFriendlyName;
+    hostname = hostname?.replace(/ /g, "-");
+    hostname = hostname.replace(/\W+/g, "");
+    return hostname;
+  }
+
+  async pauseWifiConnection(pause: boolean): Promise<boolean> {
+    try {
+      if (pause) {
+        await this._ricMsgHandler.sendRICRESTURL<RICOKFail>("wifipause/pause");
+      } else {
+        await this._ricMsgHandler.sendRICRESTURL<RICOKFail>("wifipause/resume");
+      }
+    } catch (error) {
+      console.log("wifiConnect wifi pause", error);
+      return true;
+    }
+    return false;
+  }
+
+  async getWiFiConnStatus(): Promise<boolean | null> {
+    // Request the WiFi connection to be paused
+    try {
+      // Get status
+      const ricSysModInfoWiFi = await this._ricMsgHandler.sendRICRESTURL<
+        RICSysModInfoWiFi
+      >("sysmodinfo/NetMan");
+
+      console.log(
+        `wifiConnStatus rslt ${ricSysModInfoWiFi.rslt} isConn ${ricSysModInfoWiFi.isConn} paused ${ricSysModInfoWiFi.isPaused}`
+      );
+
+      // Check status indicates WiFi connected
+      if (ricSysModInfoWiFi.rslt === "ok") {
+        this._ricWifiConnStatus.connState =
+          ricSysModInfoWiFi.isConn !== 0
+            ? RICWifiConnState.WIFI_CONN_CONNECTED
+            : RICWifiConnState.WIFI_CONN_NONE;
+        this._ricWifiConnStatus.isPaused = ricSysModInfoWiFi.isPaused !== 0;
+        this._ricWifiConnStatus.ipAddress = ricSysModInfoWiFi.IP;
+        this._ricWifiConnStatus.hostname = ricSysModInfoWiFi.Hostname;
+        this._ricWifiConnStatus.ssid = ricSysModInfoWiFi.SSID;
+        this._ricWifiConnStatus.bssid = ricSysModInfoWiFi.WiFiMAC;
+        return (
+          ricSysModInfoWiFi.isConn !== 0 || ricSysModInfoWiFi.isPaused !== 0
+        );
+      }
+    } catch (error) {
+      console.log("[DEBUG]: wifiConnStatus sysmodinfo failed ", error);
+    }
+    this._ricWifiConnStatus.connState = RICWifiConnState.WIFI_CONN_NONE;
+    this._ricWifiConnStatus.isPaused = false;
+    return null;
+  }
+
+  async wifiConnect(ssid: string, password: string): Promise<boolean> {
+    console.log(`Connect to WiFi ${ssid} password ${password}`);
+
+    // Issue the command to connect WiFi
+    try {
+      console.log("Attempting to connect to wifi");
+      let RICRESTURL_wifiCredentials =
+        "w/" + ssid + "/" + password + "/" + this.getHostnameFromFriendlyName();
+      console.log("RESTURL: " + RICRESTURL_wifiCredentials);
+
+      await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
+        RICRESTURL_wifiCredentials
+      );
+    } catch (error) {
+      console.log("wifiConnect failed ", error);
+      return false;
+    }
+
+    // Wait until connected, timed-out or failed
+    for (
+      let timeoutCount = 0;
+      timeoutCount < this._maxSecsToWaitForWiFiConn;
+      timeoutCount++
+    ) {
+      // Wait a little before checking
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Get status info
+      const connStat = await this.getWiFiConnStatus();
+      console.log("connStat: " + connStat);
+      if (connStat) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  async wifiDisconnect(): Promise<boolean> {
+    try {
+      console.log("Attempting to clear wifi info");
+
+      await this._ricMsgHandler.sendRICRESTURL<RICOKFail>("wc");
+      this.getWiFiConnStatus();
+      return true;
+    } catch (error) {
+      console.log("Wifi clearing unsuccessful");
+      return false;
+    }
+  }
+
+  // Mark: RIC Naming -----------------------------------------------------------------------------------
+
+  /**
+   *
+   * setRICName
+   * @param newName name to refer to RIC - used for BLE advertising
+   * @returns Promise<string> (name that has been set)
+   *
+   */
+  async setRICName(newName: string): Promise<string> {
+    try {
+      const msgRsltJsonObj = await this._ricMsgHandler.sendRICRESTURL<
+        RICFriendlyName
+      >(`friendlyname/${newName}`);
+
+      const nameThatHasBeenSet = msgRsltJsonObj.friendlyName;
+      this._ricFriendlyName = nameThatHasBeenSet;
+      this._ricFriendlyNameIsSet = true;
+      return nameThatHasBeenSet;
+    } catch (error) {
+      return "";
+    }
+  }
+
+  /**
+   *
+   * getRICName
+   * @returns Promise<RICNameResponse> (object containing rslt)
+   *
+   */
+  async getRICName(): Promise<RICNameResponse> {
+    try {
+      const msgRsltJsonObj = await this._ricMsgHandler.sendRICRESTURL<
+        RICNameResponse
+      >("friendlyname");
+      if (msgRsltJsonObj.rslt === "ok") {
+        this._ricFriendlyName = msgRsltJsonObj.friendlyName;
+        this._ricFriendlyNameIsSet = msgRsltJsonObj.friendlyNameIsSet != 0;
+      }
+      console.log("Friendly name set to: " + this._ricFriendlyName);
+      return msgRsltJsonObj;
+    } catch (error) {
+      return new RICNameResponse();
+    }
+  }
+
+  // Mark: Run API Command -------------------------------------------------------------------------------
+
+  /**
+   *
+   * runTrajectory
+   * @param commandName command API string
+   * @param params parameters (simple name value pairs only) to parameterize trajectory
+   * @returns Promise<RICOKFail>
+   *
+   */
+   async runCommand(commandName: string, params: object): Promise<RICOKFail> {
+    try {
+      // Format the paramList as query string
+      const paramEntries = Object.entries(params);
+      let paramQueryStr = '';
+      for (const param of paramEntries) {
+        if (paramQueryStr.length > 0) paramQueryStr += '&';
+        paramQueryStr += param[0] + '=' + param[1];
+      }
+      // Format the url to send
+      if (paramQueryStr.length > 0) commandName += '?' + paramQueryStr;
+      return await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
+        commandName,
+      );
+    } catch (error) {
+      console.log('runCommand failed', error);
+      return new RICOKFail();
+    }
+  }
+
+  // Mark: Get AddOn list -----------------------------------------------------------
+
+  /**
+   *
+   * getAddOnList - get list of add-ons configured on the robot
+   * @returns Promise<RICAddOnList>
+   *
+   */
+   async getAddOnList(): Promise<RICAddOnList> {
+    try {
+      const addOnList = await this._ricMsgHandler.sendRICRESTURL<RICAddOnList>(
+        'addon/list',
+      );
+      console.log('getAddOnList returned ' + addOnList);
+      return addOnList;
+    } catch (error) {
+      console.log('getAddOnList Failed to get list of add-ons', error);
+      return new RICAddOnList();
+    }
+  }
+
+  // Mark: Set AddOn config -----------------------------------------------------------
+
+  /**
+   *
+   * setAddOnConfig - set a specified add-on's configuration
+   * @param serialNo used to identify the add-on
+   * @param newName name to refer to add-on by
+   * @returns Promise<RICOKFail>
+   *
+   */
+   async setAddOnConfig(serialNo: string, newName: string): Promise<RICOKFail> {
+    try {
+      const msgRslt = await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
+        `addon/set?SN=${serialNo}&name=${newName}`,
+      );
+      return msgRslt;
+    } catch (error) {
+      return new RICOKFail();
+    }
+  }
+
+  /**
+   * deleteAddOn - remove an addon from the addonlist on RIC
+   * @param serialNo used to identify the add-on
+   * @returns Promise<RICOKFail>
+   */
+  async deleteAddOn(serialNo: string): Promise<RICOKFail> {
+    try {
+      const msgRslt = await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
+        `addon/del?SN=${serialNo}`,
+      );
+      return msgRslt;
+    } catch (error) {
+      return new RICOKFail();
+    }
+  }
+
+
+  // Mark: Identify AddOn -----------------------------------------------------------
+
+  /**
+   *
+   * identifyAddOn - send the 'identify' command to a specified add-on
+   * @param name used to identify the add-on
+   * @returns Promise<RICOKFail>
+   *
+   */
+   async identifyAddOn(name: string): Promise<RICOKFail> {
+    try {
+      const msgRslt = await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
+        `elem/${name}/json?cmd=raw&hexWr=F8`,
+      );
+      return msgRslt;
+    } catch (error) {
+      return new RICOKFail();
+    }
+  }
+
+  // Mark: Get HWElem list -----------------------------------------------------------
+
+  /**
+   *
+   * getHWElemList - get list of HWElems on the robot (including add-ons)
+   * @returns Promise<RICHWElemList>
+   *
+   */
+  async getHWElemList(): Promise<RICHWElemList> {
+    try {
+      const ricHWList = await this._ricMsgHandler.sendRICRESTURL<RICHWElemList>(
+        "hwstatus"
+      );
+      console.log("getHWElemList returned " + JSON.stringify(ricHWList));
+      this._hwElems = ricHWList.hw;
+      this._addOnManager.setHWElems(this._hwElems);
+
+      let reports: Array<RICReportMsg> = [];
+      // add callback to subscribe to report messages and store in reports array
+      this._ricMsgHandler._reportMsgCallbacks.set("getHWElemCB", function (
+        report
+      ) {
+        reports.push(report);
+        console.log(`getHWElemCB Report callback ${JSON.stringify(report)}`);
+      });
+
+      // run any required initialisation for the addons
+      const initCmds = this._addOnManager.getInitCmds();
+      // send init commands to the robot
+      const timeInitStart = Date.now();
+      for (const initCmd of initCmds) {
+        this.runCommand(initCmd, {});
+      }
+      // wait a couple of seconds for any report messages to be received
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // pass report messages to add on manager for processing
+      this._addOnManager.processReportMsg(reports, timeInitStart);
+
+      // clean up callback
+      this._ricMsgHandler._reportMsgCallbacks.delete("getHWElemCB");
+
+      return ricHWList;
+    } catch (error) {
+      console.log("getHWElemList Failed to get list of HWElems", error);
+      return new RICHWElemList();
+    }
   }
 }

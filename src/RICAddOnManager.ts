@@ -138,6 +138,20 @@ export default class RICAddOnManager implements RICAddOnRegistry {
     return cmds;
   }
 
+  // processInitRx(reportMsgs: Array<Object>, timeInitStart: number){
+  //   for (var reportID in reportMsgs){
+  //     const report = reportMsgs[reportID];
+  //     //console.log(`Report message: ${JSON.stringify(report)}`);
+  //     //@ts-ignore
+  //     if (report.timeReceived < timeInitStart) continue;
+  //     //@ts-ignore
+  //     if (this.getIDNoFromName(report.elemName) != null){
+  //       //@ts-ignore
+  //       this._configuredAddOns[this.getIDNoFromName(report.elemName) as string].processInit(report as RICReportMsg);
+  //     }
+  //   }
+  // }
+
   processReportMsg(reportMsgs: Array<RICReportMsg>, timeInitStart: number) {
     for (const reportID in reportMsgs) {
       const report = reportMsgs[reportID];

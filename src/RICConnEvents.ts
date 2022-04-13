@@ -8,7 +8,7 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import { RICLedLcdColours } from "./RICTypes";
+// import { RICLedLcdColours } from "./RICTypes";
 
 export enum RICConnEvent {
     CONN_CONNECTING_RIC,
