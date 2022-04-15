@@ -1,8 +1,8 @@
-import RICCommsStats from "../../src/RICCommsStats";
-import RICConnector from "../../src/RICConnector";
-import RICLog from "../../src/RICLog";
-import { ROSSerialIMU, ROSSerialPowerStatus, ROSSerialRGBT, ROSSerialRobotStatus, ROSSerialSmartServos } from "../../src/RICROSSerial";
-import { Dictionary, RICHWElem } from "../../src/RICTypes";
+import RICCommsStats from "../../../src/RICCommsStats";
+import RICConnector from "../../../src/RICConnector";
+import RICLog from "../../../src/RICLog";
+import { ROSSerialIMU, ROSSerialPowerStatus, ROSSerialRGBT, ROSSerialRobotStatus, ROSSerialSmartServos } from "../../../src/RICROSSerial";
+import { Dictionary, RICHWElem } from "../../../src/RICTypes";
 
 declare global {
     var ricConnector: RICConnector;
@@ -10,16 +10,6 @@ declare global {
 }
 
 export function checkNewData(name: string, data: object) {
-  // if (name in globalThis.ricPrevData) {
-  //   const jsonData = JSON.stringify(data);
-  //   const isNew = globalThis.ricPrevData[name] != jsonData;
-  //   if (!isNew) {
-  //     globalThis.ricPrevData[name] = jsonData;
-  //     return false;
-  //   }
-  // } else {
-  //   globalThis.ricPrevData[name] = JSON.stringify(data);
-  // }
   return true;
 }
 
@@ -69,7 +59,7 @@ export function robotStatusFormat(name:string, robotStatus:ROSSerialRobotStatus)
   statusStr += `<div class="flag-info">LoopAvg ${innerStatus.loopMsAvg}ms</div>`;
   statusStr += `<div class="flag-info">LoopMax ${innerStatus.loopMsMax}ms</div>`;
 
-  return statusStr; // + JSON.stringify(robotStatus, null, 2);
+  return statusStr;
 }
 
 export function powerStatusFormat(name:string, powerStatus:ROSSerialPowerStatus): string {
@@ -242,22 +232,6 @@ export function commsStatusFormat(name:string, commsStats:RICCommsStats): string
     "OtherTopic": commsStats._msgOtherTopic,
     "StreamBytes": commsStats._streamBytes,
   };
-
-  // const innerStatus = robotStatus.robotStatus;
-  // let statusStr = "";
-  // let pixIdx = 0;
-  // for (let pixInfo of innerStatus.pixRGBT) {
-  //   statusStr += pixInfoFormat(pixIdx, pixInfo);
-  //   pixIdx++;
-  // }
-  // statusStr += `<div class="flag-info">${innerStatus.isMoving ? "Moving" : "Stopped"}</div>`;
-  // statusStr += `<div class="flag-info">${innerStatus.isPaused ? "Paused" : "Running"}</div>`;
-  // statusStr += `<div class="flag-info">${innerStatus.isFwUpdating ? "FW Update" : "No FW Update"}</div>`;
-  // statusStr += `<div class="flag-line-sep"></div>`;
-  // statusStr += `<div class="flag-info">HeapFree ${innerStatus.heapFree}</div>`;
-  // statusStr += `<div class="flag-info">HeapMin ${innerStatus.heapMin}</div>`;
-  // statusStr += `<div class="flag-info">LoopAvg ${innerStatus.loopMsAvg}ms</div>`;
-  // statusStr += `<div class="flag-info">LoopMax ${innerStatus.loopMsMax}ms</div>`;
 
   return tableFormat(name, rxTxStats) + tableFormat("", pubStats);
 }

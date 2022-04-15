@@ -1,9 +1,9 @@
 import { acceptCheckCorrectRIC, connectBLE, connectWiFi, disconnect, rejectCheckCorrectRIC, startCheckCorrectRIC } from './connect';
 import { sendREST, streamSoundFile } from './stream';
 import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest, setReconnect, pixGetColourStr, commsStatusFormat, powerStatusFormat } from './system';
-import { RICConnEvent } from '../../src/RICConnEvents';
-import { RICUpdateEvent } from '../../src/RICUpdateEvents';
-import RICConnector from '../../src/RICConnector';
+import { RICConnEvent } from '../../../src/RICConnEvents';
+import { RICUpdateEvent } from '../../../src/RICUpdateEvents';
+import RICConnector from '../../../src/RICConnector';
 import { fileDownloader, otaUpdateCancel, otaUpdateCheck, otaUpdateStart } from './update';
 
 let startTime = Date.now();
@@ -46,10 +46,11 @@ function eventListener(eventType: string, eventEnum: RICConnEvent | RICUpdateEve
   }
 }
 
-globalThis.ricConnector = new RICConnector("2.0.0", 
-    `https://updates.robotical.io/live/martyv2/rev{HWRevNo}/current_version.json`, 
-    fileDownloader);
+globalThis.ricConnector = new RICConnector();
 if (globalThis.ricConnector) {
+  globalThis.ricConnector.setupUpdateManager("2.0.0", 
+              `https://updates.robotical.io/live/martyv2/rev{HWRevNo}/current_version.json`, 
+              fileDownloader);
   globalThis.ricConnector.setEventListener(eventListener);
 }
 globalThis.ricPrevData = {};

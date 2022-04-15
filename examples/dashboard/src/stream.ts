@@ -1,5 +1,5 @@
-import RICConnector from "../../src/RICConnector";
-import { Dictionary, RICStreamType } from "../../src/RICTypes";
+import RICConnector from "../../../src/RICConnector";
+import { Dictionary } from "../../../src/RICTypes";
 
 declare global {
     var ricConnector: RICConnector;

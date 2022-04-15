@@ -91,10 +91,12 @@ export default class RICConnector {
   // Event listener
   private _onEventFn: RICEventFn | null = null;
 
-  constructor(appVersion: string, appUpdateURL: string, fileDownloader: RICFileDownloadFn) {
+  constructor() {
     // Debug
     RICLog.debug('RICConnector starting up');
+  }
 
+  setupUpdateManager(appVersion: string, appUpdateURL: string, fileDownloader: RICFileDownloadFn): void {
     // Setup update manager
     const firmwareTypeStrForMainFw = 'main';
     const nonFirmwareElemTypes = ['sound', 'traj'];

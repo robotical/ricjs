@@ -16,9 +16,9 @@ import RICMsgHandler from "./RICMsgHandler";
 export default class RICChannelWebBLE implements RICChannel {
 
   // BLE UUIDS
-  static RICServiceUUID = 'aa76677e-9cfd-4626-a510-0d305be57c8d';
-  static RICCmdUUID = 'aa76677e-9cfd-4626-a510-0d305be57c8e';
-  static RICRespUUID = 'aa76677e-9cfd-4626-a510-0d305be57c8f';
+  public static RICServiceUUID = 'aa76677e-9cfd-4626-a510-0d305be57c8d';
+  public static RICCmdUUID = 'aa76677e-9cfd-4626-a510-0d305be57c8e';
+  public static RICRespUUID = 'aa76677e-9cfd-4626-a510-0d305be57c8f';
 
   // Device and characteristics
   private _bleDevice: BluetoothDevice | null = null;

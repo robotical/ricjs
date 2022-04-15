@@ -1,7 +1,6 @@
-import RICConnector from "../../src/RICConnector";
-import { Dictionary } from "../../src/RICTypes";
-
-const RICServiceUUID = 'aa76677e-9cfd-4626-a510-0d305be57c8d';
+import RICChannelWebBLE from "../../../src/RICChannelWebBLE";
+import RICConnector from "../../../src/RICConnector";
+import { Dictionary } from "../../../src/RICTypes";
 
 declare global {
     var ricConnector: RICConnector;
@@ -12,7 +11,7 @@ async function getBleDevice(): Promise<BluetoothDevice | null> {
     try {
       const dev = await navigator.bluetooth.requestDevice({
         filters: [
-          { services: [RICServiceUUID] }
+          { services: [RICChannelWebBLE.RICServiceUUID] }
         ],
         optionalServices: []
       });

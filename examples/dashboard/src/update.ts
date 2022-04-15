@@ -1,6 +1,6 @@
-import RICConnector from "../../src/RICConnector";
-import { Dictionary, RICFileDownloadResult, RICProgressCBType } from "../../src/RICTypes";
-import { RICUpdateEventNames } from "../../src/RICUpdateEvents";
+import RICConnector from "../../../src/RICConnector";
+import { Dictionary, RICFileDownloadResult, RICProgressCBType } from "../../../src/RICTypes";
+import { RICUpdateEventNames } from "../../../src/RICUpdateEvents";
 
 declare global {
     var ricConnector: RICConnector;
