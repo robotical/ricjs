@@ -215,11 +215,14 @@ export function commsStatusFormat(name:string, commsStats:RICCommsStats): string
     return "";
   }
 
+  commsStats.getMsgRxRate();
+  commsStats.getMsgTxRate();
+
   const rxTxStats = {
     "RxCount": commsStats._msgRxCount,
-    "RxRate": commsStats._msgRxRate,
+    "RxRate": commsStats._msgRxRate.toFixed(2),
     "TxCount": commsStats._msgTxCount,
-    "TxRate": commsStats._msgTxRate,
+    "TxRate": commsStats._msgTxRate.toFixed(2),
     "MsgNumColl": commsStats._msgNumCollisions,
     "TooShort": commsStats._msgTooShort,
     "Unmatched": commsStats._msgNumUnmatched,
