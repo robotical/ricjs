@@ -662,4 +662,61 @@ export default class RICConnector {
       return;
     return await this._ricUpdateManager.firmwareUpdateCancel();
   }
+
+  // Mark: Set AddOn config -----------------------------------------------------------
+
+  /**
+   *
+   * setAddOnConfig - set a specified add-on's configuration
+   * @param serialNo used to identify the add-on
+   * @param newName name to refer to add-on by
+   * @returns Promise<RICOKFail>
+   *
+   */
+   async setAddOnConfig(serialNo: string, newName: string): Promise<RICOKFail> {
+    try {
+      const msgRslt = await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
+        `addon/set?SN=${serialNo}&name=${newName}`,
+      );
+      return msgRslt;
+    } catch (error) {
+      return new RICOKFail();
+    }
+  }
+
+  /**
+   * deleteAddOn - remove an addon from the addonlist on RIC
+   * @param serialNo used to identify the add-on
+   * @returns Promise<RICOKFail>
+   */
+  async deleteAddOn(serialNo: string): Promise<RICOKFail> {
+    try {
+      const msgRslt = await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
+        `addon/del?SN=${serialNo}`,
+      );
+      return msgRslt;
+    } catch (error) {
+      return new RICOKFail();
+    }
+  }
+
+  // Mark: Identify AddOn -----------------------------------------------------------
+
+  /**
+   *
+   * identifyAddOn - send the 'identify' command to a specified add-on
+   * @param name used to identify the add-on
+   * @returns Promise<RICOKFail>
+   *
+   */
+   async identifyAddOn(name: string): Promise<RICOKFail> {
+    try {
+      const msgRslt = await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
+        `elem/${name}/json?cmd=raw&hexWr=F8`,
+      );
+      return msgRslt;
+    } catch (error) {
+      return new RICOKFail();
+    }
+  }
 }
