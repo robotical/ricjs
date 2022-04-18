@@ -90,32 +90,31 @@ export interface RICMessageSender {
 
 export default class RICMsgHandler {
   // Message numbering and tracking
-  _currentMsgNumber = 1;
-  _currentMsgHandle = 1;
-  _msgTrackInfos: Array<RICMsgTrackInfo> = new Array<RICMsgTrackInfo>(
+  private _currentMsgNumber = 1;
+  private _currentMsgHandle = 1;
+  private _msgTrackInfos: Array<RICMsgTrackInfo> = new Array<RICMsgTrackInfo>(
     RICMsgTrackInfo.MAX_MSG_NUM + 1,
   );
-  _msgTrackCheckTimer: ReturnType<typeof setTimeout> | null = null;
-  _msgTrackTimerMs = 50;
-  _msgTrackLastCheckIdx = 0;
+  private _msgTrackTimerMs = 50;
+  private _msgTrackLastCheckIdx = 0;
 
   // report message callback dictionary. Add a callback to subscribe to report messages
-  _reportMsgCallbacks = new Map<string, (report: RICReportMsg) => void>();
+  private _reportMsgCallbacks = new Map<string, (report: RICReportMsg) => void>();
 
   // Interface to inform of message results
-  _msgResultHandler: RICMessageResult | null = null;
+  private _msgResultHandler: RICMessageResult | null = null;
 
   // Interface to send messages
-  _msgSender: RICMessageSender | null = null;
+  private _msgSender: RICMessageSender | null = null;
 
   // Comms stats
-  _commsStats: RICCommsStats;
+  private _commsStats: RICCommsStats;
 
   // RICMiniHDLC - handles part of RICSerial protocol
-  _miniHDLC: RICMiniHDLC;
+  private _miniHDLC: RICMiniHDLC;
 
   // Add-on manager
-  _addOnManager: RICAddOnManager;
+  private _addOnManager: RICAddOnManager;
 
   // Constructor
   constructor(commsStats: RICCommsStats, addOnManager: RICAddOnManager) {
@@ -129,13 +128,13 @@ export default class RICMsgHandler {
     }
 
     // Timer for checking messages
-    this._msgTrackCheckTimer = setTimeout(async () => {
+    setTimeout(async () => {
       this._onMsgTrackTimer(true);
     }, this._msgTrackTimerMs);
 
     // HDLC used to encode/decode the RICREST protocol
     this._miniHDLC = new RICMiniHDLC();
-    this._miniHDLC.onRxFrame = this._onHDLCFrameDecode.bind(this);
+    this._miniHDLC.setOnRxFrame(this._onHDLCFrameDecode.bind(this));
   }
 
   registerForResults(msgResultHandler: RICMessageResult) {
@@ -149,6 +148,14 @@ export default class RICMsgHandler {
   handleNewRxMsg(rxMsg: Uint8Array): void {
     this._miniHDLC.addRxBytes(rxMsg);
     // RICLog.verbose(`handleNewRxMsg len ${rxMsg.length} ${RICUtils.bufferToHex(rxMsg)}`)
+  }
+
+  reportMsgCallbacksSet(callbackName: string, callback: (report: RICReportMsg) => void): void {
+    this._reportMsgCallbacks.set(callbackName, callback);
+  }
+
+  reportMsgCallbacksDelete(callbackName: string) {
+    this._reportMsgCallbacks.delete(callbackName);
   }
 
   _onHDLCFrameDecode(rxMsg: Uint8Array): void {
@@ -233,17 +240,24 @@ export default class RICMsgHandler {
       if ('rslt' in msgRsltJsonObj) {
         const rsltStr = msgRsltJsonObj.rslt.toLowerCase();
         if (rsltStr === 'ok') {
+          RICLog.verbose(
+            `_handleResponseMessages RICREST rslt Ok ${rxMsgNum == 0 ? "unnumbered" : "msgNum " + rxMsgNum.toString()} resp ${msgRsltJsonObj.rslt}`,
+          );
           msgRsltCode = RICMsgResultCode.MESSAGE_RESULT_OK;
         } else if (rsltStr === 'fail') {
           msgRsltCode = RICMsgResultCode.MESSAGE_RESULT_FAIL;
+          RICLog.warn(
+            `_handleResponseMessages RICREST rslt fail ${rxMsgNum == 0 ? "unnumbered" : "msgNum " + rxMsgNum.toString()} resp ${msgRsltJsonObj.rslt}`,
+          );
         } else {
           RICLog.warn(
-            `_onHDLCFrameDecode RICREST rslt not recognized ${msgRsltJsonObj.rslt}`,
+            `_handleResponseMessages RICREST rslt not recognized ${rxMsgNum == 0 ? "unnumbered" : "msgNum " + rxMsgNum.toString()}resp ${msgRsltJsonObj.rslt}`,
           );
         }
+        
       } else {
         RICLog.warn(
-          `_onHDLCFrameDecode RICREST response doesn't contain rslt ${restStr}`,
+          `_handleResponseMessages RICREST response doesn't contain rslt ${rxMsgNum == 0 ? "unnumbered" : "msgNum " + rxMsgNum.toString()}resp ${restStr}`,
         );
       }
 
@@ -253,7 +267,7 @@ export default class RICMsgHandler {
     } catch (excp: unknown) {
       if (excp instanceof Error) {
         RICLog.warn(
-          `_onHDLCFrameDecode Failed to parse JSON response ${excp.toString()}`,
+          `_handleResponseMessages Failed to parse JSON ${rxMsgNum == 0 ? "unnumbered" : "msgNum " + rxMsgNum.toString()} resp ${excp.toString()}`,
         );
       }
     }
@@ -264,12 +278,12 @@ export default class RICMsgHandler {
     try {
       const reportMsg: RICReportMsg = JSON.parse(restStr);
       reportMsg.timeReceived = Date.now();
-      RICLog.verbose(`_onHDLCFrameDecode ${JSON.stringify(reportMsg)}`);
+      RICLog.debug(`_handleReportMessages ${JSON.stringify(reportMsg)}`);
       this._reportMsgCallbacks.forEach((callback) => callback(reportMsg));
     } catch (excp: unknown) {
       if (excp instanceof Error) {
         RICLog.warn(
-          `_onHDLCFrameDecode Failed to parse JSON report ${excp.toString()}`,
+          `_handleReportMessages Failed to parse JSON report ${excp.toString()}`,
         );
       }
     }
@@ -359,9 +373,9 @@ export default class RICMsgHandler {
     }
 
     // Debug
-    RICLog.verbose(
-      `sendMsgAndWaitForReply ${RICUtils.bufferToHex(framedMsg)}`,
-    );
+    // RICLog.verbose(
+    //   `sendMsgAndWaitForReply ${RICUtils.bufferToHex(framedMsg)}`,
+    // );
 
     // Return a promise that will be resolved when a reply is received or timeout occurs
     const promise = new Promise<T>((resolve, reject) => {
@@ -378,7 +392,6 @@ export default class RICMsgHandler {
     });
 
     return promise;
-
   }
 
   frameCommsMsg(
@@ -430,6 +443,9 @@ export default class RICMsgHandler {
       } msg ${RICUtils.bufferToHex(msgFrame)} sanityCheck ${this._msgTrackInfos[this._currentMsgNumber].msgOutstanding
       }`,
     );
+    // RICLog.debug(
+    //   `msgTrackingTxCmdMsg msgNum ${this._currentMsgNumber} msgLen ${msgFrame.length}}`,
+    // );
 
     // Stats
     this._commsStats.msgTx();
@@ -539,7 +555,7 @@ export default class RICMsgHandler {
         if ((this._msgTrackInfos[checkIdx].retryCount === 0) || (Date.now() > this._msgTrackInfos[checkIdx].msgSentMs + msgTimeoutMs)) {
 
           // Debug
-          RICLog.debug(`msgTrackTimer Message response timeout msgNum ${checkIdx} ${this._msgTrackInfos[checkIdx].retryCount === 0 ? 'first send' : 'timeout - retrying'}`);
+          RICLog.debug(`msgTrackTimer msgNum ${checkIdx} ${this._msgTrackInfos[checkIdx].retryCount === 0 ? 'first send' : 'timeout - retrying'}`);
           // RICLog.verbose(`msgTrackTimer msg ${RICUtils.bufferToHex(this._msgTrackInfos[i].msgFrame)}`);
     
           // Handle timeout (or first send)
@@ -577,7 +593,7 @@ export default class RICMsgHandler {
 
     // Call again if required
     if (chainRecall) {
-      this._msgTrackCheckTimer = setTimeout(async () => {
+      setTimeout(async () => {
         this._onMsgTrackTimer(true);
       }, this._msgTrackTimerMs);
     }
@@ -631,8 +647,8 @@ export default class RICMsgHandler {
         // Wrap into HDLC
         const framedMsg = this._miniHDLC.encode(msgBuf);
 
-        // Send without awaiting immediately
-        return this._msgSender.sendTxMsgNoAwait(
+        // Send
+        return this._msgSender.sendTxMsg(
           framedMsg,
           true,
           // Platform.OS === 'ios',

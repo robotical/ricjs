@@ -275,19 +275,23 @@ const CRC_LUT = [
 ];
 
 export default class RICMiniHDLC {
-  rxState: RICMiniHDLCState;
-  rxBuffer: Array<number> = [];
-  onRxFrame: ((rxFrame: Uint8Array) => void) | null;
-  frameCRC: Array<number> = [];
-  FRAME_BOUNDARY_OCTET = 0xe7;
-  CONTROL_ESCAPE_OCTET = 0xd7;
-  INVERT_OCTET = 0x20;
+  private rxState: RICMiniHDLCState;
+  private rxBuffer: Array<number> = [];
+  private onRxFrame: ((rxFrame: Uint8Array) => void) | null;
+  private frameCRC: Array<number> = [];
+  private readonly FRAME_BOUNDARY_OCTET = 0xe7;
+  private readonly CONTROL_ESCAPE_OCTET = 0xd7;
+  private readonly INVERT_OCTET = 0x20;
 
   constructor() {
     this.rxState = RICMiniHDLCState.STATE_READ;
     this.onRxFrame = null;
   }
 
+  setOnRxFrame(onRxFrame: (rxFrame: Uint8Array) => void) {
+    this.onRxFrame = onRxFrame;
+  }
+  
   addRxByte(rxByte: number): void {
     if (rxByte === this.FRAME_BOUNDARY_OCTET) {
       if (this.rxBuffer.length > 2) {

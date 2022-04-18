@@ -17,27 +17,27 @@ import { RICAddOnList, RICCalibInfo, RICFileList, RICFriendlyName, RICHWElem, RI
 export default class RICSystem {
 
   // Message handler
-  _ricMsgHandler: RICMsgHandler;
+  private _ricMsgHandler: RICMsgHandler;
 
   // Add-on manager
-  _addOnManager: RICAddOnManager;
+  private _addOnManager: RICAddOnManager;
 
   // System info
-  _systemInfo: RICSystemInfo | null = null;
+  private _systemInfo: RICSystemInfo | null = null;
 
   // RIC naming
-  _ricFriendlyName: RICFriendlyName | null = null;
+  private _ricFriendlyName: RICFriendlyName | null = null;
 
   // HWElems (connected to RIC)
-  _hwElems: Array<RICHWElem> = new Array<RICHWElem>();
+  private _hwElems: Array<RICHWElem> = new Array<RICHWElem>();
 
   // Calibration info
-  _calibInfo: RICCalibInfo | null = null;
+  private _calibInfo: RICCalibInfo | null = null;
 
   // WiFi connection info
-  _ricWifiConnStatus: RICWifiConnStatus = new RICWifiConnStatus();
-  _defaultWiFiHostname = 'Marty';
-  _maxSecsToWaitForWiFiConn = 20;
+  private _ricWifiConnStatus: RICWifiConnStatus = new RICWifiConnStatus();
+  private _defaultWiFiHostname = 'Marty';
+  private _maxSecsToWaitForWiFiConn = 20;
 
   /**
    * constructor
@@ -106,6 +106,14 @@ export default class RICSystem {
       return false;
     }
 
+    // Get WiFi connected info
+    try {
+      await this.getWiFiConnStatus();
+    } catch (error) {
+      RICLog.warn('retrieveInfo - failed to get WiFi Status ' + error);
+      return false;
+    }
+    
     // Get HWElems (connected to RIC)
     try {
       await this.getHWElemList();
@@ -114,13 +122,6 @@ export default class RICSystem {
       return false;
     }
 
-    // Get WiFi connected info
-    try {
-      await this.getWiFiConnStatus();
-    } catch (error) {
-      RICLog.warn('retrieveInfo - failed to get WiFi Status ' + error);
-      return false;
-    }
     return true;
   }
 
@@ -228,8 +229,8 @@ export default class RICSystem {
       this._addOnManager.setHWElems(this._hwElems);
 
       const reports: Array<RICReportMsg> = [];
-      // add callback to subscribe to report messages and store in reports array
-      this._ricMsgHandler._reportMsgCallbacks.set("getHWElemCB", function (report: RICReportMsg) {
+      // add callback to subscribe to report messages
+      this._ricMsgHandler.reportMsgCallbacksSet("getHWElemCB", function (report: RICReportMsg) {
         reports.push(report);
         RICLog.debug(`getHWElemCB Report callback ${JSON.stringify(report)}`);
       });
@@ -247,7 +248,7 @@ export default class RICSystem {
       this._addOnManager.processReportMsg(reports, timeInitStart);
 
       // clean up callback
-      this._ricMsgHandler._reportMsgCallbacks.delete("getHWElemCB");
+      this._ricMsgHandler.reportMsgCallbacksDelete("getHWElemCB");
 
       return ricHWList;
     } catch (error) {

@@ -21,24 +21,24 @@ import RICSystem from "./RICSystem";
 export default class RICUpdateManager {
 
   // Version info
-  _latestVersionInfo: RICUpdateInfo | null = null;
-  _updateESPRequired = false;
-  _updateElemsRequired = false;
+  private _latestVersionInfo: RICUpdateInfo | null = null;
+  private _updateESPRequired = false;
+  private _updateElemsRequired = false;
 
   // FW update
-  FW_UPDATE_CHECKS_BEFORE_ASSUME_FAILED = 10;
-  ELEM_FW_CHECK_LOOPS = 36;
+  private readonly FW_UPDATE_CHECKS_BEFORE_ASSUME_FAILED = 10;
+  private readonly ELEM_FW_CHECK_LOOPS = 36;
 
   // Progress levels
-  _progressAfterDownload = 0.1;
-  _progressAfterUpload = 0.9;
-  _progressAfterRestart = 0.93;
+  private _progressAfterDownload = 0.1;
+  private _progressAfterUpload = 0.9;
+  private _progressAfterRestart = 0.93;
 
   // TESTS - set to true for testing OTA updates ONLY
-  TEST_TRUNCATE_ESP_FILE = false;
-  TEST_PRETEND_ELEM_UPDATE_REQD = false;
-  TEST_PRETEND_INITIAL_VERSIONS_DIFFER = false;
-  TEST_PRETEND_FINAL_VERSIONS_MATCH = false;
+  private readonly TEST_TRUNCATE_ESP_FILE = false;
+  private readonly TEST_PRETEND_ELEM_UPDATE_REQD = false;
+  private readonly TEST_PRETEND_INITIAL_VERSIONS_DIFFER = false;
+  private readonly TEST_PRETEND_FINAL_VERSIONS_MATCH = false;
 
   constructor(private _ricMsgHandler: RICMsgHandler,
     private _ricFileHandler: RICFileHandler,

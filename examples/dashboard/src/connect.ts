@@ -1,5 +1,6 @@
 import RICChannelWebBLE from "../../../src/RICChannelWebBLE";
 import RICConnector from "../../../src/RICConnector";
+import RICLog from "../../../src/RICLog";
 import { Dictionary } from "../../../src/RICTypes";
 
 declare global {
@@ -17,7 +18,7 @@ async function getBleDevice(): Promise<BluetoothDevice | null> {
       });
       return dev;
     } catch (e) {
-      console.log(e);
+      RICLog.error(`getBleDevice - failed to get device ${e}`);
       return null;
     }
   }
@@ -25,9 +26,9 @@ async function getBleDevice(): Promise<BluetoothDevice | null> {
 export async function connectBLE(params: Array<string>): Promise<void> {
     const dev = await getBleDevice();
     if (await globalThis.ricConnector.connect("WebBLE", dev)) {
-        console.log("connectBLE - connected to device " + dev.name);
+        RICLog.info("connectBLE - connected to device " + dev.name);
     } else {
-        console.log("connectBLE - failed to connect");
+        RICLog.info("connectBLE - failed to connect");
         return;
     }
 }

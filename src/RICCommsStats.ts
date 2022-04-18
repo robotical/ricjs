@@ -33,6 +33,7 @@ export default class RICCommsStats {
   _msgOtherTopic = 0;
   _msgNoConnection = 0;
   _streamBytes = 0;
+  _fileBytes = 0;
 
   clear() {
     this._msgRxCount = 0;
@@ -59,6 +60,7 @@ export default class RICCommsStats {
     this._msgOtherTopic = 0;
     this._msgNoConnection = 0;
     this._streamBytes = 0;
+    this._fileBytes = 0;
   }
 
   msgRx(): void {
@@ -173,5 +175,9 @@ export default class RICCommsStats {
 
   recordStreamBytes(bytes: number): void {
     this._streamBytes += bytes;
+  }
+
+  recordFileBytes(bytes: number): void {
+    this._fileBytes += bytes;
   }
 }

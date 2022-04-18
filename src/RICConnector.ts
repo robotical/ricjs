@@ -514,7 +514,7 @@ export default class RICConnector {
 
   async checkConnPerformance(): Promise<number | undefined> {
 
-    // Send empty blocks of data - these will be ignored by RIC - but will still be counted for performance
+    // Send random blocks of data - these will be ignored by RIC - but will still be counted for performance
     // evaluation
     let prbsState = 1;
     const testData = new Uint8Array(this._testConnPerfBlockSize);

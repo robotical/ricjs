@@ -45,32 +45,34 @@ class FileBlockTrackInfo {
 }
 
 export default class RICFileHandler {
-  _msgHandler: RICMsgHandler;
+  private _msgHandler: RICMsgHandler;
 
   // Timeouts
-  BLOCK_ACK_TIMEOUT_MS = 30000;
+  private BLOCK_ACK_TIMEOUT_MS = 30000;
 
   // Contents of file to send
-  _fileBlockSize = 500;
-  _batchAckSize = 1;
+  private _requestedFileBlockSize = 500;
+  private _fileBlockSize = 0;
+  private _requestedBatchAckSize = 10;
+  private _batchAckSize = 0;
 
   // File sending flow control
-  _sendWithoutBatchAcks = false;
-  _ackedFilePos = 0;
-  _batchAckReceived = false;
-  _isCancelled = false;
+  private _sendWithoutBatchAcks = false;
+  private _ackedFilePos = 0;
+  private _batchAckReceived = false;
+  private _isCancelled = false;
 
   // RICCommsStats
-  _commsStats: RICCommsStats;
+  private _commsStats: RICCommsStats;
 
   // Message await list
-  _msgAwaitList: Array<FileBlockTrackInfo> = new Array<FileBlockTrackInfo>();
-  MAX_OUTSTANDING_FILE_BLOCK_SEND_PROMISES = 1;
-  _msgOutstanding: Promise<void> | null = null;
+  private _msgAwaitList: Array<FileBlockTrackInfo> = new Array<FileBlockTrackInfo>();
+  private MAX_OUTSTANDING_FILE_BLOCK_SEND_PROMISES = 1;
 
   constructor(msgHandler: RICMsgHandler, commsStats: RICCommsStats) {
     this._msgHandler = msgHandler;
     this._commsStats = commsStats;
+    this._fileBlockSize = this._requestedFileBlockSize;
     this.onOktoMsg = this.onOktoMsg.bind(this);
   }
 
@@ -126,7 +128,7 @@ export default class RICFileHandler {
     const fileDest =
       fileType == RICFileSendType.RIC_FIRMWARE_UPDATE ? 'ricfw' : 'fs';
     const fileLen = fileContents.length;
-    const cmdMsg = `{"cmdName":"ufStart","reqStr":"${reqStr}","fileType":"${fileDest}","fileName":"${fileName}","fileLen":${fileLen},"batchMsgSize":${this._fileBlockSize},"batchAckSize":${this._batchAckSize}}`;
+    const cmdMsg = `{"cmdName":"ufStart","reqStr":"${reqStr}","fileType":"${fileDest}","fileName":"${fileName}","fileLen":${fileLen},"batchMsgSize":${this._requestedFileBlockSize},"batchAckSize":${this._requestedBatchAckSize}}`;
 
     // Debug
     RICLog.debug(`sendFileStartMsg ${cmdMsg}`);
@@ -150,12 +152,19 @@ export default class RICFileHandler {
     // Extract params
     if (fileStartResp.batchMsgSize) {
       this._fileBlockSize = fileStartResp.batchMsgSize;
+    } else {
+      this._fileBlockSize = this._requestedFileBlockSize;
     }
     if (fileStartResp.batchAckSize) {
       this._batchAckSize = fileStartResp.batchAckSize;
+    } else {
+      this._batchAckSize = this._requestedBatchAckSize;
     }
     RICLog.debug(
-      `_fileSendStartMsg fileBlockSize ${this._fileBlockSize} batchAckSize ${this._batchAckSize}`,
+      `_fileSendStartMsg fileBlockSize req ${this._requestedFileBlockSize} resp ${fileStartResp.batchMsgSize} actual ${this._fileBlockSize}`,
+    );
+    RICLog.debug(
+      `_fileSendStartMsg batchAckSize req ${this._requestedBatchAckSize} resp ${fileStartResp.batchAckSize} actual ${this._batchAckSize}`,
     );
     return true;
   }
@@ -254,7 +263,7 @@ export default class RICFileHandler {
             this._batchAckReceived = false;
           }
           // Debug
-          // RICLog.verbose(
+          // RICLog.debug(
           //   `_sendFileContents sendblock pos ${sendFromPos} len ${this._fileBlockSize} ackedTo ${this._ackedFilePos} fileLen ${fileContents.length}`,
           // );
           if (!await this._sendFileBlock(fileContents, sendFromPos))
@@ -279,7 +288,7 @@ export default class RICFileHandler {
         );
 
         // Debug
-        RICLog.verbose(
+        RICLog.debug(
           `_sendFileContents ${progressUpdateCtr} blocks sent OkTo ${this._ackedFilePos} block len ${this._fileBlockSize}`,
         );
 
@@ -294,10 +303,9 @@ export default class RICFileHandler {
     // Handle acknowledgement to a batch (OkTo message)
     return new Promise((resolve, reject) => {
       const startTime = Date.now();
-      const checkFunction = async () => {
-        // RICLog.verbose(`batchAck newlyRx ${this._batchAckReceived}`);
+      const checkForAck = async () => {
         if (this._isCancelled) {
-          RICLog.debug('Cancelling file upload');
+          RICLog.debug('checkForAck - cancelling file upload');
           this._isCancelled = false;
           // Send cancel
           await this._sendFileCancelMsg();
@@ -306,20 +314,21 @@ export default class RICFileHandler {
           return;
         }
         if (this._batchAckReceived) {
-          RICLog.verbose(`batchAck rx OkTo ${this._ackedFilePos}`);
+          RICLog.debug(`checkForAck - rx OkTo ${this._ackedFilePos}`);
           this._batchAckReceived = false;
           resolve();
           return;
         } else {
           const now = Date.now();
           if (now - startTime > timeout) {
+            RICLog.warn(`checkForAck - time-out no new ack received`);
             reject(new Error('Update failed. Please try again.'));
             return;
           }
-          setTimeout(checkFunction, 100);
+          setTimeout(checkForAck, 100);
         }
       };
-      checkFunction();
+      checkForAck();
     });
   }
 
@@ -341,6 +350,9 @@ export default class RICFileHandler {
     if (!promRslt) {
       return false;
     }
+
+    // Record
+    this._commsStats.recordFileBytes(blockEnd - blockStart);
 
     // Add to list of pending messages
     this._msgAwaitList.push(new FileBlockTrackInfo(promRslt));
