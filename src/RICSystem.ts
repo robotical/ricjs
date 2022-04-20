@@ -48,19 +48,6 @@ export default class RICSystem {
   // Calibration info
   private _calibInfo: RICCalibInfo | null = null;
 
-  // Joint names
-  private _jointNames = {
-    LeftHip: "LeftHip",
-    LeftTwist: "LeftTwist",
-    LeftKnee: "LeftKnee",
-    RightHip: "RightHip",
-    RightTwist: "RightTwist",
-    RightKnee: "RightKnee",
-    LeftArm: "LeftArm",
-    RightArm: "RightArm",
-    Eyes: "Eyes",
-  };
-
   // WiFi connection info
   private _ricWifiConnStatus: RICWifiConnStatus = new RICWifiConnStatus();
   private _defaultWiFiHostname = "Marty";
@@ -177,35 +164,18 @@ export default class RICSystem {
   }
   // Mark: Calibration -----------------------------------------------------------------------------------------
 
-  async calibrate(cmd: string, joints: string) {
+  async calibrate(cmd: string, jointList: Array<string>, jointNames: {[key: string]: string}) {
     let overallResult = true;
     if (cmd === "set") {
-      // Make a list of joints to set calibration on
-      const jointList: Array<string> = new Array<string>();
-      if (joints === "legs") {
-        jointList.push(this._jointNames.LeftHip);
-        jointList.push(this._jointNames.LeftTwist);
-        jointList.push(this._jointNames.LeftKnee);
-        jointList.push(this._jointNames.RightHip);
-        jointList.push(this._jointNames.RightTwist);
-        jointList.push(this._jointNames.RightKnee);
-      } else if (joints === "arms") {
-        jointList.push(this._jointNames.LeftArm);
-        jointList.push(this._jointNames.RightArm);
-      }
-      if (joints === "eyes") {
-        jointList.push(this._jointNames.Eyes);
-      }
-
       // Set calibration
       for (const jnt of jointList) {
         try {
           // Set calibration on joint
           const cmdUrl = "calibrate/set/" + jnt;
-          const rslt = await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
+          const rsl = await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
             cmdUrl
           );
-          if (rslt.rslt != "ok") overallResult = false;
+          if (rsl.rslt != "ok") overallResult = false;
         } catch (error) {
           console.log(`calibrate failed on joint ${jnt}`, error);
         }
@@ -216,14 +186,14 @@ export default class RICSystem {
       }
 
       // ensure all joints are enabled
-      for (const jnt in this._jointNames) {
+      for (const jnt in jointNames) {
         try {
           // enable joint
           const cmdUrl = "servo/" + jnt + "/enable/1";
-          const rslt = await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
+          const rsl = await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
             cmdUrl
           );
-          if (rslt.rslt != "ok") overallResult = false;
+          if (rsl.rslt != "ok") overallResult = false;
         } catch (error) {
           console.log(`enable failed on joint ${jnt}`, error);
         }
