@@ -98,6 +98,8 @@ export class ROSSerialRobotStatus {
     pixRGBT: ROSSerialRGBT[],
     loopMsAvg: number,
     loopMsMax: number,
+    wifiRSSI: number,
+    bleRSSI: number,
   } = {
       flags: 0,
       isMoving: false,
@@ -109,6 +111,8 @@ export class ROSSerialRobotStatus {
       pixRGBT: [],
       loopMsAvg: 0,
       loopMsMax: 0,
+      wifiRSSI: 0,
+      bleRSSI: 0,
     };
 }
 
@@ -316,49 +320,48 @@ export class RICROSSerial {
   }
 
   static extractRobotStatus(buf: Uint8Array): ROSSerialRobotStatus {
+    const flags = RICUtils.getBEUint8FromBuf(buf, 0);
+    const workQCount = RICUtils.getBEUint8FromBuf(buf, 1);
+    let heapFree = 0;
+    let heapMin = 0;
+    let pixRGBT1 = new ROSSerialRGBT(0, 0, 0, 0);
+    let pixRGBT2 = new ROSSerialRGBT(0, 0, 0, 0);
+    let pixRGBT3 = new ROSSerialRGBT(0, 0, 0, 0);
+    let loopMsAvg = 0;
+    let loopMsMax = 0;
+    // RICLog.debug(`RobotStatus ${buf.length} ${RICUtils.bufferToHex(buf)} ${flags} ${workQCount} ${heapFree} ${heapMin} ${pixRGBT1.toString()} ${pixRGBT2.toString()} ${pixRGBT3.toString()} ${loopMsAvg} ${loopMsMax}`);
+    let wifiRSSI = 0;
+    let bleRSSI = 0;
+
     if (buf.length >= 24) {
-      const flags = RICUtils.getBEUint8FromBuf(buf, 0);
-      const workQCount = RICUtils.getBEUint8FromBuf(buf, 1);
-      const heapFree = RICUtils.getBEUint32FromBuf(buf, 2);
-      const heapMin = RICUtils.getBEUint32FromBuf(buf, 6);
-      const pixRGBT1 = RICROSSerial.extractRGBT(buf, 10);
-      const pixRGBT2 = RICROSSerial.extractRGBT(buf, 14);
-      const pixRGBT3 = RICROSSerial.extractRGBT(buf, 18);
-      const loopMsAvg = RICUtils.getBEUint8FromBuf(buf, 22);
-      const loopMsMax = RICUtils.getBEUint8FromBuf(buf, 23);
+      heapFree = RICUtils.getBEUint32FromBuf(buf, 2);
+      heapMin = RICUtils.getBEUint32FromBuf(buf, 6);
+      pixRGBT1 = RICROSSerial.extractRGBT(buf, 10);
+      pixRGBT2 = RICROSSerial.extractRGBT(buf, 14);
+      pixRGBT3 = RICROSSerial.extractRGBT(buf, 18);
+      loopMsAvg = RICUtils.getBEUint8FromBuf(buf, 22);
+      loopMsMax = RICUtils.getBEUint8FromBuf(buf, 23);
       // RICLog.debug(`RobotStatus ${buf.length} ${RICUtils.bufferToHex(buf)} ${flags} ${workQCount} ${heapFree} ${heapMin} ${pixRGBT1.toString()} ${pixRGBT2.toString()} ${pixRGBT3.toString()} ${loopMsAvg} ${loopMsMax}`);
-      return {
-        robotStatus: {
-          flags: flags,
-          isMoving: (flags & 0x01) != 0,
-          isPaused: (flags & 0x02) != 0,
-          isFwUpdating: (flags & 0x04) != 0,
-          workQCount: workQCount,
-          heapFree: heapFree,
-          heapMin: heapMin,
-          pixRGBT: [pixRGBT1, pixRGBT2, pixRGBT3],
-          loopMsAvg: loopMsAvg,
-          loopMsMax: loopMsMax,
-        },
+      if (buf.length >= 26) {
+        wifiRSSI = RICUtils.getBEInt8FromBuf(buf, 24);
+        bleRSSI = RICUtils.getBEInt8FromBuf(buf, 25);
       }
-    } else {
-      const flags = RICUtils.getBEUint8FromBuf(buf, 0);
-      const workQCount = RICUtils.getBEUint8FromBuf(buf, 1);
-      // RICLog.debug(`RobotStatus ${buf.length} ${RICUtils.bufferToHex(buf)} ${flags} ${workQCount}`);
-      return {
-        robotStatus: {
-          flags: flags,
-          isMoving: (flags & 0x01) != 0,
-          isPaused: (flags & 0x02) != 0,
-          isFwUpdating: (flags & 0x04) != 0,
-          workQCount: workQCount,
-          heapFree: 0,
-          heapMin: 0,
-          pixRGBT: [],
-          loopMsAvg: 0,
-          loopMsMax: 0,
-        }
-      }
+    }
+    return {
+      robotStatus: {
+        flags: flags,
+        isMoving: (flags & 0x01) != 0,
+        isPaused: (flags & 0x02) != 0,
+        isFwUpdating: (flags & 0x04) != 0,
+        workQCount: workQCount,
+        heapFree: heapFree,
+        heapMin: heapMin,
+        pixRGBT: [pixRGBT1, pixRGBT2, pixRGBT3],
+        loopMsAvg: loopMsAvg,
+        loopMsMax: loopMsMax,
+        wifiRSSI: wifiRSSI,
+        bleRSSI: bleRSSI,
+      },
     }
   }
 }

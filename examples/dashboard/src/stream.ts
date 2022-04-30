@@ -16,5 +16,9 @@ export async function streamSoundFile(params: Array<string>): Promise<void> {
 }
 
 export async function sendREST(params: Array<string>): Promise<void> {
-    globalThis.ricConnector.sendRICRESTMsg(params[0], {});
+    const resp = await globalThis.ricConnector.sendRICRESTMsg(params[0], {});
+    const respField = document.getElementById("response-field") as HTMLElement;
+    if (respField) {
+      respField.innerHTML = `<div>Response</div><div><span class="event-info">${resp?JSON.stringify(resp):""}</span></div>`;
+    } 
 }

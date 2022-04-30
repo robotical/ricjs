@@ -58,6 +58,8 @@ export function robotStatusFormat(name:string, robotStatus:ROSSerialRobotStatus)
   statusStr += `<div class="flag-info">HeapMin ${innerStatus.heapMin}</div>`;
   statusStr += `<div class="flag-info">LoopAvg ${innerStatus.loopMsAvg}ms</div>`;
   statusStr += `<div class="flag-info">LoopMax ${innerStatus.loopMsMax}ms</div>`;
+  statusStr += `<div class="flag-info">BLERSSI ${innerStatus.bleRSSI}dBm</div>`;
+  statusStr += `<div class="flag-info">WiFiRSSI ${innerStatus.wifiRSSI}dBm</div>`;
 
   return statusStr;
 }

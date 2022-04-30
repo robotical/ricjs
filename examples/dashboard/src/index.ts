@@ -179,6 +179,7 @@ function component() {
   genStatusBlock('friendlyname-list-container', 'info-status-container', statusContainer);
   genStatusBlock('wifi-status-container', 'info-status-container', statusContainer);
   genStatusBlock('comms-stats-container', 'info-status-container', statusContainer);
+  genStatusBlock('response-field', ['info-status-container', 'info-status-scroll'], statusContainer);
 
   const buttonsContainer = document.createElement('div');
   buttonsContainer.classList.add('buttons-container');
@@ -223,6 +224,8 @@ function component() {
     { name: "Eyes Normal", button: "%1", func: sendREST, params: ["traj/eyesNormal"] },
     { name: "5V On", button: "%1", func: sendREST, params: ["pwrctrl/5von"] },
     { name: "5V Off", button: "%1", func: sendREST, params: ["pwrctrl/5voff"] },
+    { name: "WiFi Scan", button: "Start", func: sendREST, params: ["wifiscan/start"] },
+    { name: "WiFi Scan", button: "Results", func: sendREST, params: ["wifiscan/results"] },
   ]
 
   // Add buttonDefs

@@ -156,6 +156,18 @@ export default class RICUtils {
     return buf[pos];
   }
 
+  /**
+   *
+   * Extract a big-endian int8 from a uint8array
+   *
+   * @param buf - Uint8Array containing int8
+   * @param pos - position (offset in buf) to get from
+   * @returns int16
+   */
+   static getBEInt8FromBuf(buf: Uint8Array, pos: number): number {
+    return buf[pos] > 127 ? buf[pos] - 256 : buf[pos];
+  }
+
   static isLittleEndian(): boolean {
     // If already known just return
     if (this._isEndianSet) return this._isLittleEndian;
