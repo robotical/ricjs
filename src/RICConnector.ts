@@ -217,6 +217,16 @@ export default class RICConnector {
         this.onConnEvent(RICConnEvent.CONN_CONNECTION_FAILED);
       }
 
+      // Subscribe for updates if required
+      if (this._ricChannel.requiresSubscription()) {
+        try {
+          await this.subscribeForUpdates(true);
+          RICLog.info(`connect subscribed for updates`);
+        } catch (error: unknown) {
+          RICLog.warn(`connect subscribe for updates failed ${error}`)
+        }
+      }
+
     } else {
       this._channelConnMethod = "";
     }
@@ -436,26 +446,9 @@ export default class RICConnector {
     // Retrieve system info
     try {
       const retrieveResult = await this._ricSystem.retrieveInfo();
-      if (!retrieveResult) {
-        return false;
-      }
+      return retrieveResult;
     } catch (err) {
       RICLog.error(`retrieveMartySystemInfo: error ${err}`);
-      return false;
-    }
-
-    // RIC verified and connected
-    if (this._ricChannel) {
-
-      // Subscribe for updates if required
-      if (this._ricChannel.requiresSubscription()) {
-        try {
-          await this.subscribeForUpdates(true);
-        } catch (error: unknown) {
-          RICLog.warn(`eventConnect - subscribe for updates failed ${error}`)
-        }
-      }
-      return true;
     }
     return false;
   }
