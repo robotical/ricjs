@@ -338,3 +338,9 @@ export type WifiScanWifiItem = {
   pair: string;
   group: string;
 };
+
+export type PystatusMsgType = {
+  req: string;
+  running: string;
+  rslt: string;
+};
