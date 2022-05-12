@@ -285,6 +285,7 @@ export class RICSysModInfoBLEMan {
   isAdv = false;
   advName? = "";
   BLEMAC = "";
+  rssi = -200;
   rxM = 0;
   rxB = 0;
   rxBPS = 0.0;
@@ -320,3 +321,26 @@ export type RICLedLcdColours = Array<RICLEDPatternCheckerColour>;
 export interface Dictionary<T> {
   [key: string]: T;
 }
+
+export type RICWifiScanResults = {
+  req: string;
+  rslt: string;
+  wifi: WifiScanWifiItem[];
+};
+
+export type WifiScanWifiItem = {
+  ssid: string;
+  rssi: number;
+  ch1: number;
+  ch2: number;
+  auth: string;
+  bssid: string;
+  pair: string;
+  group: string;
+};
+
+export type PystatusMsgType = {
+  req: string;
+  running: string;
+  rslt: string;
+};

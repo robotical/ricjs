@@ -16,6 +16,7 @@ import {
 import RICAddOnManager from "./RICAddOnManager";
 import RICLog from "./RICLog";
 import RICMsgHandler from "./RICMsgHandler";
+
 import {
   RICAddOnList,
   RICCalibInfo,
@@ -27,6 +28,7 @@ import {
   RICReportMsg,
   RICSysModInfoBLEMan,
   RICSystemInfo,
+  RICWifiScanResults
 } from "./RICTypes";
 
 export default class RICSystem {
@@ -592,6 +594,40 @@ export default class RICSystem {
     }
     return false;
   }
+
+  // Mark: WiFi Scan ------------------------------------------------------------------------------------
+
+   /**
+   *  WiFiScan start
+   *
+   *  @return boolean - true if successful
+   *
+   */
+    async wifiScanStart(): Promise<boolean> {
+      try {
+        RICLog.debug(`wifiScanStart`);
+        await this._ricMsgHandler.sendRICRESTURL<RICOKFail>("wifiscan/start");
+        return true;
+      } catch (error) {
+        RICLog.debug(`wifiScanStart unsuccessful`);
+      }
+      return false;
+    }
+   /**
+   *  WiFiScan get results
+   *
+   *  @return boolean - false if unsuccessful, otherwise the results of the promise
+   *
+   */
+    async wifiScanResults(): Promise<boolean | RICOKFail | RICWifiScanResults> {
+      try {
+        RICLog.debug(`wifiScanResults`);
+        return this._ricMsgHandler.sendRICRESTURL<RICOKFail | RICWifiScanResults>("wifiscan/results");
+      } catch (error) {
+        RICLog.debug(`wifiScanResults unsuccessful`);
+      }
+      return false;
+    }
 
   getCachedSystemInfo(): RICSystemInfo | null {
     return this._systemInfo;

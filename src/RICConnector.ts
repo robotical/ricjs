@@ -149,6 +149,10 @@ export default class RICConnector {
     return this._commsStats;
   }
 
+  getRICMsgHandler(): RICMsgHandler  {
+    return this._ricMsgHandler;
+  }
+
   /**
    * Connect to a RIC
    *
