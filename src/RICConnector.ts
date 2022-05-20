@@ -137,6 +137,10 @@ export default class RICConnector {
     return this._channelConnMethod;
   }
 
+  getAddOnManager(): RICAddOnManager {
+    return this._addOnManager;
+  }
+
   getRICSystem(): RICSystem {
     return this._ricSystem;
   }

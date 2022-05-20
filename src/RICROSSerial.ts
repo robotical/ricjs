@@ -61,6 +61,7 @@ export class ROSSerialPowerStatus {
 export class ROSSerialAddOnStatus {
   id = 0;
   deviceTypeID = 0;
+  whoAmI = "";
   name = '';
   status = 0;
   vals = {};
