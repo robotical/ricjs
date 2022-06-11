@@ -60,16 +60,16 @@ class ServoParamUpdate {
   private _eepromLayout: EepromLayoutType = {};
   private _servoSettings: ServoSettingsType = {};
 
-  private _eepromCfgStartAddr: number = 0;
-  public eepromCfgEndAddr: number = 0;
-  private _eepromCfgSize: number = 0;
+  private _eepromCfgStartAddr = 0;
+  public eepromCfgEndAddr = 0;
+  private _eepromCfgSize = 0;
 
-  private msgKeyCounter: number = 1;
+  private msgKeyCounter = 1;
 
   // Setting up two flags (dataArrived and robotConnected) which should both be
   // true, for the update process to start
-  private _dataArrived: boolean = false;
-  private _robotConnected: boolean = false;
+  private _dataArrived = false;
+  private _robotConnected = false;
 
   private servos: RICHWElem[] = [];
 
@@ -212,7 +212,7 @@ class ServoParamUpdate {
     const ricHWList = await this.ricMsgHandler.sendRICRESTURL<RICHWElemList>(
       "hwstatus?filterByType=SmartServo"
     );
-    if (!ricHWList.hasOwnProperty("hw")) return [];
+    if (!Object.prototype.hasOwnProperty.call(ricHWList, "hw")) return [];
     const servos = ricHWList.hw;
     console.log("servos", servos);
     for (const servo of servos) {
@@ -231,7 +231,7 @@ class ServoParamUpdate {
     servoName: string,
     dataToWrite: string,
     numBytesToRead: number,
-    numAttempts: number = 3
+    numAttempts = 3
   ) {
     while (numAttempts > 0) {
       const msgKey = this.msgKeyCounter;
@@ -389,7 +389,8 @@ class ServoParamUpdate {
   }
 
   hexToBytes(hex: string) {
-    for (var bytes = [], c = 0; c < hex.length; c += 2)
+    const bytes = [];
+    for (let c = 0; c < hex.length; c += 2)
       bytes.push(parseInt(hex.substr(c, 2), 16));
     return bytes;
   }
