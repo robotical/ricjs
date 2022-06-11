@@ -30,3 +30,5 @@ export * from './RICUpdateEvents';
 export { default as RICUpdateManager } from './RICUpdateManager';
 export { default as RICUtils } from './RICUtils';
 export * from './RICWifiTypes';
+export { default as RICServoParamUpdate } from './RICServoParamUpdate';
+
