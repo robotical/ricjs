@@ -13,16 +13,14 @@ import { Dictionary, RICHWElem, RICReportMsg } from './RICTypes';
 import RICAddOnBase from './RICAddOnBase';
 import { ROSSerialAddOnStatus } from './RICROSSerial';
 
-export type RICAddOnCreator = (typeCode: string, name: string, addOnFamily: string, whoAmI: string) => RICAddOnBase;
+export type RICAddOnCreator = (name: string, addOnFamily: string, whoAmI: string) => RICAddOnBase;
 
 class AddOnFactoryElem {
-  typeCode: string;
   typeName: string;
   addOnFamily: string;
   whoAmI: string;
   factoryFn: RICAddOnCreator;
-  constructor(typeCode: string, typeName: string, addOnFamily: string, whoAmI: string, factoryFn: RICAddOnCreator) {
-    this.typeCode = typeCode;
+  constructor(typeName: string, addOnFamily: string, whoAmI: string, factoryFn: RICAddOnCreator) {
     this.addOnFamily = addOnFamily;
     this.typeName = typeName;
     this.whoAmI = whoAmI;
@@ -31,7 +29,7 @@ class AddOnFactoryElem {
 }
 
 export interface RICAddOnRegistry {
-  registerHWElemType(typeCode: string,
+  registerHWElemType(
     typeName: string,
     addOnFamily: string,
     whoAmI: string,
@@ -50,14 +48,14 @@ export default class RICAddOnManager implements RICAddOnRegistry {
   _addOnFactoryMap: Dictionary<AddOnFactoryElem> = {};
   _configuredAddOns: Dictionary<RICAddOnBase> = {};
 
-  registerHWElemType(typeCode: string,
+  registerHWElemType(
     typeName: string,
     addOnFamily: string,
     whoAmI: string,
     factoryFn: RICAddOnCreator): void {
-    RICLog.debug(`registerHWElemType ${typeCode} ${typeName}`);
-    const lookupStr = addOnFamily + "_" + typeCode;
-    this._addOnFactoryMap[lookupStr] = new AddOnFactoryElem(typeCode, typeName, addOnFamily, whoAmI, factoryFn);
+    RICLog.debug(`registerHWElemType ${whoAmI} ${typeName}`);
+    const lookupStr = addOnFamily + "_" + whoAmI;
+    this._addOnFactoryMap[lookupStr] = new AddOnFactoryElem(typeName, addOnFamily, whoAmI, factoryFn);
   }
 
   /**
@@ -78,13 +76,13 @@ export default class RICAddOnManager implements RICAddOnRegistry {
     const addOnMap: Dictionary<RICAddOnBase> = {};
     // Iterate HWElems to find addons
     for (const hwElem of hwElems) {
-      RICLog.debug(`configureAddOns whoAmITypeCode ${hwElem.whoAmITypeCode}`);
+      RICLog.debug(`configureAddOns whoAmITypeCode ${hwElem.whoAmI}`);
 
       // Lookup the add-on
-      const lookupStr = hwElem.type + "_" + hwElem.whoAmITypeCode;
+      const lookupStr = hwElem.type + "_" + hwElem.whoAmI;
       if (lookupStr in this._addOnFactoryMap) {
         const addOnFactoryElem = this._addOnFactoryMap[lookupStr];
-        const addOn = addOnFactoryElem.factoryFn(hwElem.whoAmITypeCode,
+        const addOn = addOnFactoryElem.factoryFn(
           hwElem.name, hwElem.type, hwElem.whoAmI);
         if (addOn !== null) {
           addOnMap[hwElem.IDNo.toString()] = addOn;
