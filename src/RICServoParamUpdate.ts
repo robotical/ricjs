@@ -344,11 +344,13 @@ class ServoParamUpdate {
   }
 
   async processReport_confirmConfig(report: any) {
-    const servoName = report.elemName;
-    const shouldBeConfig = this.changedConfigs.filter(
-      (config) => config.servoName === servoName
-    )[0];
-    const currentConfig = this.readServoConfig(report);
+    // we don't need the confirmation process
+    console.log(report);
+    // const servoName = report.elemName;
+    // const shouldBeConfig = this.changedConfigs.filter(
+    //   (config: any) => config.servoName === servoName
+    // )[0];
+    // const currentConfig = this.readServoConfig(report);
     // compare currentConfig with shouldBeConfig
   }
   //--------------- After getting reports ---------------
