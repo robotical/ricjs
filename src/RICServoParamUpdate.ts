@@ -241,7 +241,6 @@ class ServoParamUpdate {
       const response = await this.ricMsgHandler.sendRICRESTURL<RICOKFail>(
         ricRestCmd
       );
-      console.log(response, "ServoParamUpdate.ts", "line: ", "170");
       if (response.rslt === "ok") {
         return true;
       }
@@ -260,18 +259,9 @@ class ServoParamUpdate {
     const servoInfo = this.servos.filter(
       (servo) => servo.name === servoName
     )[0];
-    console.log(servoInfo, "servoInfo.ts", "line: ", "267");
-    console.log(report["hexRd"], "data.ts", "line: ", "268");
     const targetConfig = this.getTargetConfigForServo(servoInfo);
     const currentConfig = this.readServoConfig(report);
-    console.log(targetConfig, "targetConfig", "line: ", "248");
-    console.log(currentConfig, "currentConfig", "line: ", "247");
-    if (this.applyConfig(servoName, targetConfig, currentConfig))
-      console.log(`${servoName} configured OK`);
-    else {
-      //   success = false;
-      console.log(`${servoName} configuration failed`);
-    }
+    await this.applyConfig(servoName, targetConfig, currentConfig);
   }
 
   getTargetConfigForServo(servoInfo: RICHWElem): ConfigType {
@@ -322,7 +312,7 @@ class ServoParamUpdate {
     return {};
   }
 
-  applyConfig(
+  async applyConfig(
     servoName: string,
     targetConfig: ConfigType,
     currentConfig: ConfigType,
@@ -338,14 +328,14 @@ class ServoParamUpdate {
             console.log(
               `Setting ${servoName} ${paramKey} to ${targetValue} (was ${currentConfig[paramKey]})`
             );
-            // const ricRestCmd = `elem/${servoName}/${paramKey}/${targetValue}`;
-            // TODO: send ricRestCmd to change config
-            // safeRicRestCommand(self._marty, ricRestCmd, numAttempts=3)
+            const ricRestCmd = `elem/${servoName}/${paramKey}/${targetValue}`;
+            await this.ricMsgHandler.sendRICRESTURL<RICOKFail>(
+              ricRestCmd
+            );
           }
         }
       }
       // store config
-      console.log(badSettings, "ServoParamUpdate.ts", "line: ", "350");
       this.changedConfigs.push({ servoName, config: targetConfig });
       if (badSettings.length === 0) return true;
       numAttempts--;
@@ -359,9 +349,6 @@ class ServoParamUpdate {
       (config) => config.servoName === servoName
     )[0];
     const currentConfig = this.readServoConfig(report);
-    console.log(servoName, "SERVO NAME", "line: ", "290");
-    console.log(currentConfig, "currentConfig", "line: ", "290");
-    console.log(shouldBeConfig.config, "shouldBeConfig.ts", "line: ", "291");
     // compare currentConfig with shouldBeConfig
   }
   //--------------- After getting reports ---------------
