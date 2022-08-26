@@ -71,7 +71,7 @@ export default class RICChannelPhoneBLE implements RICChannel {
   }
 
   // Disconnection event
-  onDisconnected(callback: () => void): void {
+  onDisconnected(callback?: () => void): void {
     if (this.bleDevice) {
       // removing old on disconnect subscription if there is one
       if (this._bleSubscrOnDisconnect) {
@@ -107,7 +107,7 @@ export default class RICChannelPhoneBLE implements RICChannel {
             if (this._onConnEvent) {
               this._onConnEvent(RICConnEvent.CONN_DISCONNECTED_RIC);
             }
-            callback();
+            callback && callback();
           } catch (error) {
             RICLog.debug("Error in onDisconnected" + error);
           }
@@ -187,7 +187,7 @@ export default class RICChannelPhoneBLE implements RICChannel {
       RICLog.warn(`RICChannelPhoneBLE.connect - cannot connect ${error}`);
       return false;
     }
-    this.onDisconnected(() => {});
+    this.onDisconnected();
     return true;
   }
 
