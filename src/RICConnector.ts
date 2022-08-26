@@ -10,6 +10,7 @@
 
 import RICChannel from "./RICChannel";
 import RICChannelWebBLE from "./RICChannelWebBLE";
+import RICChannelPhoneBLE from "./RICChannelPhoneBLE";
 import RICMsgHandler, { RICMsgResultCode } from "./RICMsgHandler";
 import RICChannelWebSocket from "./RICChannelWebSocket";
 import RICLEDPatternChecker from "./RICLEDPatternChecker";
@@ -157,6 +158,10 @@ export default class RICConnector {
     return this._ricMsgHandler;
   }
 
+  getRICChannel(): RICChannel | null {
+    return this._ricChannel;
+  }
+
   /**
    * Connect to a RIC
    *
@@ -182,11 +187,15 @@ export default class RICConnector {
       this._ricChannel = new RICChannelWebBLE();
       connMethod = 'WebBLE';
 
-    } else if (((method.toLocaleLowerCase() === 'WebSocket') || (method.toLocaleLowerCase() === 'wifi')) && (typeof locator === 'string')) {
+    } else if (((method === 'WebSocket') || (method === 'wifi')) && (typeof locator === 'string')) {
 
       // Create channel
       this._ricChannel = new RICChannelWebSocket();
       connMethod = 'WebSocket';
+    } else if (method === 'PhoneBLE' && typeof locator === 'object') {
+      // Create channel
+      this._ricChannel = new RICChannelPhoneBLE();
+      connMethod = 'PhoneBLE';
     }
 
     // Check channel established

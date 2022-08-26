@@ -425,7 +425,6 @@ export default class RICMsgHandler {
     if (this._msgTrackInfos[this._currentMsgNumber].msgOutstanding) {
       this._commsStats.recordMsgNumCollision();
     }
-
     // Set tracking info
     this._msgTrackInfos[this._currentMsgNumber].set(
       true,

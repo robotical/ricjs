@@ -212,7 +212,7 @@ class ServoParamUpdate {
     const ricHWList = await this.ricMsgHandler.sendRICRESTURL<RICHWElemList>(
       "hwstatus?filterByType=SmartServo"
     );
-    if (!Object.prototype.hasOwnProperty.call(ricHWList, "hw")) return [];
+    if (!ricHWList || !Object.prototype.hasOwnProperty.call(ricHWList, "hw")) return [];
     const servos = ricHWList.hw;
     console.log("servos", servos);
     for (const servo of servos) {
