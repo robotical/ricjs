@@ -345,32 +345,4 @@ export type PystatusMsgType = {
   rslt: string;
 };
 
-export class PhoneBLEDiscoveredRIC {
-  _localName = '';
-  _name = '';
-  _id = '';
-  _rssi = -150;
-  constructor(localName: string, name: string, id: string, rssi: number) {
-    this._localName = localName;
-    this._name = name;
-    this._id = id;
-    this._rssi = rssi;
-  }
-  get name(): string {
-    if (this._localName !== null && this._localName.length > 0) {
-      return this._localName;
-    }
-    if (this._name !== null) {
-      return this._name;
-    }
-    return 'Un-named';
-  }
-  get id(): string {
-    if (this._id !== null) return this._id;
-    return '';
-  }
-  get rssi(): number {
-    if (this._rssi !== null) return this._rssi;
-    return -100;
-  }
-}
+

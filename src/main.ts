@@ -16,7 +16,6 @@ export { default as RICConnector } from './RICConnector';
 export { default as RICChannel } from './RICChannel';
 export { default as RICChannelWebBLE } from './RICChannelWebBLE';
 export { default as RICChannelWebSocket } from './RICChannelWebSocket';
-export { default as RICChannelPhoneBLE } from './RICChannelPhoneBLE';
 export * from './RICDataExtractor';
 export { default as RICFileHandler } from './RICFileHandler';
 export { default as RICLEDPatternChecker } from './RICLEDPatternChecker';
