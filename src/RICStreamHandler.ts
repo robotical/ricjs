@@ -58,7 +58,6 @@ export default class RICStreamHandler {
 
   // Start streaming audio
   streamAudio(streamContents: Uint8Array, clearExisting: boolean, audioDuration: number): void {
-    console.log("audioDuration:", audioDuration, 'RICStreamHandler.ts', 'line: ', '54');
     this.audioDuration = audioDuration;
     // Clear (if required) and add to queue
     if (clearExisting) {
@@ -143,8 +142,12 @@ export default class RICStreamHandler {
 
   streamingPerformanceChecker() {
     const soundFinishPoint = setTimeout(() => {
-      console.log("Has streaming finished:", this.streamingEnded);
-      this._ricConnector.onConnEvent(RICConnEvent.CONN_STREAMING_ISSUE);
+      // if the streaming hasn't finished before the end of the audio
+      // we can assume we are having streaming issues
+
+      // publish event in case we are having issues
+      !this.streamingEnded && this._ricConnector.onConnEvent(RICConnEvent.CONN_STREAMING_ISSUE);
+
       clearTimeout(soundFinishPoint);
     } , this.audioDuration);
   }
