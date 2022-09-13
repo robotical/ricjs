@@ -21,6 +21,7 @@ export enum RICConnEvent {
     CONN_GETTING_RIC_INFO,
     CONN_GOT_RIC_INFO,
     CONN_BLUETOOTH_STATE,
+    CONN_STREAMING_ISSUE
 }
 
 export const RICConnEventNames = {
@@ -36,6 +37,7 @@ export const RICConnEventNames = {
     [RICConnEvent.CONN_GETTING_RIC_INFO]: 'GETTING_RIC_INFO',
     [RICConnEvent.CONN_GOT_RIC_INFO]: 'GOT_RIC_INFO',
     [RICConnEvent.CONN_BLUETOOTH_STATE]: 'BLUETOOTH_STATE',
+    [RICConnEvent.CONN_STREAMING_ISSUE]: 'CONN_STREAMING_ISSUE',
 };
   
 export type RICConnEventFn = (

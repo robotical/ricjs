@@ -14,6 +14,8 @@ import RICMsgHandler, {
 } from './RICMsgHandler';
 import RICCommsStats from './RICCommsStats';
 import { RICOKFail, RICStreamStartResp, RICStreamType } from './RICTypes';
+import RICConnector from './RICConnector';
+import { RICConnEvent } from './RICConnEvents';
 
 export default class RICStreamHandler {
 
@@ -33,6 +35,9 @@ export default class RICStreamHandler {
   // RICCommsStats
   private _commsStats: RICCommsStats;
 
+  // RICConnector 
+  private _ricConnector: RICConnector;
+
   // Cancel flag
   private _isCancelled = false;
 
@@ -40,14 +45,21 @@ export default class RICStreamHandler {
   private _soktoReceived = false;
   private _soktoPos = 0;
 
-  constructor(msgHandler: RICMsgHandler, commsStats: RICCommsStats) {
+  // audio duration
+  private audioDuration = 0;
+  private streamingEnded = false;
+
+  constructor(msgHandler: RICMsgHandler, commsStats: RICCommsStats, ricConnector: RICConnector) {
+    this._ricConnector = ricConnector;
     this._msgHandler = msgHandler;
     this._commsStats = commsStats;
     this.onSoktoMsg = this.onSoktoMsg.bind(this);
   }
 
   // Start streaming audio
-  streamAudio(streamContents: Uint8Array, clearExisting: boolean): void {
+  streamAudio(streamContents: Uint8Array, clearExisting: boolean, audioDuration: number): void {
+    console.log("audioDuration:", audioDuration, 'RICStreamHandler.ts', 'line: ', '54');
+    this.audioDuration = audioDuration;
     // Clear (if required) and add to queue
     if (clearExisting) {
       this._streamAudioQueue = [];
@@ -129,6 +141,14 @@ export default class RICStreamHandler {
     return true;
   }
 
+  streamingPerformanceChecker() {
+    const soundFinishPoint = setTimeout(() => {
+      console.log("Has streaming finished:", this.streamingEnded);
+      this._ricConnector.onConnEvent(RICConnEvent.CONN_STREAMING_ISSUE);
+      clearTimeout(soundFinishPoint);
+    } , this.audioDuration);
+  }
+
   // Send the start message
   private async _sendStreamStartMsg(
     streamName: string,
@@ -136,6 +156,7 @@ export default class RICStreamHandler {
     streamTypeEnum: RICStreamType,
     streamContents: Uint8Array,
   ): Promise<boolean> {
+    this.streamingEnded = false;
     // Stream start command message
     const streamType = 'rtstream';
     const cmdMsg = `{"cmdName":"ufStart","reqStr":"ufStart","fileType":"${streamType}","fileName":"${streamName}","endpoint":"${targetEndpoint}","fileLen":${streamContents.length}}`;
@@ -159,6 +180,7 @@ export default class RICStreamHandler {
     if (streamStartResp && (streamStartResp.rslt === 'ok')) {
       this._streamID = streamStartResp.streamID;
       this._maxBlockSize = streamStartResp.maxBlockSize || this.DEFAULT_MAX_BLOCK_SIZE;
+      this.streamingPerformanceChecker();
       RICLog.verbose(
         `sendStreamStartMsg streamID ${this._streamID} maxBlockSize ${this._maxBlockSize} streamType ${streamTypeEnum}`,
       );
@@ -192,6 +214,7 @@ export default class RICStreamHandler {
       RICLog.error(`sendStreamEndMsg error ${err}`);
       return false;
     }
+    this.streamingEnded = true;
     return streamEndResp.rslt === 'ok';
   }
 

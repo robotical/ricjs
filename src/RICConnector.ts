@@ -83,6 +83,7 @@ export default class RICConnector {
   private _ricStreamHandler: RICStreamHandler = new RICStreamHandler(
     this._ricMsgHandler,
     this._commsStats,
+    this
   );
 
   // Update manager
@@ -301,7 +302,7 @@ export default class RICConnector {
     RICLog.verbose(
       `onRxUnnumberedMsg rsltCode obj ${JSON.stringify(msgRsltJsonObj)}`,
     );
-
+      
     // Inform the file handler
     if ('okto' in msgRsltJsonObj) {
       this._ricFileHandler.onOktoMsg(msgRsltJsonObj.okto as number);
@@ -499,9 +500,9 @@ export default class RICConnector {
   }
 
   // Mark: Streaming --------------------------------------------------------------------------------
-  streamAudio(streamContents: Uint8Array, clearExisting: boolean): void {
+  streamAudio(streamContents: Uint8Array, clearExisting: boolean, duration: number): void {
     if (this._ricStreamHandler && this.isConnected()) {
-      this._ricStreamHandler.streamAudio(streamContents, clearExisting);
+      this._ricStreamHandler.streamAudio(streamContents, clearExisting, duration);
     }
   }
 
