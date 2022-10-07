@@ -11,12 +11,11 @@
 import { RICFileDownloadFn, RICFileSendType, RICFWInfo, RICHWFWUpdRslt, RICOKFail, RICSystemInfo, RICUpdateInfo } from "./RICTypes";
 import { RICUpdateEvent, RICUpdateEventFn } from "./RICUpdateEvents";
 import RICMsgHandler from "./RICMsgHandler";
-import semverEq from 'semver/functions/eq';
-import semverGt from 'semver/functions/gt';
 import axios from 'axios';
 import RICFileHandler from "./RICFileHandler";
 import RICLog from "./RICLog";
 import RICSystem from "./RICSystem";
+import RICUtils from "./RICUtils";
 
 export default class RICUpdateManager {
 
@@ -86,7 +85,7 @@ export default class RICUpdateManager {
         `checkForUpdate systemVersion ${systemInfo?.SystemVersion} available online ${this._latestVersionInfo?.firmwareVersion} updateRequired ${updateRequired}`
       );
       if (updateRequired) {
-        if (semverGt(
+        if (RICUtils.isVersionGreater(
           this._latestVersionInfo.minimumUpdaterVersion.ota,
           this._currentAppVersion,
         )) {
@@ -112,7 +111,7 @@ export default class RICUpdateManager {
     this._updateElemsRequired = false;
 
     // Perform the version check
-    this._updateESPRequired = semverGt(
+    this._updateESPRequired = RICUtils.isVersionGreater(
       latestVersion.firmwareVersion,
       systemInfo.SystemVersion,
     );
@@ -305,7 +304,7 @@ export default class RICUpdateManager {
           }
 
           // Check version
-          firmwareUpdateConfirmed = semverEq(
+          firmwareUpdateConfirmed = RICUtils.isVersionEqual(
             this._latestVersionInfo?.firmwareVersion,
             systemInfo.SystemVersion,
           );

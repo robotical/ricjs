@@ -9,6 +9,8 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 import RICLog from "./RICLog";
+import semverGt from "semver/functions/gt";
+import semverEq from "semver/functions/eq";
 
 export default class RICUtils {
   static _isEndianSet = false;
@@ -25,11 +27,11 @@ export default class RICUtils {
   static addStringToBuffer(
     buffer: Uint8Array,
     strToAdd: string,
-    startPos: number,
+    startPos: number
   ): void {
     // Check valid
     if (buffer.length < startPos + strToAdd.length + 1) {
-      RICLog.error('addStringToBuffer buffer too short');
+      RICLog.error("addStringToBuffer buffer too short");
       return;
     }
     let curPos = startPos;
@@ -53,15 +55,15 @@ export default class RICUtils {
   static getStringFromBuffer(
     buffer: Uint8Array,
     startPos: number,
-    strLen: number,
+    strLen: number
   ): string {
     // Check valid
     if (buffer.length < startPos + strLen) {
       strLen = buffer.length - startPos;
-      if (strLen <= 0) return '';
+      if (strLen <= 0) return "";
     }
     let curPos = startPos;
-    let outStr = '';
+    let outStr = "";
     for (let i = 0; i < strLen; i++) {
       outStr += String.fromCharCode(buffer[curPos++]);
     }
@@ -75,10 +77,10 @@ export default class RICUtils {
    * @param buffer - Uint8Array to be converted to hex string
    */
   static bufferToHex(buffer: Uint8Array | null): string {
-    if (buffer == null) return 'null';
+    if (buffer == null) return "null";
     return Array.from(new Uint8Array(buffer))
-      .map(b => RICUtils.padStartFn(b.toString(16), 2, '0'))
-      .join('');
+      .map((b) => RICUtils.padStartFn(b.toString(16), 2, "0"))
+      .join("");
   }
 
   /**
@@ -110,8 +112,19 @@ export default class RICUtils {
    * @returns int16
    */
   static getBEUint32FromBuf(buf: Uint8Array, bufPos: number): number {
-    if (RICUtils.isLittleEndian()) return (buf[bufPos] << 24) + (buf[bufPos + 1] << 16) + (buf[bufPos + 2] << 8) + buf[bufPos + 3];
-    return (buf[bufPos + 3] << 24) + (buf[bufPos + 2] << 16) + (buf[bufPos + 1] << 8) + buf[bufPos];
+    if (RICUtils.isLittleEndian())
+      return (
+        (buf[bufPos] << 24) +
+        (buf[bufPos + 1] << 16) +
+        (buf[bufPos + 2] << 8) +
+        buf[bufPos + 3]
+      );
+    return (
+      (buf[bufPos + 3] << 24) +
+      (buf[bufPos + 2] << 16) +
+      (buf[bufPos + 1] << 8) +
+      buf[bufPos]
+    );
   }
 
   /**
@@ -164,7 +177,7 @@ export default class RICUtils {
    * @param pos - position (offset in buf) to get from
    * @returns int16
    */
-   static getBEInt8FromBuf(buf: Uint8Array, pos: number): number {
+  static getBEInt8FromBuf(buf: Uint8Array, pos: number): number {
     return buf[pos] > 127 ? buf[pos] - 256 : buf[pos];
   }
 
@@ -202,11 +215,11 @@ export default class RICUtils {
     // ToString, which in our case amounts to using a template literal.
     data = `${data}`;
     // "Remove all ASCII whitespace from data."
-    data = data.replace(/[ \t\n\f\r]/g, '');
+    data = data.replace(/[ \t\n\f\r]/g, "");
     // "If data's length divides by 4 leaving no remainder, then: if data ends
     // with one or two U+003D (=) code points, then remove them from data."
     if (data.length % 4 === 0) {
-      data = data.replace(/==?$/, '');
+      data = data.replace(/==?$/, "");
     }
     // "If data's length divides by 4 leaving a remainder of 1, then return
     // failure."
@@ -284,18 +297,18 @@ export default class RICUtils {
    */
   static atobLookup(chr: string): number | undefined {
     if (/[A-Z]/.test(chr)) {
-      return chr.charCodeAt(0) - 'A'.charCodeAt(0);
+      return chr.charCodeAt(0) - "A".charCodeAt(0);
     }
     if (/[a-z]/.test(chr)) {
-      return chr.charCodeAt(0) - 'a'.charCodeAt(0) + 26;
+      return chr.charCodeAt(0) - "a".charCodeAt(0) + 26;
     }
     if (/[0-9]/.test(chr)) {
-      return chr.charCodeAt(0) - '0'.charCodeAt(0) + 52;
+      return chr.charCodeAt(0) - "0".charCodeAt(0) + 52;
     }
-    if (chr === '+') {
+    if (chr === "+") {
       return 62;
     }
-    if (chr === '/') {
+    if (chr === "/") {
       return 63;
     }
     // Throw exception; should not be hit in tests
@@ -321,7 +334,7 @@ export default class RICUtils {
     //     return null;
     //   }
     // }
-    let out = '';
+    let out = "";
     for (i = 0; i < inBuf.length; i += 3) {
       const groupsOfSix: Array<number | undefined> = [
         undefined,
@@ -340,8 +353,8 @@ export default class RICUtils {
         }
       }
       for (let j = 0; j < groupsOfSix.length; j++) {
-        if (typeof groupsOfSix[j] === 'undefined') {
-          out += '=';
+        if (typeof groupsOfSix[j] === "undefined") {
+          out += "=";
         } else {
           out += this.btoaLookup(groupsOfSix[j]);
         }
@@ -359,19 +372,19 @@ export default class RICUtils {
       return undefined;
     }
     if (idx < 26) {
-      return String.fromCharCode(idx + 'A'.charCodeAt(0));
+      return String.fromCharCode(idx + "A".charCodeAt(0));
     }
     if (idx < 52) {
-      return String.fromCharCode(idx - 26 + 'a'.charCodeAt(0));
+      return String.fromCharCode(idx - 26 + "a".charCodeAt(0));
     }
     if (idx < 62) {
-      return String.fromCharCode(idx - 52 + '0'.charCodeAt(0));
+      return String.fromCharCode(idx - 52 + "0".charCodeAt(0));
     }
     if (idx === 62) {
-      return '+';
+      return "+";
     }
     if (idx === 63) {
-      return '/';
+      return "/";
     }
     // Throw INVALID_CHARACTER_ERR exception here -- won't be hit in the tests.
     return undefined;
@@ -379,22 +392,43 @@ export default class RICUtils {
 
   static buf2hex(buffer: Uint8Array) {
     return Array.prototype.map
-      .call(buffer, (x:number) => ('00' + x.toString(16)).slice(-2))
-      .join('');
+      .call(buffer, (x: number) => ("00" + x.toString(16)).slice(-2))
+      .join("");
   }
 
-  static padStartFn(inStr: string, targetLength: number, padString: string): string {
+  static padStartFn(
+    inStr: string,
+    targetLength: number,
+    padString: string
+  ): string {
     targetLength = targetLength >> 0; //truncate if number or convert non-number to 0;
-    padString = String((typeof padString !== 'undefined' ? padString : ' '));
+    padString = String(typeof padString !== "undefined" ? padString : " ");
     if (inStr.length > targetLength) {
       return String(inStr);
-    }
-    else {
+    } else {
       targetLength = targetLength - inStr.length;
       if (targetLength > padString.length) {
         padString += padString.repeat(targetLength / padString.length); //append to original to ensure we are longer than needed
       }
       return padString.slice(0, targetLength) + String(inStr);
+    }
+  }
+
+  static isVersionGreater(v1: string, v2: string) {
+    try {
+      return semverGt(v1, v2);
+    } catch (e) {
+      // one of the two versions is invalid, return true
+      return true;
+    }
+  }
+
+  static isVersionEqual(v1: string, v2: string) {
+    try {
+      return semverEq(v1, v2);
+    } catch (e) {
+      // one of the two versions is invalid, return false
+      return false;
     }
   }
 }
