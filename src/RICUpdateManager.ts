@@ -233,7 +233,7 @@ export default class RICUpdateManager {
 
     // Upload each file
     let updateEvent : RICUpdateEvent = RICUpdateEvent.UPDATE_PROGRESS;
-    let updateStage : string = "Uploading new firmware\nThis may take a while, please be patient";
+    let updateStage = "Uploading new firmware\nThis may take a while, please be patient";
     try {
       let sentBytes = 0;
       for (let fwIdx = 0; fwIdx < firmwareData.length; fwIdx++) {
