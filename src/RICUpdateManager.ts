@@ -41,6 +41,7 @@ export default class RICUpdateManager {
   private readonly TEST_PRETEND_ELEM_UPDATE_REQD = false;
   private readonly TEST_PRETEND_INITIAL_VERSIONS_DIFFER = false;
   private readonly TEST_PRETEND_FINAL_VERSIONS_MATCH = false;
+  private readonly TEST_SKIP_FW_UPDATE = false;
 
   constructor(private _ricMsgHandler: RICMsgHandler,
     private _ricFileHandler: RICFileHandler,
@@ -232,6 +233,7 @@ export default class RICUpdateManager {
 
     // Upload each file
     let updateEvent : RICUpdateEvent = RICUpdateEvent.UPDATE_PROGRESS;
+    let updateStage : string = "Uploading new firmware\nThis may take a while, please be patient";
     try {
       let sentBytes = 0;
       for (let fwIdx = 0; fwIdx < firmwareData.length; fwIdx++) {
@@ -240,55 +242,62 @@ export default class RICUpdateManager {
           ? RICFileSendType.RIC_FIRMWARE_UPDATE
           : RICFileSendType.RIC_NORMAL_FILE;
         let percComplete = ((sentBytes /totalBytes) * this._progressDuringUpload + this._progressAfterDownload);
+
         if (updateEvent == RICUpdateEvent.UPDATE_PROGRESS && elemType == RICFileSendType.RIC_NORMAL_FILE){
           // start of filesystem updates
           updateEvent = RICUpdateEvent.UPDATE_PROGRESS_FILESYSTEM;
+          updateStage = 'Updating system files\nThis may take a while, please be patient\nUpdate cannot be cancelled during this stage\n';
           // emit event so app can deactivate cancel button
           this._eventListener(updateEvent,
             {
-              stage: 'Updating system files\nThis may take a while, please be patient',
+              stage: updateStage,
               progress: percComplete,
             }
           );
-          // reformat filesystem
+          // Reformat filesystem. This will take a few seconds so set a long timeout for the response
           RICLog.debug(`Beginning file system update. Reformatting FS.`);
-          await this._ricSystem.runCommand("reformatfs", {});
+          await this._ricMsgHandler.sendRICRESTURL<RICOKFail>("reformatfs", 15000);
           // trigger and wait for reboot
           RICLog.debug(`Restarting RIC`);
           await this._ricSystem.runCommand("reset", {});
-          if (!this.waitForRestart(percComplete, updateEvent)){
+          if (!(await this.waitForRestart(percComplete, updateEvent))){
             this._eventListener(RICUpdateEvent.UPDATE_FAILED);
             return RICUpdateEvent.UPDATE_FAILED;
           }
         }
-        await this.fileSend(
-          firmwareList[fwIdx].destname,
-          elemType,
-          firmwareData[fwIdx],
-          (_, __, progress) => {
-            let percComplete =
-              ((sentBytes + progress * firmwareData[fwIdx].length) /
-                totalBytes) * this._progressDuringUpload +
-              this._progressAfterDownload;
-            if (elemType == RICFileSendType.RIC_NORMAL_FILE) percComplete += (this._progressDuringRestart*2);
-            if (percComplete > 1.0) percComplete = 1.0;
-            RICLog.debug(
-              `fwUpdate progress ${progress.toFixed(2)} sent ${sentBytes} len ${firmwareData[fwIdx].length} total ${totalBytes} propComplete ${percComplete.toFixed(2)}`,
-            );
-            this._eventListener(
-              updateEvent,
-              {
-                stage: 'Uploading new firmware\nThis may take a while, please be patient',
-                progress: percComplete,
-              }
-            );
-          },
-        );
+
+        if (elemType == RICFileSendType.RIC_FIRMWARE_UPDATE && this.TEST_SKIP_FW_UPDATE ){
+          RICLog.debug("fwUpdate: Skipping FW update");
+        } else {
+          await this.fileSend(
+            firmwareList[fwIdx].destname,
+            elemType,
+            firmwareData[fwIdx],
+            (_, __, progress) => {
+              let percComplete =
+                ((sentBytes + progress * firmwareData[fwIdx].length) /
+                  totalBytes) * this._progressDuringUpload +
+                this._progressAfterDownload;
+              if (elemType == RICFileSendType.RIC_NORMAL_FILE) percComplete += (this._progressDuringRestart*2);
+              if (percComplete > 1.0) percComplete = 1.0;
+              RICLog.debug(
+                `fwUpdate progress ${progress.toFixed(2)} sent ${sentBytes} len ${firmwareData[fwIdx].length} total ${totalBytes} propComplete ${percComplete.toFixed(2)}`,
+              );
+              this._eventListener(
+                updateEvent,
+                {
+                  stage: updateStage,
+                  progress: percComplete,
+                }
+              );
+            },
+          );
+        }
         sentBytes += firmwareData[fwIdx].length;
         if (elemType == RICFileSendType.RIC_FIRMWARE_UPDATE){
           percComplete = (sentBytes /totalBytes) * this._progressDuringUpload + this._progressAfterDownload;
           // if the element was firmware, RIC will now restart automatically
-          if (!this.waitForRestart(percComplete, updateEvent, this._latestVersionInfo?.firmwareVersion)){
+          if (!(await this.waitForRestart(percComplete, updateEvent, this._latestVersionInfo?.firmwareVersion))){
             this._eventListener(RICUpdateEvent.UPDATE_FAILED);
             return RICUpdateEvent.UPDATE_FAILED;
           }
@@ -372,6 +381,7 @@ export default class RICUpdateManager {
   }
 
   async waitForRestart(percComplete : number, updateEvent : RICUpdateEvent,  checkFwVersion : string | null = null){
+    RICLog.debug(`fwUpdate: Waiting for restart. percComplete ${percComplete}, updateEvent ${updateEvent}, checkFwVersion: ${checkFwVersion}`);
     // Wait for firmware update to complete, restart to occur
     // and BLE reconnection to happen
     for (let i = 0; i < 3; i++) {
