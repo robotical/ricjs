@@ -49,6 +49,9 @@ export default class RICStreamHandler {
   private audioDuration = 0;
   private streamingEnded = false;
 
+  // soundFinishPoint timer
+  private soundFinishPoint: NodeJS.Timeout | null = null;
+
   constructor(msgHandler: RICMsgHandler, commsStats: RICCommsStats, ricConnector: RICConnector) {
     this._ricConnector = ricConnector;
     this._msgHandler = msgHandler;
@@ -61,6 +64,8 @@ export default class RICStreamHandler {
     this.audioDuration = audioDuration;
     // Clear (if required) and add to queue
     if (clearExisting) {
+      // clear streaming issue timer
+      this.clearFinishPointTimeout();
       this._streamAudioQueue = [];
       if (this._streamID !== null) {
         this._isCancelled = true;
@@ -140,16 +145,25 @@ export default class RICStreamHandler {
     return true;
   }
 
+  clearFinishPointTimeout() {
+      if (this.soundFinishPoint) {
+        clearTimeout(this.soundFinishPoint);
+        this.soundFinishPoint = null;
+      } 
+  }
+
   streamingPerformanceChecker() {
-    const soundFinishPoint = setTimeout(() => {
-      // if the streaming hasn't finished before the end of the audio
-      // we can assume we are having streaming issues
+    if (this.audioDuration) {
+      this.soundFinishPoint = setTimeout(() => {
+        // if the streaming hasn't finished before the end of the audio
+        // we can assume we are having streaming issues
+        
+        // publish event in case we are having issues
+        !this.streamingEnded && this._ricConnector.onConnEvent(RICConnEvent.CONN_STREAMING_ISSUE);
 
-      // publish event in case we are having issues
-      !this.streamingEnded && this._ricConnector.onConnEvent(RICConnEvent.CONN_STREAMING_ISSUE);
-
-      clearTimeout(soundFinishPoint);
-    } , this.audioDuration);
+        this.clearFinishPointTimeout();
+      } , this.audioDuration);
+    }
   }
 
   // Send the start message
