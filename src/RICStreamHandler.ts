@@ -113,6 +113,10 @@ export default class RICStreamHandler {
     }, 0);
   }
 
+  public isStreamStarting() {
+    return this._streamIsStarting;
+  }
+
   private async _streamAudioSend(
     streamName: string,
     targetEndpoint: string,
