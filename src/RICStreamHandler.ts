@@ -49,6 +49,8 @@ export default class RICStreamHandler {
   private audioDuration = 0;
   private streamingEnded = false;
 
+  private _streamIsStarting = false;
+
   // soundFinishPoint timer
   private soundFinishPoint: NodeJS.Timeout | null = null;
 
@@ -61,6 +63,11 @@ export default class RICStreamHandler {
 
   // Start streaming audio
   streamAudio(streamContents: Uint8Array, clearExisting: boolean, audioDuration: number): void {
+    if (this._streamIsStarting){
+      RICLog.error(`Unable to start sound, previous stream is still starting`);
+      return;
+    }
+
     this.audioDuration = audioDuration;
     // Clear (if required) and add to queue
     if (clearExisting) {
@@ -93,6 +100,7 @@ export default class RICStreamHandler {
     if (stream === undefined) {
       return;
     }
+    this._streamIsStarting = true;
 
     // Send stream
     setTimeout(async () => {
@@ -100,8 +108,13 @@ export default class RICStreamHandler {
         this._streamAudioSend("audio.mp3", "streamaudio", RICStreamType.RIC_REAL_TIME_STREAM, stream.streamContents);
       } catch (error) {
         RICLog.error(`RICStreamHandler._handleStreamStart ${error}`);
+        this._streamIsStarting = false;
       }
     }, 0);
+  }
+
+  public isStreamStarting() {
+    return this._streamIsStarting;
   }
 
   private async _streamAudioSend(
@@ -127,6 +140,7 @@ export default class RICStreamHandler {
 
     // Send file start message
     if (await this._sendStreamStartMsg(streamName, targetEndpoint, streamType, streamContents)) {
+      this._streamIsStarting = false;
 
       // Send contents
       if (await this._sendStreamContents(streamContents)) {
@@ -135,6 +149,7 @@ export default class RICStreamHandler {
         await this._sendStreamEndMsg(this._streamID);
       }
     }
+    this._streamIsStarting = false;
 
     // Check if any more audio to play
     if (this._streamAudioQueue.length > 0) {

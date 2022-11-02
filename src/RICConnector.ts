@@ -506,6 +506,10 @@ export default class RICConnector {
     }
   }
 
+  isStreamStarting() {
+    return this._ricStreamHandler.isStreamStarting();
+  }
+
   // Mark: Connection performance--------------------------------------------------------------------------
 
   parkmiller_next(seed: number) {
