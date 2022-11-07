@@ -177,7 +177,7 @@ export default class RICStreamHandler {
         !this.streamingEnded && this._ricConnector.onConnEvent(RICConnEvent.CONN_STREAMING_ISSUE);
 
         this.clearFinishPointTimeout();
-      } , this.audioDuration);
+      } , this.audioDuration + 500);
     }
   }
 
