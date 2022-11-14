@@ -131,7 +131,7 @@ export default class RICSystem {
 
     // Get HWElems (connected to RIC)
     try {
-      await this.getHWElemList();
+      await this.getHWElemList("RSAddOn");
     } catch (error) {
       RICLog.warn("retrieveInfo - failed to get HWElems " + error);
       return false;
@@ -306,10 +306,11 @@ export default class RICSystem {
    * @returns Promise<RICHWElemList>
    *
    */
-  async getHWElemList(): Promise<RICHWElemList> {
+  async getHWElemList(filterByType?: string): Promise<RICHWElemList> {
+    const cmd = `hwstatus${filterByType ? "filterByType="+filterByType : ""}`;
     try {
       const ricHWList = await this._ricMsgHandler.sendRICRESTURL<RICHWElemList>(
-        "hwstatus"
+        cmd
       );
       RICLog.debug("getHWElemList returned " + JSON.stringify(ricHWList));
       this._hwElems = ricHWList.hw;
