@@ -187,7 +187,7 @@ export class RICFileList {
  * @field whoAmITypeCode: string - number of element type
  * @field SN: string - Serial number
  * @field versionStr: string - Version
- * @field commsOk: number - 1 if communications OK
+ * @field commsOk: number - 1 if communications OK, 0 if not, -1 if device is invalid
  */
 export type RICHWElem = {
   name: string;
@@ -207,6 +207,46 @@ export class RICHWElemList {
   req = '';
   rslt = 'ok';
   hw: Array<RICHWElem> = [];
+}
+export class RICHWElem_Min {
+  n: string = "";
+  t: string = "";
+  I: string = "";
+  w: string = "";
+  W: string = "";
+  S: string = "";
+  v: string = "";
+  c: number = -1;
+  expand(): RICHWElem {
+    return {
+      name: this.n,
+      type: this.t,
+      busName: '',
+      addr: '',
+      addrValid: 0,
+      IDNo: this.I,
+      whoAmI: this.w,
+      whoAmITypeCode: this.W,
+      SN: this.S,
+      versionStr: this.v,
+      commsOk: this.c,
+    };
+  };
+};
+
+export class RICHWElemList_Min {
+  req = '';
+  rslt = 'ok';
+  hw: Array<RICHWElem_Min> = [];
+  expand(): RICHWElemList {
+    const r = new RICHWElemList();
+    r.req = this.req;
+    r.rslt = this.rslt;
+    for (const h of this.hw) {
+      r.hw.push(h.expand());
+    }
+    return r;
+  }
 }
 
 /**

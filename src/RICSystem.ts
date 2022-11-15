@@ -24,6 +24,7 @@ import {
   RICFriendlyName,
   RICHWElem,
   RICHWElemList,
+  RICHWElemList_Min,
   RICOKFail,
   RICReportMsg,
   RICSysModInfoBLEMan,
@@ -307,12 +308,13 @@ export default class RICSystem {
    *
    */
   async getHWElemList(filterByType?: string): Promise<RICHWElemList> {
-    const cmd = `hwstatus${filterByType ? "filterByType="+filterByType : ""}`;
+    const cmd = `hwstatus/minstat?${filterByType ? "filterByType="+filterByType : ""}`;
     try {
-      const ricHWList = await this._ricMsgHandler.sendRICRESTURL<RICHWElemList>(
+      const ricHWListMin = await this._ricMsgHandler.sendRICRESTURL<RICHWElemList_Min>(
         cmd
       );
-      RICLog.debug("getHWElemList returned " + JSON.stringify(ricHWList));
+      RICLog.debug("getHWElemList returned " + JSON.stringify(ricHWListMin));
+      const ricHWList = ricHWListMin.expand();
       this._hwElems = ricHWList.hw;
       this._addOnManager.setHWElems(this._hwElems);
 
