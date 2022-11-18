@@ -247,11 +247,11 @@ export default class RICMsgHandler {
         } else if (rsltStr === 'fail') {
           msgRsltCode = RICMsgResultCode.MESSAGE_RESULT_FAIL;
           RICLog.warn(
-            `_handleResponseMessages RICREST rslt fail ${rxMsgNum == 0 ? "unnumbered" : "msgNum " + rxMsgNum.toString()} resp ${msgRsltJsonObj.rslt}`,
+            `_handleResponseMessages RICREST rslt fail ${rxMsgNum == 0 ? "unnumbered" : "msgNum " + rxMsgNum.toString()} resp ${restStr}`,
           );
         } else {
           RICLog.warn(
-            `_handleResponseMessages RICREST rslt not recognized ${rxMsgNum == 0 ? "unnumbered" : "msgNum " + rxMsgNum.toString()}resp ${msgRsltJsonObj.rslt}`,
+            `_handleResponseMessages RICREST rslt not recognized ${rxMsgNum == 0 ? "unnumbered" : "msgNum " + rxMsgNum.toString()}resp ${restStr}`,
           );
         }
         
@@ -267,7 +267,7 @@ export default class RICMsgHandler {
     } catch (excp: unknown) {
       if (excp instanceof Error) {
         RICLog.warn(
-          `_handleResponseMessages Failed to parse JSON ${rxMsgNum == 0 ? "unnumbered" : "msgNum " + rxMsgNum.toString()} resp ${excp.toString()}`,
+          `_handleResponseMessages Failed to parse JSON ${rxMsgNum == 0 ? "unnumbered" : "msgNum " + rxMsgNum.toString()} JSON STR ${restStr} resp ${excp.toString()}`,
         );
       }
     }

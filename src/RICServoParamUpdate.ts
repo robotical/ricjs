@@ -32,7 +32,7 @@
         4. (in processReport_confirmConfig) --- processing incoming reports
             4.1 we fetch the stored applied config (see 3.3.2), and compare it to the most recent current config
 */
-import { RICHWElem, RICHWElemList_Min, RICOKFail } from "./RICTypes";
+import { RICHWElem, RICHWElemList_Str, RICOKFail } from "./RICTypes";
 import { Buffer } from "buffer";
 import RICMsgHandler from "./RICMsgHandler";
 
@@ -209,11 +209,11 @@ class ServoParamUpdate {
 
   async getServoInfos() {
     // getting servo infos
-    const ricHWListMin = await this.ricMsgHandler.sendRICRESTURL<RICHWElemList_Min>(
-      "hwstatus/minstat?filterByType=SmartServo"
+    const ricHWListStr = await this.ricMsgHandler.sendRICRESTURL<RICHWElemList_Str>(
+      "hwstatus/strstat?filterByType=SmartServo"
     );
-    if (!ricHWListMin || !Object.prototype.hasOwnProperty.call(ricHWListMin, "hw")) return [];
-    const servos = ricHWListMin.expand().hw;
+    if (!ricHWListStr || !Object.prototype.hasOwnProperty.call(ricHWListStr, "hw")) return [];
+    const servos = RICHWElemList_Str.expand(ricHWListStr).hw;
     console.log("servos", servos);
     for (const servo of servos) {
       servo.whoAmITypeCode = parseInt(servo.whoAmITypeCode, 16).toString();
