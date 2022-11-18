@@ -267,21 +267,26 @@ export class RICHWElemList_Str {
       if (hwElem.a) {
         const hwElemStr = hwElem.a.split('|');
         hwList.hw.push({
-          name: hwElemStr[0],
-          type: hwElemStr[1],
+          name: RICHWElemList_Str.unesc(hwElemStr[0]),
+          type: RICHWElemList_Str.unesc(hwElemStr[1]),
           busName: "",
           addr: "",
           addrValid: 0,
-          IDNo: hwElemStr[2],
-          whoAmI: hwElemStr[3],
-          whoAmITypeCode: hwElemStr[4],
-          SN: hwElemStr[5],
-          versionStr: hwElemStr[6],
+          IDNo: RICHWElemList_Str.unesc(hwElemStr[2]),
+          whoAmI: RICHWElemList_Str.unesc(hwElemStr[3]),
+          whoAmITypeCode: RICHWElemList_Str.unesc(hwElemStr[4]),
+          SN: RICHWElemList_Str.unesc(hwElemStr[5]),
+          versionStr: RICHWElemList_Str.unesc(hwElemStr[6]),
           commsOk: Number(hwElemStr[7]),
         });
       }
     }
     return hwList;
+  }
+
+  // Method to unescape a pipe character
+  static unesc(s: string): string {
+    return s.replace(/\/x7c/g, '|');
   }
 }
 
