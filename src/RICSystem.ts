@@ -28,7 +28,7 @@ import {
   RICReportMsg,
   RICSysModInfoBLEMan,
   RICSystemInfo,
-  RICWifiScanResults
+  RICWifiScanResults,
 } from "./RICTypes";
 
 export default class RICSystem {
@@ -93,6 +93,14 @@ export default class RICSystem {
    *
    */
   async retrieveInfo(): Promise<boolean> {
+    // Get HWElems (connected to RIC)
+    try {
+      await this.getHWElemList();
+    } catch (error) {
+      RICLog.warn("retrieveInfo - failed to get HWElems " + error);
+      return false;
+    }
+    
     // Get system info
     RICLog.debug(`RICSystem retrieveInfo getting system info`);
     try {
@@ -129,14 +137,6 @@ export default class RICSystem {
       return false;
     }
 
-    // Get HWElems (connected to RIC)
-    try {
-      await this.getHWElemList("RSAddOn");
-    } catch (error) {
-      RICLog.warn("retrieveInfo - failed to get HWElems " + error);
-      return false;
-    }
-
     return true;
   }
 
@@ -166,7 +166,11 @@ export default class RICSystem {
   }
   // Mark: Calibration -----------------------------------------------------------------------------------------
 
-  async calibrate(cmd: string, jointList: Array<string>, jointNames: {[key: string]: string}) {
+  async calibrate(
+    cmd: string,
+    jointList: Array<string>,
+    jointNames: { [key: string]: string }
+  ) {
     let overallResult = true;
     if (cmd === "set") {
       // Set calibration
@@ -306,11 +310,10 @@ export default class RICSystem {
    * @returns Promise<RICHWElemList>
    *
    */
-  async getHWElemList(filterByType?: string): Promise<RICHWElemList> {
-    const cmd = `hwstatus${filterByType ? "filterByType="+filterByType : ""}`;
+  async getHWElemList(): Promise<RICHWElemList> {
     try {
       const ricHWList = await this._ricMsgHandler.sendRICRESTURL<RICHWElemList>(
-        cmd
+        "hwstatus"
       );
       RICLog.debug("getHWElemList returned " + JSON.stringify(ricHWList));
       this._hwElems = ricHWList.hw;
@@ -598,37 +601,39 @@ export default class RICSystem {
 
   // Mark: WiFi Scan ------------------------------------------------------------------------------------
 
-   /**
+  /**
    *  WiFiScan start
    *
    *  @return boolean - true if successful
    *
    */
-    async wifiScanStart(): Promise<boolean> {
-      try {
-        RICLog.debug(`wifiScanStart`);
-        await this._ricMsgHandler.sendRICRESTURL<RICOKFail>("wifiscan/start");
-        return true;
-      } catch (error) {
-        RICLog.debug(`wifiScanStart unsuccessful`);
-      }
-      return false;
+  async wifiScanStart(): Promise<boolean> {
+    try {
+      RICLog.debug(`wifiScanStart`);
+      await this._ricMsgHandler.sendRICRESTURL<RICOKFail>("wifiscan/start");
+      return true;
+    } catch (error) {
+      RICLog.debug(`wifiScanStart unsuccessful`);
     }
-   /**
+    return false;
+  }
+  /**
    *  WiFiScan get results
    *
    *  @return boolean - false if unsuccessful, otherwise the results of the promise
    *
    */
-    async wifiScanResults(): Promise<boolean | RICOKFail | RICWifiScanResults> {
-      try {
-        RICLog.debug(`wifiScanResults`);
-        return this._ricMsgHandler.sendRICRESTURL<RICOKFail | RICWifiScanResults>("wifiscan/results");
-      } catch (error) {
-        RICLog.debug(`wifiScanResults unsuccessful`);
-      }
-      return false;
+  async wifiScanResults(): Promise<boolean | RICOKFail | RICWifiScanResults> {
+    try {
+      RICLog.debug(`wifiScanResults`);
+      return this._ricMsgHandler.sendRICRESTURL<RICOKFail | RICWifiScanResults>(
+        "wifiscan/results"
+      );
+    } catch (error) {
+      RICLog.debug(`wifiScanResults unsuccessful`);
     }
+    return false;
+  }
 
   getCachedSystemInfo(): RICSystemInfo | null {
     return this._systemInfo;
