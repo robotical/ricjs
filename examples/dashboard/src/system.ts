@@ -210,6 +210,12 @@ export function commsStatusFormat(name:string, commsStats:RICCommsStats): string
   commsStats.getMsgRxRate();
   commsStats.getMsgTxRate();
 
+  commsStats.getSmartServosRate();
+  commsStats.getAddOnPubRate();
+  commsStats.getIMURate();
+  commsStats.getPowerStatusRate();
+  commsStats.getRobotStatusRate();
+
   const rxTxStats = {
     "RxCount": commsStats._msgRxCount,
     "RxRate": commsStats._msgRxRate.toFixed(2),
@@ -227,10 +233,15 @@ export function commsStatusFormat(name:string, commsStats:RICCommsStats): string
 
   const pubStats = {
     "SmartServos": commsStats._msgSmartServos,
+    "SmartServosRate": commsStats._msgSmartServosPS.toFixed(2),
     "IMU": commsStats._msgIMU,
+    "IMURate": commsStats._msgIMUPS.toFixed(2),
     "PowerStatus": commsStats._msgPowerStatus,
+    "PowerStatusRate": commsStats._msgPowerStatusPS.toFixed(2), 
     "AddOnPub": commsStats._msgAddOnPub,
+    "AddonOnPubRate": commsStats._msgAddOnPubPS.toFixed(2),
     "RobotStatus": commsStats._msgRobotStatus,
+    "RobotStatusRate": commsStats._msgRobotStatusPS.toFixed(2),
     "OtherTopic": commsStats._msgOtherTopic,
     "StreamBytes": commsStats._streamBytes,
   };
