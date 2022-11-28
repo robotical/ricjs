@@ -32,7 +32,12 @@
         4. (in processReport_confirmConfig) --- processing incoming reports
             4.1 we fetch the stored applied config (see 3.3.2), and compare it to the most recent current config
 */
-import { RICHWElem, RICHWElemList_Str, RICOKFail } from "./RICTypes";
+import {
+  RICHWElem,
+  RICHWElemList,
+  RICHWElemList_Str,
+  RICOKFail,
+} from "./RICTypes";
 import { Buffer } from "buffer";
 import RICMsgHandler from "./RICMsgHandler";
 
@@ -209,16 +214,43 @@ class ServoParamUpdate {
 
   async getServoInfos() {
     // getting servo infos
-    const ricHWListStr = await this.ricMsgHandler.sendRICRESTURL<RICHWElemList_Str>(
-      "hwstatus/strstat?filterByType=SmartServo"
-    );
-    if (!ricHWListStr || !Object.prototype.hasOwnProperty.call(ricHWListStr, "hw")) return [];
-    const servos = RICHWElemList_Str.expand(ricHWListStr).hw;
-    console.log("servos", servos);
-    for (const servo of servos) {
-      servo.whoAmITypeCode = parseInt(servo.whoAmITypeCode, 16).toString();
+    const ricHWListStr = await this.ricMsgHandler.sendRICRESTURL<
+      RICHWElemList_Str
+    >("hwstatus/strstat?filterByType=SmartServo");
+    if (
+      !ricHWListStr ||
+      !Object.prototype.hasOwnProperty.call(ricHWListStr, "hw")
+    )
+      return [];
+    // if the results of hwElem indicates that we are on an older fw version
+    // send the old hwstatus command and don't expand()
+    // the logic behind deciding if we are on a fw version that
+    // supports strstat is: given that hwElemList_Str.hw === object[]
+    // if we get back string[], then we know we are on an older version
+    // if hw === empty array, then we don't have any hw elems in which
+    // case we can stop at that point
+    const hwElems = ricHWListStr.hw;
+    let hwElemList;
+    if (hwElems.length) {
+      if (typeof hwElems[0] !== "object") {
+        // we are on an older version
+        hwElemList = await this.ricMsgHandler.sendRICRESTURL<RICHWElemList>(
+          `hwstatus?filterByType=SmartServo`
+        );
+      } else {
+        // we are on the fw version that supports strstat
+        hwElemList = RICHWElemList_Str.expand(ricHWListStr);
+      }
     }
-    return servos;
+
+    if (hwElemList && hwElemList.rslt && hwElemList.rslt === "ok") {
+      const servos = hwElemList.hw;
+      console.log("servos", servos);
+      for (const servo of servos) {
+        servo.whoAmITypeCode = parseInt(servo.whoAmITypeCode, 16).toString();
+      }
+      return servos;
+    } else return [];
   }
 
   async requestingServoReport(servoName: string) {
@@ -329,9 +361,7 @@ class ServoParamUpdate {
               `Setting ${servoName} ${paramKey} to ${targetValue} (was ${currentConfig[paramKey]})`
             );
             const ricRestCmd = `elem/${servoName}/${paramKey}/${targetValue}`;
-            await this.ricMsgHandler.sendRICRESTURL<RICOKFail>(
-              ricRestCmd
-            );
+            await this.ricMsgHandler.sendRICRESTURL<RICOKFail>(ricRestCmd);
           }
         }
       }
