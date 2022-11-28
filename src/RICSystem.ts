@@ -28,7 +28,8 @@ import {
   RICReportMsg,
   RICSysModInfoBLEMan,
   RICSystemInfo,
-  RICWifiScanResults
+  RICWifiScanResults,
+  RICHWElemList,
 } from "./RICTypes";
 
 export default class RICSystem {
@@ -168,7 +169,11 @@ export default class RICSystem {
   }
   // Mark: Calibration -----------------------------------------------------------------------------------------
 
-  async calibrate(cmd: string, jointList: Array<string>, jointNames: {[key: string]: string}) {
+  async calibrate(
+    cmd: string,
+    jointList: Array<string>,
+    jointNames: { [key: string]: string }
+  ) {
     let overallResult = true;
     if (cmd === "set") {
       // Set calibration
@@ -306,17 +311,16 @@ export default class RICSystem {
    *
    * getHWElemList - get the list of hardware elements connected to the robot
    *               - the result (if successful) is processed as follows:
-   *                       = if no filter is applied then all non-add-ons found are stored in 
+   *                       = if no filter is applied then all non-add-ons found are stored in
    *                         this._hwElemsExcludingAddOns and all addons are stored in this._connectedAddOns
    *                       = if a filter is applied and this filter is RSAddOns then this._connectedAddOns is
    *                         updated with the new list of addons
    *                       = in all cases the discovered list is returned
-   * 
+   *
    * @returns Promise<RICHWElemList>
    *
    */
   async getHWElemList(filterByType?: string): Promise<Array<RICHWElem>> {
-
     // Form a list of the requests to make
     const reqList: Array<string> = [];
     let addToNonAddOnsList = false;
@@ -335,19 +339,37 @@ export default class RICSystem {
     const fullListOfElems = new Array<RICHWElem>();
     for (const reqType of reqList) {
       try {
-        const hwElemList_Str = await this._ricMsgHandler.sendRICRESTURL<RICHWElemList_Str>(
-          `hwstatus/strstat?filterByType=${reqType}`
-        );
-        const hwElemList = RICHWElemList_Str.expand(hwElemList_Str);
+        const hwElemList_Str = await this._ricMsgHandler.sendRICRESTURL<
+          RICHWElemList_Str
+        >(`hwstatus/strstat?filterByType=${reqType}`);
+        // if the results of hwElem indicates that we are on an older fw version
+        // send the old hwstatus command and don't expand()
+        // the logic behind deciding if we are on a fw version that 
+        // supports strstat is: given that hwElemList_Str.hw === object[]
+        // if we get back string[], then we know we are on an older version
+        // if hw === empty array, then we don't have any hw elems in which 
+        // case we can stop at that point
+        const hwElems = hwElemList_Str.hw;
+        let hwElemList;
+        if (hwElems.length) {
+          if (typeof hwElems[0] !== "object") {
+            // we are on an older version
+            hwElemList = await this._ricMsgHandler.sendRICRESTURL<
+              RICHWElemList
+            >(`hwstatus?filterByType=${reqType}`);
+          } else {
+            // we are on the fw version that supports strstat
+            hwElemList = RICHWElemList_Str.expand(hwElemList_Str);
+          }
+        }
+
         if (hwElemList && hwElemList.rslt && hwElemList.rslt === "ok") {
           fullListOfElems.push(...hwElemList.hw);
           if (reqType === "RSAddOn") {
             this._connectedAddOns = hwElemList.hw;
             this._addOnManager.setHWElems(this._connectedAddOns);
             // Debug
-            RICLog.debug(
-              `getHWElemList: found ${hwElemList.hw.length} addons`
-            );
+            RICLog.debug(`getHWElemList: found ${hwElemList.hw.length} addons`);
           } else if (addToNonAddOnsList) {
             this._hwElemsExcludingAddOns.push(...hwElemList.hw);
             // Debug
@@ -404,9 +426,9 @@ export default class RICSystem {
    */
   async getAddOnConfigs(): Promise<RICConfiguredAddOns> {
     try {
-      const addOnList = await this._ricMsgHandler.sendRICRESTURL<RICConfiguredAddOns>(
-        "addon/list"
-      );
+      const addOnList = await this._ricMsgHandler.sendRICRESTURL<
+        RICConfiguredAddOns
+      >("addon/list");
       RICLog.debug("getAddOnConfigs returned " + addOnList);
       return addOnList;
     } catch (error) {
@@ -647,37 +669,39 @@ export default class RICSystem {
 
   // Mark: WiFi Scan ------------------------------------------------------------------------------------
 
-   /**
+  /**
    *  WiFiScan start
    *
    *  @return boolean - true if successful
    *
    */
-    async wifiScanStart(): Promise<boolean> {
-      try {
-        RICLog.debug(`wifiScanStart`);
-        await this._ricMsgHandler.sendRICRESTURL<RICOKFail>("wifiscan/start");
-        return true;
-      } catch (error) {
-        RICLog.debug(`wifiScanStart unsuccessful`);
-      }
-      return false;
+  async wifiScanStart(): Promise<boolean> {
+    try {
+      RICLog.debug(`wifiScanStart`);
+      await this._ricMsgHandler.sendRICRESTURL<RICOKFail>("wifiscan/start");
+      return true;
+    } catch (error) {
+      RICLog.debug(`wifiScanStart unsuccessful`);
     }
-   /**
+    return false;
+  }
+  /**
    *  WiFiScan get results
    *
    *  @return boolean - false if unsuccessful, otherwise the results of the promise
    *
    */
-    async wifiScanResults(): Promise<boolean | RICOKFail | RICWifiScanResults> {
-      try {
-        RICLog.debug(`wifiScanResults`);
-        return this._ricMsgHandler.sendRICRESTURL<RICOKFail | RICWifiScanResults>("wifiscan/results");
-      } catch (error) {
-        RICLog.debug(`wifiScanResults unsuccessful`);
-      }
-      return false;
+  async wifiScanResults(): Promise<boolean | RICOKFail | RICWifiScanResults> {
+    try {
+      RICLog.debug(`wifiScanResults`);
+      return this._ricMsgHandler.sendRICRESTURL<RICOKFail | RICWifiScanResults>(
+        "wifiscan/results"
+      );
+    } catch (error) {
+      RICLog.debug(`wifiScanResults unsuccessful`);
     }
+    return false;
+  }
 
   getCachedSystemInfo(): RICSystemInfo | null {
     return this._systemInfo;
