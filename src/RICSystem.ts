@@ -18,17 +18,18 @@ import RICLog from "./RICLog";
 import RICMsgHandler from "./RICMsgHandler";
 
 import {
-  RICAddOnList,
+  RICConfiguredAddOns,
   RICCalibInfo,
   RICFileList,
   RICFriendlyName,
   RICHWElem,
-  RICHWElemList,
+  RICHWElemList_Str,
   RICOKFail,
   RICReportMsg,
   RICSysModInfoBLEMan,
   RICSystemInfo,
   RICWifiScanResults,
+  RICHWElemList,
 } from "./RICTypes";
 
 export default class RICSystem {
@@ -44,8 +45,9 @@ export default class RICSystem {
   // RIC naming
   private _ricFriendlyName: RICFriendlyName | null = null;
 
-  // HWElems (connected to RIC)
-  private _hwElems: Array<RICHWElem> = new Array<RICHWElem>();
+  // HWElems (connected to RIC) - excluding AddOns
+  private _hwElemsExcludingAddOns: Array<RICHWElem> = new Array<RICHWElem>();
+  private _connectedAddOns: Array<RICHWElem> = new Array<RICHWElem>();
 
   // Calibration info
   private _calibInfo: RICCalibInfo | null = null;
@@ -80,7 +82,8 @@ export default class RICSystem {
   invalidate() {
     // Invalidate system info
     this._systemInfo = null;
-    this._hwElems = new Array<RICHWElem>();
+    this._hwElemsExcludingAddOns = new Array<RICHWElem>();
+    this._connectedAddOns = new Array<RICHWElem>();
     this._addOnManager.clear();
     this._calibInfo = null;
     this._ricFriendlyName = null;
@@ -137,6 +140,13 @@ export default class RICSystem {
       return false;
     }
 
+    // Get HWElems (connected to RIC)
+    try {
+      await this.getHWElemList();
+    } catch (error) {
+      RICLog.warn("retrieveInfo - failed to get HWElems " + error);
+      return false;
+    }
     return true;
   }
 
@@ -306,19 +316,85 @@ export default class RICSystem {
 
   /**
    *
-   * getHWElemList - get list of HWElems on the robot (including add-ons)
+   * getHWElemList - get the list of hardware elements connected to the robot
+   *               - the result (if successful) is processed as follows:
+   *                       = if no filter is applied then all non-add-ons found are stored in
+   *                         this._hwElemsExcludingAddOns and all addons are stored in this._connectedAddOns
+   *                       = if a filter is applied and this filter is RSAddOns then this._connectedAddOns is
+   *                         updated with the new list of addons
+   *                       = in all cases the discovered list is returned
+   *
    * @returns Promise<RICHWElemList>
    *
    */
-  async getHWElemList(): Promise<RICHWElemList> {
-    try {
-      const ricHWList = await this._ricMsgHandler.sendRICRESTURL<RICHWElemList>(
-        "hwstatus"
-      );
-      RICLog.debug("getHWElemList returned " + JSON.stringify(ricHWList));
-      this._hwElems = ricHWList.hw;
-      this._addOnManager.setHWElems(this._hwElems);
 
+  async getHWElemList(filterByType?: string): Promise<Array<RICHWElem>> {
+    // Form a list of the requests to make
+    const reqList: Array<string> = [];
+    let addToNonAddOnsList = false;
+    if (!filterByType) {
+      reqList.push("SmartServo");
+      reqList.push("RSAddOn");
+      reqList.push("!SmartServo,RSAddOn");
+      this._hwElemsExcludingAddOns = new Array<RICHWElem>();
+      addToNonAddOnsList = true;
+    } else {
+      reqList.push(filterByType);
+      this._connectedAddOns = new Array<RICHWElem>();
+    }
+
+
+    // Make the requests
+    const fullListOfElems = new Array<RICHWElem>();
+    for (const reqType of reqList) {
+      try {
+        const hwElemList_Str = await this._ricMsgHandler.sendRICRESTURL<
+          RICHWElemList_Str
+        >(`hwstatus/strstat?filterByType=${reqType}`);
+        // if the results of hwElem indicates that we are on an older fw version
+        // send the old hwstatus command and don't expand()
+        // the logic behind deciding if we are on a fw version that 
+        // supports strstat is: given that hwElemList_Str.hw === object[]
+        // if we get back string[], then we know we are on an older version
+        // if hw === empty array, then we don't have any hw elems in which 
+        // case we can stop at that point
+        const hwElems = hwElemList_Str.hw;
+        let hwElemList;
+        if (hwElems.length) {
+          if (typeof hwElems[0] !== "object") {
+            // we are on an older version
+            hwElemList = await this._ricMsgHandler.sendRICRESTURL<
+              RICHWElemList
+            >(`hwstatus?filterByType=${reqType}`);
+          } else {
+            // we are on the fw version that supports strstat
+            hwElemList = RICHWElemList_Str.expand(hwElemList_Str);
+          }
+        }
+
+        if (hwElemList && hwElemList.rslt && hwElemList.rslt === "ok") {
+          fullListOfElems.push(...hwElemList.hw);
+          if (reqType === "RSAddOn") {
+            this._connectedAddOns = hwElemList.hw;
+            this._addOnManager.setHWElems(this._connectedAddOns);
+            // Debug
+            RICLog.debug(`getHWElemList: found ${hwElemList.hw.length} addons`);
+          } else if (addToNonAddOnsList) {
+            this._hwElemsExcludingAddOns.push(...hwElemList.hw);
+            // Debug
+            RICLog.debug(
+              `getHWElemList: found ${hwElemList.hw.length} elems matching ${reqType}`
+            );
+          }
+        }
+      } catch (error) {
+        RICLog.debug(`getHWElemList failed to get ${reqType} ${error}`);
+        return new Array<RICHWElem>();
+      }
+    }
+
+    // Handle any callbacks
+    try {
       const reports: Array<RICReportMsg> = [];
       // add callback to subscribe to report messages
       this._ricMsgHandler.reportMsgCallbacksSet("getHWElemCB", function (
@@ -342,30 +418,31 @@ export default class RICSystem {
 
       // clean up callback
       this._ricMsgHandler.reportMsgCallbacksDelete("getHWElemCB");
-
-      return ricHWList;
     } catch (error) {
-      RICLog.debug(`getHWElemList Failed to get list of HWElems ${error}`);
-      return new RICHWElemList();
+      RICLog.debug(`getHWElemList failed processing callback reports ${error}`);
+      return new Array<RICHWElem>();
     }
+
+    // return the full list of elements
+    return fullListOfElems;
   }
 
   /**
    *
-   * getAddOnList - get list of add-ons configured on the robot
-   * @returns Promise<RICAddOnList>
+   * getAddOnConfigs - get list of add-ons configured on the robot
+   * @returns Promise<RICConfiguredAddOns>
    *
    */
-  async getAddOnList(): Promise<RICAddOnList> {
+  async getAddOnConfigs(): Promise<RICConfiguredAddOns> {
     try {
-      const addOnList = await this._ricMsgHandler.sendRICRESTURL<RICAddOnList>(
-        "addon/list"
-      );
-      RICLog.debug("getAddOnList returned " + addOnList);
+      const addOnList = await this._ricMsgHandler.sendRICRESTURL<
+        RICConfiguredAddOns
+      >("addon/list");
+      RICLog.debug("getAddOnConfigs returned " + addOnList);
       return addOnList;
     } catch (error) {
-      RICLog.debug(`getAddOnList Failed to get list of add-ons ${error}`);
-      return new RICAddOnList();
+      RICLog.debug(`getAddOnConfigs Failed to get list of add-ons ${error}`);
+      return new RICConfiguredAddOns();
     }
   }
 
@@ -639,8 +716,15 @@ export default class RICSystem {
     return this._systemInfo;
   }
 
-  getCachedHWElemList(): Array<RICHWElem> {
-    return this._hwElems;
+  getCachedAddOnList(): Array<RICHWElem> {
+    return this._connectedAddOns;
+  }
+
+  getCachedAllHWElems(): Array<RICHWElem> {
+    const allHWElems = new Array<RICHWElem>();
+    allHWElems.push(...this._connectedAddOns);
+    allHWElems.push(...this._hwElemsExcludingAddOns);
+    return allHWElems;
   }
 
   getCachedCalibInfo(): RICCalibInfo | null {

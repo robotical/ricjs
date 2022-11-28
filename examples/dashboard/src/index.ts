@@ -102,7 +102,7 @@ function updateStatus() {
   formatStatus("imuStatus", ricState.imuData, ricState.imuDataValidMs, imuStatusFormat, "imu-status-container");
   formatStatus("servoStatus", ricState.smartServos, ricState.smartServosValidMs, servoStatusFormat, "servo-status-container");
   formatStatus("sysInfoStatus", ricSystem.getCachedSystemInfo(), ricSystem.getCachedSystemInfo()?.validMs, tableFormat, "sysinfo-list-container");
-  formatStatus("addonsStatus", ricSystem.getCachedHWElemList(), null, addonListFormat, "addon-list-container");
+  formatStatus("addonsStatus", ricSystem.getCachedAddOnList(), null, addonListFormat, "addon-list-container");
   formatStatus("calibStatus", ricSystem.getCachedCalibInfo(), ricSystem.getCachedCalibInfo()?.validMs, tableFormat, "calib-list-container");
   formatStatus("nameStatus", ricSystem.getCachedRICName(), ricSystem.getCachedRICName()?.validMs, tableFormat, "friendlyname-list-container");
   formatStatus("wifiStatus", ricSystem.getCachedWifiStatus(), ricSystem.getCachedWifiStatus().validMs, tableFormat, "wifi-status-container");
