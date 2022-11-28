@@ -96,6 +96,14 @@ export default class RICSystem {
    *
    */
   async retrieveInfo(): Promise<boolean> {
+    // Get HWElems (connected to RIC)
+    try {
+      await this.getHWElemList();
+    } catch (error) {
+      RICLog.warn("retrieveInfo - failed to get HWElems " + error);
+      return false;
+    }
+    
     // Get system info
     RICLog.debug(`RICSystem retrieveInfo getting system info`);
     try {
@@ -139,7 +147,6 @@ export default class RICSystem {
       RICLog.warn("retrieveInfo - failed to get HWElems " + error);
       return false;
     }
-
     return true;
   }
 
@@ -320,6 +327,7 @@ export default class RICSystem {
    * @returns Promise<RICHWElemList>
    *
    */
+
   async getHWElemList(filterByType?: string): Promise<Array<RICHWElem>> {
     // Form a list of the requests to make
     const reqList: Array<string> = [];
@@ -334,6 +342,7 @@ export default class RICSystem {
       reqList.push(filterByType);
       this._connectedAddOns = new Array<RICHWElem>();
     }
+
 
     // Make the requests
     const fullListOfElems = new Array<RICHWElem>();
