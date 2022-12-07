@@ -1,8 +1,9 @@
 import RICCommsStats from "../../../src/RICCommsStats";
 import RICConnector from "../../../src/RICConnector";
 import RICLog from "../../../src/RICLog";
-import { ROSSerialIMU, ROSSerialPowerStatus, ROSSerialRGBT, ROSSerialRobotStatus, ROSSerialSmartServos } from "../../../src/RICROSSerial";
+import { ROSSerialAddOnStatus, ROSSerialIMU, ROSSerialPowerStatus, ROSSerialRGBT, ROSSerialRobotStatus, ROSSerialSmartServos } from "../../../src/RICROSSerial";
 import { Dictionary, RICHWElem } from "../../../src/RICTypes";
+import { RICRoboticalAddOns } from "@robotical/ricjs-robotical-addons";
 
 declare global {
     var ricConnector: RICConnector;
@@ -14,6 +15,8 @@ export function checkNewData(name: string, data: object) {
 }
 
 export async function sysInfoGet(params: Array<string>): Promise<void> {
+    RICRoboticalAddOns.registerAddOns(globalThis.ricConnector.getAddOnManager());
+
     const sysInfoOk = await globalThis.ricConnector.retrieveMartySystemInfo();
     if (!sysInfoOk) {
       RICLog.warn("Failed to retrieve system info");
@@ -174,7 +177,38 @@ export function addonListFormat(name:string, addons:Array<RICHWElem>): string {
     statusStr += "</tr>";
   }
   statusStr += "</tr></table>";
-
+  return statusStr;
+}
+export function addonValListFormat(name:string, addons:ROSSerialAddOnStatus[]): string {
+  if (!checkNewData(name, addons)) {
+    return "";
+  }  
+  let statusStr = "";
+  if (addons.length > 0) {
+   statusStr += `<div class="table-head">HWElems Values</div>`;
+  }
+  statusStr += "<table class='table table-striped table-bordered'>";
+  for (let i = 0; i < addons.length; i++) {
+    const addon = addons[i];
+    for (const valKey in addon.vals) {
+      // @ts-ignore
+      if (typeof addon.vals[valKey] === "number") addon.vals[valKey] = Math.round(addon.vals[valKey]);
+    }
+    addon.vals = JSON.stringify(addon.vals).replaceAll(addon.name, "");
+    if (i === 0) {
+      statusStr += "<tr>";
+      for (const [key, value] of Object.entries(addon)) {
+        statusStr += `<th>${key}</th>`;
+      }
+      statusStr += "</tr>";
+    }
+    statusStr += "<tr>";
+    for (const [key, value] of Object.entries(addon)) {
+      statusStr += `<td>${value}</td>`;
+    }
+    statusStr += "</tr>";
+  }
+  statusStr += "</tr></table>";
   return statusStr;
 }
 

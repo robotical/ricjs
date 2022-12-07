@@ -1,6 +1,6 @@
 import { acceptCheckCorrectRIC, connectBLE, connectWiFi, disconnect, rejectCheckCorrectRIC, startCheckCorrectRIC } from './connect';
 import { sendREST, streamSoundFile } from './stream';
-import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest, setReconnect, pixGetColourStr, commsStatusFormat, powerStatusFormat } from './system';
+import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest, setReconnect, pixGetColourStr, commsStatusFormat, powerStatusFormat, addonValListFormat } from './system';
 import { RICConnEvent } from '../../../src/RICConnEvents';
 import { RICUpdateEvent } from '../../../src/RICUpdateEvents';
 import RICConnector from '../../../src/RICConnector';
@@ -103,9 +103,11 @@ function updateStatus() {
   formatStatus("servoStatus", ricState.smartServos, ricState.smartServosValidMs, servoStatusFormat, "servo-status-container");
   formatStatus("sysInfoStatus", ricSystem.getCachedSystemInfo(), ricSystem.getCachedSystemInfo()?.validMs, tableFormat, "sysinfo-list-container");
   formatStatus("addonsStatus", ricSystem.getCachedAddOnList(), null, addonListFormat, "addon-list-container");
+  formatStatus("addonsValStatus", ricState.addOnInfo.addons, null, addonValListFormat, "addon-val-list-container");
   formatStatus("calibStatus", ricSystem.getCachedCalibInfo(), ricSystem.getCachedCalibInfo()?.validMs, tableFormat, "calib-list-container");
   formatStatus("nameStatus", ricSystem.getCachedRICName(), ricSystem.getCachedRICName()?.validMs, tableFormat, "friendlyname-list-container");
   formatStatus("wifiStatus", ricSystem.getCachedWifiStatus(), ricSystem.getCachedWifiStatus().validMs, tableFormat, "wifi-status-container");
+
   setTimeout(updateStatus, 200);
 }
 
@@ -175,6 +177,7 @@ function component() {
   genStatusBlock('servo-status-container', 'info-status-container', statusContainer);
   genStatusBlock('sysinfo-list-container', 'info-status-container', statusContainer);
   genStatusBlock('addon-list-container', 'info-status-container', statusContainer);
+  genStatusBlock('addon-val-list-container', 'info-status-container', statusContainer);
   genStatusBlock('calib-list-container', 'info-status-container', statusContainer);
   genStatusBlock('friendlyname-list-container', 'info-status-container', statusContainer);
   genStatusBlock('wifi-status-container', 'info-status-container', statusContainer);
