@@ -82,8 +82,10 @@ export default class RICAddOnManager implements RICAddOnRegistry {
       const lookupStr = hwElem.type + "_" + hwElem.whoAmI;
       if (lookupStr in this._addOnFactoryMap) {
         const addOnFactoryElem = this._addOnFactoryMap[lookupStr];
+        const whoAmILen = hwElem.whoAmITypeCode.length;
+        hwElem.whoAmITypeCode = hwElem.whoAmITypeCode.slice(whoAmILen - 2, whoAmILen);
         const addOn = addOnFactoryElem.factoryFn(
-          hwElem.name, hwElem.type, hwElem.whoAmI, hwElem.whoAmITypeCode.toString());
+          hwElem.name, hwElem.type, hwElem.whoAmI, hwElem.whoAmITypeCode);
         if (addOn !== null) {
           addOnMap[hwElem.IDNo.toString()] = addOn;
         }
