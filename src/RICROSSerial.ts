@@ -8,10 +8,10 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import RICUtils from './RICUtils';
-import { RICMessageResult } from './RICMsgHandler';
-import RICCommsStats from './RICCommsStats';
-import RICAddOnManager from './RICAddOnManager';
+import RICUtils from "./RICUtils";
+import { RICMessageResult } from "./RICMsgHandler";
+import RICCommsStats from "./RICCommsStats";
+import RICAddOnManager from "./RICAddOnManager";
 
 export class ROSSerialSmartServos {
   smartServos: {
@@ -44,27 +44,27 @@ export class ROSSerialPowerStatus {
     powerUSBIsValid: boolean;
     powerFlags: number;
   } = {
-      battRemainCapacityPercent: 0,
-      battTempDegC: 0,
-      battRemainCapacityMAH: 0,
-      battFullCapacityMAH: 0,
-      battCurrentMA: 0,
-      power5VOnTimeSecs: 0,
-      power5VIsOn: false,
-      powerUSBIsConnected: false,
-      battInfoValid: false,
-      powerUSBIsValid: false,
-      powerFlags: 0,
-    };
+    battRemainCapacityPercent: 0,
+    battTempDegC: 0,
+    battRemainCapacityMAH: 0,
+    battFullCapacityMAH: 0,
+    battCurrentMA: 0,
+    power5VOnTimeSecs: 0,
+    power5VIsOn: false,
+    powerUSBIsConnected: false,
+    battInfoValid: false,
+    powerUSBIsValid: false,
+    powerFlags: 0,
+  };
 }
 
 export class ROSSerialAddOnStatus {
   id = 0;
   deviceTypeID = 0;
   whoAmI = "";
-  name = '';
+  name = "";
   status = 0;
-  vals = {};
+  vals: { [key: string]: number | boolean | string} = {};
 }
 
 export class ROSSerialAddOnStatusList {
@@ -89,32 +89,32 @@ export class ROSSerialRGBT {
 
 export class ROSSerialRobotStatus {
   robotStatus: {
-    flags: number,
-    isMoving: boolean,
-    isPaused: boolean,
-    isFwUpdating: boolean,
-    workQCount: number,
-    heapFree: number,
-    heapMin: number,
-    pixRGBT: ROSSerialRGBT[],
-    loopMsAvg: number,
-    loopMsMax: number,
-    wifiRSSI: number,
-    bleRSSI: number,
+    flags: number;
+    isMoving: boolean;
+    isPaused: boolean;
+    isFwUpdating: boolean;
+    workQCount: number;
+    heapFree: number;
+    heapMin: number;
+    pixRGBT: ROSSerialRGBT[];
+    loopMsAvg: number;
+    loopMsMax: number;
+    wifiRSSI: number;
+    bleRSSI: number;
   } = {
-      flags: 0,
-      isMoving: false,
-      isPaused: false,
-      isFwUpdating: false,
-      workQCount: 0,
-      heapFree: 0,
-      heapMin: 0,
-      pixRGBT: [],
-      loopMsAvg: 0,
-      loopMsMax: 0,
-      wifiRSSI: 0,
-      bleRSSI: 0,
-    };
+    flags: 0,
+    isMoving: false,
+    isPaused: false,
+    isFwUpdating: false,
+    workQCount: 0,
+    heapFree: 0,
+    heapMin: 0,
+    pixRGBT: [],
+    loopMsAvg: 0,
+    loopMsMax: 0,
+    wifiRSSI: 0,
+    bleRSSI: 0,
+  };
 }
 
 export type ROSSerialMsg =
@@ -130,11 +130,11 @@ export class RICROSSerial {
     startPos: number,
     RICMessageResult: RICMessageResult | null,
     commsStats: RICCommsStats,
-    addOnManager: RICAddOnManager,
+    addOnManager: RICAddOnManager
   ): void {
     // Payload may contain multiple ROSSerial messages
     let msgPos = startPos;
-    for (; ;) {
+    for (;;) {
       const remainingMsgLen = rosSerialMsg.length - msgPos;
 
       // ROSSerial ROSTopics
@@ -178,7 +178,7 @@ export class RICROSSerial {
       // Extract payload
       const payload = rosSerialMsg.slice(
         msgPos + RS_MSG_PAYLOAD_POS,
-        msgPos + RS_MSG_PAYLOAD_POS + payloadLength,
+        msgPos + RS_MSG_PAYLOAD_POS + payloadLength
       );
 
       // RICLog.debug('ROSSerial ' + RICUtils.bufferToHex(payload));
@@ -203,7 +203,9 @@ export class RICROSSerial {
             break;
           case ROSTOPIC_V2_ADDONS:
             // Addons
-            RICMessageResult.onRxAddOnPub(this.extractAddOnStatus(payload, addOnManager));
+            RICMessageResult.onRxAddOnPub(
+              this.extractAddOnStatus(payload, addOnManager)
+            );
             commsStats.recordAddOnPub();
             break;
           case ROSTOPIC_V2_ROBOT_STATUS:
@@ -230,7 +232,7 @@ export class RICROSSerial {
     // Each group of attributes for a servo is a fixed size
     const ROS_SMART_SERVOS_ATTR_GROUP_BYTES = 6;
     const numGroups = Math.floor(
-      buf.length / ROS_SMART_SERVOS_ATTR_GROUP_BYTES,
+      buf.length / ROS_SMART_SERVOS_ATTR_GROUP_BYTES
     );
     const msg: ROSSerialSmartServos = { smartServos: [] };
     let bufPos = 0;
@@ -291,7 +293,7 @@ export class RICROSSerial {
 
   static extractAddOnStatus(
     buf: Uint8Array,
-    addOnManager: RICAddOnManager,
+    addOnManager: RICAddOnManager
   ): ROSSerialAddOnStatusList {
     // RICLog.debug(`AddOnRawData ${RICUtils.bufferToHex(buf)}`);
     // Each group of attributes for a add-on is a fixed size
@@ -307,7 +309,7 @@ export class RICROSSerial {
       const addOnRec = addOnManager.processPublishedData(
         addOnId,
         status,
-        addOnData,
+        addOnData
       );
       if (addOnRec !== null) {
         msg.addons.push(addOnRec);
@@ -317,7 +319,12 @@ export class RICROSSerial {
   }
 
   static extractRGBT(buf: Uint8Array, offset: number): ROSSerialRGBT {
-    return new ROSSerialRGBT(buf[offset], buf[offset + 1], buf[offset + 2], buf[offset + 3]);
+    return new ROSSerialRGBT(
+      buf[offset],
+      buf[offset + 1],
+      buf[offset + 2],
+      buf[offset + 3]
+    );
   }
 
   static extractRobotStatus(buf: Uint8Array): ROSSerialRobotStatus {
@@ -363,6 +370,6 @@ export class RICROSSerial {
         wifiRSSI: wifiRSSI,
         bleRSSI: bleRSSI,
       },
-    }
+    };
   }
 }

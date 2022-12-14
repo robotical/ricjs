@@ -13,7 +13,7 @@ import { Dictionary, RICHWElem, RICReportMsg } from './RICTypes';
 import RICAddOnBase from './RICAddOnBase';
 import { ROSSerialAddOnStatus } from './RICROSSerial';
 
-export type RICAddOnCreator = (name: string, addOnFamily: string, whoAmI: string) => RICAddOnBase;
+export type RICAddOnCreator = (name: string, addOnFamily: string, whoAmI: string, whoAmITypeCode: string) => RICAddOnBase;
 
 class AddOnFactoryElem {
   typeName: string;
@@ -83,7 +83,7 @@ export default class RICAddOnManager implements RICAddOnRegistry {
       if (lookupStr in this._addOnFactoryMap) {
         const addOnFactoryElem = this._addOnFactoryMap[lookupStr];
         const addOn = addOnFactoryElem.factoryFn(
-          hwElem.name, hwElem.type, hwElem.whoAmI);
+          hwElem.name, hwElem.type, hwElem.whoAmI, hwElem.whoAmITypeCode.toString());
         if (addOn !== null) {
           addOnMap[hwElem.IDNo.toString()] = addOn;
         }

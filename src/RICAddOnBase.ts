@@ -15,11 +15,13 @@ export default abstract class RICAddOnBase {
   _name = '';
   _typeName = '';
   _whoAmI = "";
+  _whoAmITypeCode = "";
   _initCmd: string | null = null;
-  constructor(name: string, typeName: string, whoAmI: string) {
+  constructor(name: string, typeName: string, whoAmI: string, whoAmITypeCode: string) {
     this._name = name;
     this._typeName = typeName;
     this._whoAmI = whoAmI;
+    this._whoAmITypeCode = whoAmITypeCode;
   }
   abstract processInit(_dataReceived: RICReportMsg): void;
   abstract processPublishedData(
