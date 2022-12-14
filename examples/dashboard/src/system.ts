@@ -16,7 +16,6 @@ export function checkNewData(name: string, data: object) {
 
 export async function sysInfoGet(params: Array<string>): Promise<void> {
     RICRoboticalAddOns.registerAddOns(globalThis.ricConnector.getAddOnManager());
-
     const sysInfoOk = await globalThis.ricConnector.retrieveMartySystemInfo();
     if (!sysInfoOk) {
       RICLog.warn("Failed to retrieve system info");
@@ -191,9 +190,9 @@ export function addonValListFormat(name:string, addons:ROSSerialAddOnStatus[]): 
   for (let i = 0; i < addons.length; i++) {
     const addon = addons[i];
     for (const valKey in addon.vals) {
-      // @ts-ignore
-      if (typeof addon.vals[valKey] === "number") addon.vals[valKey] = Math.round(addon.vals[valKey]);
+      if (typeof addon.vals[valKey] === "number") addon.vals[valKey] = Math.round(+addon.vals[valKey]);
     }
+    // @ts-ignore
     addon.vals = JSON.stringify(addon.vals).replaceAll(addon.name, "");
     if (i === 0) {
       statusStr += "<tr>";
