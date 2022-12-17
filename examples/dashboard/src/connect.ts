@@ -42,7 +42,7 @@ export async function connectWiFi(params: Array<string>): Promise<void> {
   const wifiPw = document.getElementById("wifi-pw") as HTMLInputElement;
   const wifiIPAddr = wifiIP.value;
   const wifiPwStr = wifiPw.value;
-  globalThis.ricConnector.connect("wifi", wifiIPAddr);
+  globalThis.ricConnector.connect("wifi", "ws://" + wifiIPAddr);
 }
 
 export async function startCheckCorrectRIC(params: Array<string>): Promise<void> {

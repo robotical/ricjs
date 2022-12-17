@@ -16,7 +16,6 @@ import RICUtils from "./RICUtils";
 import { RICConnEvent, RICConnEventFn } from "./RICConnEvents";
 
 export default class RICChannelWebSocket implements RICChannel {
-
   // Message handler
   private _ricMsgHandler: RICMsgHandler | null = null;
 
@@ -32,7 +31,7 @@ export default class RICChannelWebSocket implements RICChannel {
 
   // Conn event fn
   private _onConnEvent: RICConnEventFn | null = null;
-  
+
   // isConnected
   isConnected(): boolean {
     return this._isConnected;
@@ -55,41 +54,46 @@ export default class RICChannelWebSocket implements RICChannel {
 
   // Connect to a device
   async connect(locator: string | object): Promise<boolean> {
-
     // Debug
     RICLog.debug("RICChannelWebSocket.connect " + locator.toString());
 
     // Connect
-    const connOk = await this._wsConnect("ws://" + locator + "/ws");
+    if (!locator.toString().includes("ws")) {
+      // if wss is not defined from the front-end
+      // we fallback to the production case (wss as opposed ws which is for development)
+      locator = "wss://" + locator;
+    }
+    const connOk = await this._wsConnect(locator + "/ws");
     return connOk;
   }
 
   // Disconnect
   async disconnect(): Promise<void> {
-    
     // Not connected
     this._isConnected = false;
-    
+
     // Disconnect websocket
     this._webSocket?.close(1000);
 
     // Debug
-    RICLog.debug(`RICChannelWebSocket.disconnect attempting to close websocket`);
+    RICLog.debug(
+      `RICChannelWebSocket.disconnect attempting to close websocket`
+    );
   }
 
   // Handle notifications
   _onMsgRx(msg: Uint8Array | null): void {
-
     // Debug
     if (msg !== null) {
-      RICLog.verbose(`RICChannelWebSocket._onMsgRx ${RICUtils.bufferToHex(msg)}`);
+      RICLog.verbose(
+        `RICChannelWebSocket._onMsgRx ${RICUtils.bufferToHex(msg)}`
+      );
     }
 
     // Handle message
     if (msg !== null && this._ricMsgHandler) {
       this._ricMsgHandler.handleNewRxMsg(msg);
     }
-
   }
 
   // Send a message
@@ -97,18 +101,18 @@ export default class RICChannelWebSocket implements RICChannel {
     msg: Uint8Array,
     sendWithResponse: boolean
   ): Promise<boolean> {
-
     // Check connected
-    if (!this._isConnected)
-      return false;
+    if (!this._isConnected) return false;
 
     // Debug
-    RICLog.verbose(`RICChannelWebSocket.sendTxMsg ${msg.toString()} sendWithResp ${sendWithResponse.toString()}`);
+    RICLog.verbose(
+      `RICChannelWebSocket.sendTxMsg ${msg.toString()} sendWithResp ${sendWithResponse.toString()}`
+    );
 
     // Send over websocket
     try {
       await this._webSocket?.send(msg);
-    } catch (error: unknown) {
+    } catch (error) {
       RICLog.warn(`RICChannelWebSocket.sendTxMsg - send failed ${error}`);
       return false;
     }
@@ -119,13 +123,13 @@ export default class RICChannelWebSocket implements RICChannel {
     msg: Uint8Array,
     sendWithResponse: boolean
   ): Promise<boolean> {
-
     // Check connected
-    if (!this._isConnected)
-      return false;
+    if (!this._isConnected) return false;
 
     // Debug
-    RICLog.verbose(`RICChannelWebSocket.sendTxMsgNoAwait ${msg.toString()} sendWithResp ${sendWithResponse.toString()}`);
+    RICLog.verbose(
+      `RICChannelWebSocket.sendTxMsgNoAwait ${msg.toString()} sendWithResp ${sendWithResponse.toString()}`
+    );
 
     // Send over websocket
     this._webSocket?.send(msg);
@@ -134,7 +138,6 @@ export default class RICChannelWebSocket implements RICChannel {
   }
 
   async _wsConnect(locator: string | object): Promise<boolean> {
-
     // Check already connected
     if (await this.isConnected()) {
       return true;
@@ -151,48 +154,55 @@ export default class RICChannelWebSocket implements RICChannel {
     //     return false;
     // }
     this._webSocket = null;
-    return new Promise((resolve: (value: boolean | PromiseLike<boolean>) => void,
-      reject: (reason?: unknown) => void) => {
-      this._webSocketOpen(wsURL).then((ws) => {
-        this._webSocket = ws;
-        RICLog.debug(`_wsConnect - opened connection`);
+    return new Promise(
+      (
+        resolve: (value: boolean | PromiseLike<boolean>) => void,
+        reject: (reason?: unknown) => void
+      ) => {
+        this._webSocketOpen(wsURL)
+          .then((ws) => {
+            this._webSocket = ws;
+            RICLog.debug(`_wsConnect - opened connection`);
 
-        // Handle messages
-        this._webSocket.onmessage = (evt: WebSocket.MessageEvent) => {
-          // RICLog.debug("WebSocket rx");
-          if (evt.data instanceof ArrayBuffer) {
-            const msg = new Uint8Array(evt.data);
-            this._onMsgRx(msg);
-          }
-        }
+            // Handle messages
+            this._webSocket.onmessage = (evt: WebSocket.MessageEvent) => {
+              // RICLog.debug("WebSocket rx");
+              if (evt.data instanceof ArrayBuffer) {
+                const msg = new Uint8Array(evt.data);
+                this._onMsgRx(msg);
+              }
+            };
 
-        // Handle close event
-        this._webSocket.onclose = (evt: WebSocket.CloseEvent) => {
-          RICLog.info(`_wsConnect - closed code ${evt.code} wasClean ${evt.wasClean} reason ${evt.reason}`);
-          this._webSocket = null;
-          this._isConnected = false;
+            // Handle close event
+            this._webSocket.onclose = (evt: WebSocket.CloseEvent) => {
+              RICLog.info(
+                `_wsConnect - closed code ${evt.code} wasClean ${evt.wasClean} reason ${evt.reason}`
+              );
+              this._webSocket = null;
+              this._isConnected = false;
 
-          // Event handler
-          if (this._onConnEvent) {
-            this._onConnEvent(RICConnEvent.CONN_DISCONNECTED_RIC);
-          }
-        }
+              // Event handler
+              if (this._onConnEvent) {
+                this._onConnEvent(RICConnEvent.CONN_DISCONNECTED_RIC);
+              }
+            };
 
-        // Resolve the promise - success
-        resolve(true);
-      }).catch((err: unknown) => {
-        if (err instanceof Error) {
-          RICLog.verbose(`WS open failed ${err.toString()}`)
-        }
-        // Resolve - failed
-        reject(false);
-      })
-    });
+            // Resolve the promise - success
+            resolve(true);
+          })
+          .catch((err: unknown) => {
+            if (err instanceof Error) {
+              RICLog.verbose(`WS open failed ${err.toString()}`);
+            }
+            // Resolve - failed
+            reject(false);
+          });
+      }
+    );
   }
 
   private async _webSocketOpen(url: string): Promise<WebSocket> {
     return new Promise((resolve, reject) => {
-
       // Debug
       // RICLog.debug('Attempting WebSocket connection');
 
@@ -203,17 +213,23 @@ export default class RICChannelWebSocket implements RICChannel {
         // Open socket
         webSocket.binaryType = "arraybuffer";
         webSocket.onopen = (_evt: WebSocket.Event) => {
-          RICLog.debug(`RICChannelWebSocket._webSocketOpen - onopen ${_evt.toString()}`);
+          RICLog.debug(
+            `RICChannelWebSocket._webSocketOpen - onopen ${_evt.toString()}`
+          );
           // // We're connected
           this._isConnected = true;
           resolve(webSocket);
         };
         webSocket.onerror = function (evt: WebSocket.ErrorEvent) {
-          RICLog.warn(`RICChannelWebSocket._webSocketOpen - onerror: ${evt.message}`);
+          RICLog.warn(
+            `RICChannelWebSocket._webSocketOpen - onerror: ${evt.message}`
+          );
           reject(evt);
-        }
-      } catch (error: unknown) {
-        RICLog.warn(`RICChannelWebSocket._webSocketOpen - open failed ${error}`);
+        };
+      } catch (error) {
+        RICLog.warn(
+          `RICChannelWebSocket._webSocketOpen - open failed ${error}`
+        );
         reject(error);
       }
     });
