@@ -39,7 +39,7 @@ export default class RICUpdateManager {
   // TESTS - set to true for testing OTA updates ONLY
   private readonly TEST_TRUNCATE_ESP_FILE = false;
   private readonly TEST_PRETEND_ELEM_UPDATE_REQD = false;
-  private readonly TEST_PRETEND_INITIAL_VERSIONS_DIFFER = false;
+  public TEST_PRETEND_INITIAL_VERSIONS_DIFFER = false; // this is public so it can be set from the front-end to force an update
   private readonly TEST_PRETEND_FINAL_VERSIONS_MATCH = false;
   private readonly TEST_SKIP_FW_UPDATE = false;
 
