@@ -183,6 +183,8 @@ export class RICROSSerial {
 
       // RICLog.debug('ROSSerial ' + RICUtils.bufferToHex(payload));
 
+      const staticAddons = addOnManager.getProcessedStaticAddons();
+      console.log(staticAddons, 'RICROSSerial.ts', 'line: ', '187');
       // Handle ROSSerial messages
       if (RICMessageResult !== null) {
         switch (topicID) {
@@ -203,9 +205,11 @@ export class RICROSSerial {
             break;
           case ROSTOPIC_V2_ADDONS:
             // Addons
-            RICMessageResult.onRxAddOnPub(
-              this.extractAddOnStatus(payload, addOnManager)
-            );
+            const allAdons = this.extractAddOnStatus(payload, addOnManager);
+            for (const staticAddon of staticAddons) {
+              allAdons.addons.push(staticAddon);
+            }
+            RICMessageResult.onRxAddOnPub(allAdons);
             commsStats.recordAddOnPub();
             break;
           case ROSTOPIC_V2_ROBOT_STATUS:
@@ -227,6 +231,8 @@ export class RICROSSerial {
       // RICLog.debug('MsgPos ' + msgPos);
     }
   }
+
+
 
   static extractSmartServos(buf: Uint8Array): ROSSerialSmartServos {
     // Each group of attributes for a servo is a fixed size

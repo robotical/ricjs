@@ -361,7 +361,12 @@ class ServoParamUpdate {
               `Setting ${servoName} ${paramKey} to ${targetValue} (was ${currentConfig[paramKey]})`
             );
             const ricRestCmd = `elem/${servoName}/${paramKey}/${targetValue}`;
+            const saveParamCmd = `elem/${servoName}/saveparams`;
             await this.ricMsgHandler.sendRICRESTURL<RICOKFail>(ricRestCmd);
+            // saving the parameters... (For the new servo boards it is necessary
+            // to send a "save" command after the calibration ones or any servo
+            // parameter changes in order to save any changes made into nonvolatile storage)
+            await this.ricMsgHandler.sendRICRESTURL<RICOKFail>(saveParamCmd);
           }
         }
       }

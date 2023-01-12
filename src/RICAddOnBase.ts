@@ -16,6 +16,7 @@ export default abstract class RICAddOnBase {
   _typeName = '';
   _whoAmI = "";
   _whoAmITypeCode = "";
+  _isStatic = false;
   _initCmd: string | null = null;
   constructor(name: string, typeName: string, whoAmI: string, whoAmITypeCode: string) {
     this._name = name;
