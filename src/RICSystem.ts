@@ -103,7 +103,7 @@ export default class RICSystem {
       RICLog.warn("retrieveInfo - failed to get HWElems " + error);
       return false;
     }
-    
+
     // Get system info
     RICLog.debug(`RICSystem retrieveInfo getting system info`);
     try {
@@ -191,6 +191,11 @@ export default class RICSystem {
           const rsl = await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
             cmdUrl
           );
+          // saving the calibration... (For the new servo boards it is necessary
+          // to send a "save" command after the calibration ones or any servo
+          // parameter changes in order to save any changes made into nonvolatile storage)
+          const saveCalibCmd = `elem/${jnt}/saveparams`;
+          await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(saveCalibCmd);
           if (rsl.rslt != "ok") overallResult = false;
         } catch (error) {
           console.log(`calibrate failed on joint ${jnt}`, error);
@@ -335,17 +340,23 @@ export default class RICSystem {
     if (!filterByType) {
       reqList.push("SmartServo");
       reqList.push("RSAddOn");
-      reqList.push("!SmartServo,RSAddOn");
+      reqList.push("BusPixels");
+      reqList.push("!SmartServo,RSAddOn,BusPixels"); // not SmartServo or RSAddOn or BusPixels
       this._hwElemsExcludingAddOns = new Array<RICHWElem>();
       addToNonAddOnsList = true;
+    } else if (filterByType === "RSAddOn") {
+      // we treat BusPixels as an RSAddOn
+      // (batch 4 led eye add-ons have type BusPixels)
+      reqList.push("RSAddOn");
+      reqList.push("BusPixels");
+      this._connectedAddOns = new Array<RICHWElem>();
     } else {
       reqList.push(filterByType);
-      this._connectedAddOns = new Array<RICHWElem>();
     }
-
 
     // Make the requests
     const fullListOfElems = new Array<RICHWElem>();
+    this._connectedAddOns = [];
     for (const reqType of reqList) {
       try {
         const hwElemList_Str = await this._ricMsgHandler.sendRICRESTURL<
@@ -353,10 +364,10 @@ export default class RICSystem {
         >(`hwstatus/strstat?filterByType=${reqType}`);
         // if the results of hwElem indicates that we are on an older fw version
         // send the old hwstatus command and don't expand()
-        // the logic behind deciding if we are on a fw version that 
+        // the logic behind deciding if we are on a fw version that
         // supports strstat is: given that hwElemList_Str.hw === object[]
         // if we get back string[], then we know we are on an older version
-        // if hw === empty array, then we don't have any hw elems in which 
+        // if hw === empty array, then we don't have any hw elems in which
         // case we can stop at that point
         const hwElems = hwElemList_Str.hw;
         let hwElemList;
@@ -371,14 +382,23 @@ export default class RICSystem {
             hwElemList = RICHWElemList_Str.expand(hwElemList_Str);
           }
         }
-
         if (hwElemList && hwElemList.rslt && hwElemList.rslt === "ok") {
           fullListOfElems.push(...hwElemList.hw);
           if (reqType === "RSAddOn") {
             this._connectedAddOns = hwElemList.hw;
             this._addOnManager.setHWElems(this._connectedAddOns);
             // Debug
-            RICLog.debug(`getHWElemList: found ${hwElemList.hw.length} addons`);
+            RICLog.debug(
+              `getHWElemList: found ${hwElemList.hw.length} addons/buspixels`
+            );
+          } else if (reqType === "BusPixels") {
+          // BusPixels are treated as an RSAddOn
+            this._connectedAddOns.push(...hwElemList.hw);
+            this._addOnManager.setHWElems(this._connectedAddOns);
+            // Debug
+            RICLog.debug(
+              `getHWElemList: found ${hwElemList.hw.length} addons/buspixels`
+            );
           } else if (addToNonAddOnsList) {
             this._hwElemsExcludingAddOns.push(...hwElemList.hw);
             // Debug
