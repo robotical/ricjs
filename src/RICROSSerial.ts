@@ -180,13 +180,19 @@ export class RICROSSerial {
         msgPos + RS_MSG_PAYLOAD_POS,
         msgPos + RS_MSG_PAYLOAD_POS + payloadLength
       );
-
       // RICLog.debug('ROSSerial ' + RICUtils.bufferToHex(payload));
 
-      const staticAddons = addOnManager.getProcessedStaticAddons();
-      console.log(staticAddons, 'RICROSSerial.ts', 'line: ', '187');
       // Handle ROSSerial messages
       if (RICMessageResult !== null) {
+        // we need to register the static addons here in case
+        // marty only has static addons (and so the rostopic_v2_addons case
+        // never runs)
+        let allAdons: ROSSerialAddOnStatusList = {addons: []};
+        const staticAddons = addOnManager.getProcessedStaticAddons();
+        for (const staticAddon of staticAddons) {
+          allAdons.addons.push(staticAddon);
+        }
+        RICMessageResult.onRxAddOnPub(allAdons);
         switch (topicID) {
           case ROSTOPIC_V2_SMART_SERVOS:
             // Smart Servos
@@ -205,7 +211,7 @@ export class RICROSSerial {
             break;
           case ROSTOPIC_V2_ADDONS:
             // Addons
-            const allAdons = this.extractAddOnStatus(payload, addOnManager);
+            allAdons = this.extractAddOnStatus(payload, addOnManager);
             for (const staticAddon of staticAddons) {
               allAdons.addons.push(staticAddon);
             }

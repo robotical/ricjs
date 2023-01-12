@@ -356,6 +356,7 @@ export default class RICSystem {
 
     // Make the requests
     const fullListOfElems = new Array<RICHWElem>();
+    this._connectedAddOns = [];
     for (const reqType of reqList) {
       try {
         const hwElemList_Str = await this._ricMsgHandler.sendRICRESTURL<
@@ -381,7 +382,6 @@ export default class RICSystem {
             hwElemList = RICHWElemList_Str.expand(hwElemList_Str);
           }
         }
-
         if (hwElemList && hwElemList.rslt && hwElemList.rslt === "ok") {
           fullListOfElems.push(...hwElemList.hw);
           if (reqType === "RSAddOn") {
@@ -392,7 +392,7 @@ export default class RICSystem {
               `getHWElemList: found ${hwElemList.hw.length} addons/buspixels`
             );
           } else if (reqType === "BusPixels") {
-            // BusPixels are treated as an RSAddOn
+          // BusPixels are treated as an RSAddOn
             this._connectedAddOns.push(...hwElemList.hw);
             this._addOnManager.setHWElems(this._connectedAddOns);
             // Debug
