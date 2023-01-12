@@ -192,7 +192,13 @@ export class RICROSSerial {
         for (const staticAddon of staticAddons) {
           allAdons.addons.push(staticAddon);
         }
-        RICMessageResult.onRxAddOnPub(allAdons);
+        if (commsStats._msgAddOnPub === 0) {
+          // we set the static addons only if we don't have any other addons
+          // the _msgAddOnPub is incremented in the rostopic_v2_addons case
+          // (when we get addons from marty)
+          // otherwise, the static addons will be set along with the regular addons (below)
+          RICMessageResult.onRxAddOnPub(allAdons);
+        }
         switch (topicID) {
           case ROSTOPIC_V2_SMART_SERVOS:
             // Smart Servos
