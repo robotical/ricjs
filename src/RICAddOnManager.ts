@@ -85,7 +85,7 @@ export default class RICAddOnManager implements RICAddOnRegistry {
     // as their data is not published the same way the RSAddOn do
     // to do so, however, we need to know if the batch 4 ledeye is connected
     const staticAddonIds = [];
-    for (let addOnId in this._configuredAddOns) {
+    for (const addOnId in this._configuredAddOns) {
       const addon = this._configuredAddOns[addOnId];
       if (addon._isStatic) {
         staticAddonIds.push(+addOnId);
@@ -102,7 +102,7 @@ export default class RICAddOnManager implements RICAddOnRegistry {
    */
   getStaticAddons(): Array<RICAddOnBase> {
     const staticAddons = [];
-    for (let addOnId in this._configuredAddOns) {
+    for (const addOnId in this._configuredAddOns) {
       const addon = this._configuredAddOns[addOnId];
       if (addon._isStatic) {
         staticAddons.push(addon);
@@ -154,7 +154,7 @@ export default class RICAddOnManager implements RICAddOnRegistry {
       RICLog.debug(`configureAddOns whoAmITypeCode ${hwElem.whoAmI}`);
 
       // Lookup the add-on
-      let lookupStr = hwElem.type + "_" + hwElem.whoAmI;
+      const lookupStr = hwElem.type + "_" + hwElem.whoAmI;
       if (lookupStr in this._addOnFactoryMap) {
         const addOnFactoryElem = this._addOnFactoryMap[lookupStr];
         const whoAmILen = hwElem.whoAmITypeCode.length;
