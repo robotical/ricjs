@@ -22,6 +22,7 @@ export default class RICStreamHandler {
   // Queue of audio stream requests
   private _streamAudioQueue: {
     streamContents: Uint8Array;
+    audioDuration: number;
   }[] = [];
 
   // Stream state
@@ -80,12 +81,10 @@ export default class RICStreamHandler {
     }
     this._streamAudioQueue.push({
       streamContents,
+      audioDuration
     });
 
-    // Check if we need to start streaming
-    if (this._streamAudioQueue.length > 0) {
-      this._handleStreamStart();
-    }
+    this._handleStreamStart();
   }
 
   async streamCancel(): Promise<void> {
@@ -96,7 +95,6 @@ export default class RICStreamHandler {
   private _handleStreamStart(): void {
     // Get next stream
     const stream = this._streamAudioQueue[0];
-    this._streamAudioQueue.splice(0, 1);
     if (stream === undefined) {
       return;
     }
@@ -109,6 +107,7 @@ export default class RICStreamHandler {
       } catch (error) {
         RICLog.error(`RICStreamHandler._handleStreamStart ${error}`);
         this._streamIsStarting = false;
+        this._streamAudioQueue.splice(0, 1); 
       }
     }, 0);
   }
@@ -136,6 +135,7 @@ export default class RICStreamHandler {
       // Clear state
       this._streamID = null;
       this._isCancelled = false;
+      this._streamAudioQueue.splice(0, 1); 
     }
 
     // Send file start message
@@ -149,11 +149,15 @@ export default class RICStreamHandler {
         await this._sendStreamEndMsg(this._streamID);
       }
     }
+    this._streamAudioQueue.splice(0, 1); 
     this._streamIsStarting = false;
 
     // Check if any more audio to play
     if (this._streamAudioQueue.length > 0) {
-      this._handleStreamStart();
+      const stream = this._streamAudioQueue.shift();
+      if (stream?.streamContents) {
+        this.streamAudio(stream.streamContents, false, stream?.audioDuration || 0);
+      }
     }
 
     // Complete
