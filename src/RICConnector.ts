@@ -400,7 +400,7 @@ export default class RICConnector {
 
     // Stop the LED pattern checker if connected
     if (this.isConnected()) {
-      this._ledPatternChecker.clearRICColors(this._ricMsgHandler);
+      await this._ledPatternChecker.clearRICColors(this._ricMsgHandler);
     }
 
     // Check correct
