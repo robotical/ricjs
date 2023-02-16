@@ -16,6 +16,7 @@ import RICFileHandler from "./RICFileHandler";
 import RICLog from "./RICLog";
 import RICSystem from "./RICSystem";
 import RICUtils from "./RICUtils";
+import RICChannel from "./RICChannel";
 
 export default class RICUpdateManager {
 
@@ -43,6 +44,8 @@ export default class RICUpdateManager {
   private readonly TEST_PRETEND_FINAL_VERSIONS_MATCH = false;
   private readonly TEST_SKIP_FW_UPDATE = false;
 
+  private onOTAReconnectCb: (() => void) | null = null; // callback to be called when OTA reconnect is complete
+
   constructor(private _ricMsgHandler: RICMsgHandler,
     private _ricFileHandler: RICFileHandler,
     private _ricSystem: RICSystem,
@@ -51,7 +54,15 @@ export default class RICUpdateManager {
     private _nonFirmwareElemTypes: string[],
     private _currentAppVersion: string,
     private _fileDownloader: RICFileDownloadFn,
-    private _firmwareUpdateURL: string) {
+    private _firmwareUpdateURL: string,
+    private _ricChannel: RICChannel | null,
+    ) {
+  }
+
+  setOnOTAReconnectCb(onOTAReconnectCb: () => void) {
+    // callback to be called when OTA reconnect is complete
+    // usually used to get the system info again
+    this.onOTAReconnectCb = onOTAReconnectCb;
   }
 
   async checkForUpdate(systemInfo: RICSystemInfo | null): Promise<RICUpdateEvent> {
@@ -384,10 +395,25 @@ export default class RICUpdateManager {
 
   async waitForRestart(percComplete : number, checkFwVersion : string | null = null){
     RICLog.debug(`fwUpdate: Waiting for restart. percComplete ${percComplete}, checkFwVersion: ${checkFwVersion}`);
+    // manually disconnecting
+    // but before we need to grab the device info so we can reconnect
+    let idToConnectTo: string = "";
+    let nameToConnectTo: string = "";
+    RICLog.debug("Disconnecting from BLE");
+    if (this._ricChannel) {
+      const deviceInfo: BluetoothDevice = this._ricChannel.getConnectedLocator() as BluetoothDevice;
+      idToConnectTo = deviceInfo.id;
+      nameToConnectTo = deviceInfo.name || "Marty";
+      RICLog.debug("iDToConnectTo " + idToConnectTo);
+      RICLog.debug("nameToConnectTo " + nameToConnectTo);
+      await this._ricChannel.disconnect();
+    }
     // Wait for firmware update to complete, restart to occur
     // and BLE reconnection to happen
-    for (let i = 0; i < 3; i++) {
-      await new Promise(resolve => setTimeout(resolve, 5000));
+    const waitTime = 5000;
+    const iterations = 3;
+    for (let i = 0; i < iterations; i++) {
+      await new Promise(resolve => setTimeout(resolve, waitTime));
       this._eventListener(RICUpdateEvent.UPDATE_PROGRESS,
         {
           stage: 'Restarting Marty',
@@ -395,7 +421,7 @@ export default class RICUpdateManager {
           updatingFilesystem: true,
         }
       );
-      RICLog.debug('fwUpdate waiting for reset');
+      RICLog.debug('fwUpdate waiting for reset, seconds: ' + (i * waitTime) + ' / ' + (iterations * waitTime) );
     }
 
     // Attempt to get status from main ESP32 update
@@ -407,6 +433,15 @@ export default class RICUpdateManager {
       fwUpdateCheckCount++
     ) {
       try {
+        // manually try to connect to ble again
+        RICLog.debug("Trying to recconect to BLE: " + idToConnectTo);
+        await this._ricChannel?.connect({
+          name: nameToConnectTo,
+          localName: nameToConnectTo,
+          id: idToConnectTo || "",
+          rssi: 0,
+        });
+        this.onOTAReconnectCb && this.onOTAReconnectCb();
         // Get version
         RICLog.debug(`fwUpdate attempting to get RIC version attempt ${fwUpdateCheckCount}`);
         const systemInfo = await this._ricSystem.getRICSystemInfo(true);

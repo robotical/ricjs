@@ -53,6 +53,11 @@ export default class RICChannelWebSocket implements RICChannel {
     this._onConnEvent = connEventFn;
   }
 
+  // Get connected locator
+  getConnectedLocator(): string | object {
+    return this._webSocket;
+  }
+
   // Connect to a device
   async connect(locator: string | object): Promise<boolean> {
 

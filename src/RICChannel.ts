@@ -16,6 +16,7 @@ export default interface RICChannel
     isConnected(): boolean;
     connect(locator: string | object): Promise<boolean>;
     disconnect(): Promise<void>;
+    getConnectedLocator(): string | object;
     setOnConnEvent(connEventFn: RICConnEventFn): void;
     setMsgHandler(ricMsgHandler: RICMsgHandler): void;
     sendTxMsg(msg: Uint8Array, sendWithResponse: boolean): Promise<boolean>;
