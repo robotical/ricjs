@@ -110,8 +110,10 @@ export default class RICConnector {
       nonFirmwareElemTypes,
       appVersion,
       fileDownloader,
-      appUpdateURL
+      appUpdateURL,
+      this._ricChannel
     );
+    this._ricUpdateManager.setOnOTAReconnectCb(this.retrieveMartySystemInfo.bind(this));
   }
 
   setEventListener(onEventFn: RICEventFn): void {

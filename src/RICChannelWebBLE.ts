@@ -88,6 +88,11 @@ export default class RICChannelWebBLE implements RICChannel {
     }
   }
 
+  // Get connected locator
+  getConnectedLocator(): string | object {
+    return this._bleDevice || "";
+  }
+
   // Connect to a device
   async connect(locator: string | object): Promise<boolean> {
 
