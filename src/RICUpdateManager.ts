@@ -397,8 +397,8 @@ export default class RICUpdateManager {
     RICLog.debug(`fwUpdate: Waiting for restart. percComplete ${percComplete}, checkFwVersion: ${checkFwVersion}`);
     // manually disconnecting
     // but before we need to grab the device info so we can reconnect
-    let idToConnectTo: string = "";
-    let nameToConnectTo: string = "";
+    let idToConnectTo = "";
+    let nameToConnectTo = "";
     RICLog.debug("Disconnecting from BLE");
     if (this._ricChannel) {
       const deviceInfo: BluetoothDevice = this._ricChannel.getConnectedLocator() as BluetoothDevice;
