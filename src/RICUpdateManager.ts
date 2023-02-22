@@ -8,10 +8,18 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import { RICFileDownloadFn, RICFileSendType, RICFWInfo, RICHWFWUpdRslt, RICOKFail, RICSystemInfo, RICUpdateInfo } from "./RICTypes";
+import {
+  RICFileDownloadFn,
+  RICFileSendType,
+  RICFWInfo,
+  RICHWFWUpdRslt,
+  RICOKFail,
+  RICSystemInfo,
+  RICUpdateInfo,
+} from "./RICTypes";
 import { RICUpdateEvent, RICUpdateEventFn } from "./RICUpdateEvents";
 import RICMsgHandler from "./RICMsgHandler";
-import axios from 'axios';
+import axios from "axios";
 import RICFileHandler from "./RICFileHandler";
 import RICLog from "./RICLog";
 import RICSystem from "./RICSystem";
@@ -19,7 +27,6 @@ import RICUtils from "./RICUtils";
 import RICChannel from "./RICChannel";
 
 export default class RICUpdateManager {
-
   // Version info
   private _latestVersionInfo: RICUpdateInfo | null = null;
   private _updateESPRequired = false;
@@ -34,7 +41,10 @@ export default class RICUpdateManager {
   private _progressDuringUpload = 0.8;
   private _progressDuringRestart = 0.015;
   // there may be two restarts during an update
-  private _progressAfterUpload = this._progressAfterDownload + this._progressDuringUpload + 2*this._progressDuringRestart;
+  private _progressAfterUpload =
+    this._progressAfterDownload +
+    this._progressDuringUpload +
+    2 * this._progressDuringRestart;
 
   private _idToConnectTo: string | null = null;
   private _nameToConnectTo: string | null = null;
@@ -47,9 +57,8 @@ export default class RICUpdateManager {
   private readonly TEST_PRETEND_FINAL_VERSIONS_MATCH = false;
   private readonly TEST_SKIP_FW_UPDATE = false;
 
-  //private onOTAReconnectCb: (() => void) | null = null; // callback to be called when OTA reconnect is complete
-
-  constructor(private _ricMsgHandler: RICMsgHandler,
+  constructor(
+    private _ricMsgHandler: RICMsgHandler,
     private _ricFileHandler: RICFileHandler,
     private _ricSystem: RICSystem,
     private _eventListener: RICUpdateEventFn,
@@ -58,20 +67,13 @@ export default class RICUpdateManager {
     private _currentAppVersion: string,
     private _fileDownloader: RICFileDownloadFn,
     private _firmwareUpdateURL: string,
-    private _ricChannel: RICChannel | null,
-    ) {
-  }
+    private _ricChannel: RICChannel | null
+  ) {}
 
-  /*
-  setOnOTAReconnectCb(onOTAReconnectCb: () => void) {
-    // callback to be called when OTA reconnect is complete
-    // usually used to get the system info again
-    this.onOTAReconnectCb = onOTAReconnectCb;
-  }
-  */
 
-  async checkForUpdate(systemInfo: RICSystemInfo | null): Promise<RICUpdateEvent> {
-
+  async checkForUpdate(
+    systemInfo: RICSystemInfo | null
+  ): Promise<RICUpdateEvent> {
     if (systemInfo === null) {
       return RICUpdateEvent.UPDATE_NOT_AVAILABLE;
     }
@@ -81,15 +83,18 @@ export default class RICUpdateManager {
       // handle url modifications
       let updateURL = this._firmwareUpdateURL;
       const ricSystemInfo = this._ricSystem.getCachedSystemInfo();
-      if ((ricSystemInfo) && (ricSystemInfo.RicHwRevNo)) {
-        updateURL = updateURL.replace("{HWRevNo}", ricSystemInfo.RicHwRevNo.toString());
+      if (ricSystemInfo && ricSystemInfo.RicHwRevNo) {
+        updateURL = updateURL.replace(
+          "{HWRevNo}",
+          ricSystemInfo.RicHwRevNo.toString()
+        );
       }
       // debug
       RICLog.debug(`Update URL: ${updateURL}`);
       const response = await axios.get(updateURL);
       this._latestVersionInfo = response.data;
     } catch (error) {
-      RICLog.debug('checkForUpdate failed to get latest from internet');
+      RICLog.debug("checkForUpdate failed to get latest from internet");
     }
     if (this._latestVersionInfo === null) {
       return RICUpdateEvent.UPDATE_CANT_REACH_SERVER;
@@ -99,17 +104,21 @@ export default class RICUpdateManager {
     try {
       const updateRequired = await this._isUpdateRequired(
         this._latestVersionInfo,
-        systemInfo,
+        systemInfo
       );
       RICLog.debug(
         `checkForUpdate systemVersion ${systemInfo?.SystemVersion} available online ${this._latestVersionInfo?.firmwareVersion} updateRequired ${updateRequired}`
       );
       if (updateRequired) {
-        if (RICUtils.isVersionGreater(
-          this._latestVersionInfo.minimumUpdaterVersion.ota,
-          this._currentAppVersion,
-        )) {
-          RICLog.debug(`App version ${this._currentAppVersion} but version ${this._latestVersionInfo.minimumUpdaterVersion.ota} required`);
+        if (
+          RICUtils.isVersionGreater(
+            this._latestVersionInfo.minimumUpdaterVersion.ota,
+            this._currentAppVersion
+          )
+        ) {
+          RICLog.debug(
+            `App version ${this._currentAppVersion} but version ${this._latestVersionInfo.minimumUpdaterVersion.ota} required`
+          );
           return RICUpdateEvent.UPDATE_APP_UPDATE_REQUIRED;
         } else {
           return RICUpdateEvent.UPDATE_IS_AVAILABLE;
@@ -118,14 +127,14 @@ export default class RICUpdateManager {
         return RICUpdateEvent.UPDATE_NOT_AVAILABLE;
       }
     } catch (error) {
-      RICLog.debug('Failed to get latest version from internet');
+      RICLog.debug("Failed to get latest version from internet");
     }
     return RICUpdateEvent.UPDATE_CANT_REACH_SERVER;
   }
 
   async _isUpdateRequired(
     latestVersion: RICUpdateInfo,
-    systemInfo: RICSystemInfo,
+    systemInfo: RICSystemInfo
   ): Promise<boolean> {
     this._updateESPRequired = false;
     this._updateElemsRequired = false;
@@ -133,7 +142,7 @@ export default class RICUpdateManager {
     // Perform the version check
     this._updateESPRequired = RICUtils.isVersionGreater(
       latestVersion.firmwareVersion,
-      systemInfo.SystemVersion,
+      systemInfo.SystemVersion
     );
 
     // Test ONLY pretend an update is needed
@@ -144,17 +153,18 @@ export default class RICUpdateManager {
     // Check if a previous hw-elem update didn't complete - but no point if we would update anyway
     if (!this._updateESPRequired) {
       try {
-        const elUpdRslt = await this._ricMsgHandler.sendRICRESTURL<RICHWFWUpdRslt>('hwfwupd');
+        const elUpdRslt =
+          await this._ricMsgHandler.sendRICRESTURL<RICHWFWUpdRslt>("hwfwupd");
 
         // Check result
         this._updateElemsRequired =
-          elUpdRslt.rslt === 'ok' && elUpdRslt.st.i === 1;
+          elUpdRslt.rslt === "ok" && elUpdRslt.st.i === 1;
 
         // Debug
         if (this._updateElemsRequired) {
-          RICLog.debug('isUpdateRequired - prev incomplete');
+          RICLog.debug("isUpdateRequired - prev incomplete");
         } else {
-          RICLog.debug('isUpdateRequired - prev complete');
+          RICLog.debug("isUpdateRequired - prev complete");
         }
 
         // Test ONLY pretend an element update is needed
@@ -163,7 +173,7 @@ export default class RICUpdateManager {
         }
       } catch (error) {
         RICLog.debug(
-          'isUpdateRequired failed to get hw-elem firmware update status',
+          "isUpdateRequired failed to get hw-elem firmware update status"
         );
       }
     } else {
@@ -176,12 +186,14 @@ export default class RICUpdateManager {
 
   async firmwareUpdate(): Promise<RICUpdateEvent> {
     // Check valid
-    if (this._latestVersionInfo === null) return RICUpdateEvent.UPDATE_NOT_CONFIGURED;
+    if (this._latestVersionInfo === null)
+      return RICUpdateEvent.UPDATE_NOT_CONFIGURED;
 
     // save RIC info for later restarts
     const ricSystemInfo = this._ricSystem.getCachedSystemInfo();
     if (this._ricChannel && ricSystemInfo !== null) {
-      const deviceInfo: BluetoothDevice = this._ricChannel.getConnectedLocator() as BluetoothDevice;
+      const deviceInfo: BluetoothDevice =
+        this._ricChannel.getConnectedLocator() as BluetoothDevice;
       this._idToConnectTo = deviceInfo.id;
       this._nameToConnectTo = deviceInfo.name || "Marty";
       this._ricHwRevNo = ricSystemInfo.RicHwRevNo;
@@ -189,12 +201,19 @@ export default class RICUpdateManager {
       RICLog.debug("nameToConnectTo " + this._nameToConnectTo);
       RICLog.debug("RIC HW Rev " + this._ricHwRevNo.toString());
     } else {
+      RICLog.debug(
+        "firmwareUpdate failed to get RIC info, either no channel or no system info"
+      );
       return RICUpdateEvent.UPDATE_FAILED;
     }
 
     // Update started
     this._eventListener(RICUpdateEvent.UPDATE_STARTED);
-    this._eventListener(RICUpdateEvent.UPDATE_PROGRESS, { stage: 'Downloading firmware', progress: 0, updatingFilesystem: false });
+    this._eventListener(RICUpdateEvent.UPDATE_PROGRESS, {
+      stage: "Downloading firmware",
+      progress: 0,
+      updatingFilesystem: false,
+    });
 
     // parse version file to extract only "ota" files
     const firmwareList: Array<RICFWInfo> = [];
@@ -207,13 +226,15 @@ export default class RICUpdateManager {
         } else {
           firmwareList.push(fileInfo);
         }
-        RICLog.debug(`fwUpdate selected file ${fileInfo.destname} for download`);
+        RICLog.debug(
+          `fwUpdate selected file ${fileInfo.destname} for download`
+        );
       }
-    })
+    });
 
     // Add the main firware if it is required
     if (this._updateESPRequired && mainFwInfo != null) {
-      firmwareList.unshift(mainFwInfo);   // add to front of array so it's downloaded first
+      firmwareList.unshift(mainFwInfo); // add to front of array so it's downloaded first
     }
 
     // Binary data downloaded from the internet
@@ -224,18 +245,27 @@ export default class RICUpdateManager {
     try {
       for (let fwIdx = 0; fwIdx < firmwareList.length; fwIdx++) {
         // Download the firmware
-        RICLog.debug(`fwUpdate downloading file URI ${firmwareList[fwIdx].downloadUrl}`);
-        const downloadResult = await this._fileDownloader(firmwareList[fwIdx].downloadUrl,
-            (received: number, total: number) => {
-                const currentProgress = ((fwIdx + received / total) / numFw) * this._progressAfterDownload;
-                this._eventListener(RICUpdateEvent.UPDATE_PROGRESS, 
-                        { stage: 'Downloading firmware', progress: currentProgress, updatingFilesystem: false });
+        RICLog.debug(
+          `fwUpdate downloading file URI ${firmwareList[fwIdx].downloadUrl}`
+        );
+        const downloadResult = await this._fileDownloader(
+          firmwareList[fwIdx].downloadUrl,
+          (received: number, total: number) => {
+            const currentProgress =
+              ((fwIdx + received / total) / numFw) *
+              this._progressAfterDownload;
+            this._eventListener(RICUpdateEvent.UPDATE_PROGRESS, {
+              stage: "Downloading firmware",
+              progress: currentProgress,
+              updatingFilesystem: false,
             });
+          }
+        );
         if (downloadResult.downloadedOk && downloadResult.fileData != null) {
           firmwareData.push(downloadResult.fileData);
         } else {
           this._eventListener(RICUpdateEvent.UPDATE_FAILED);
-          throw Error('file download res null');
+          throw Error("file download res null");
         }
       }
     } catch (error: unknown) {
@@ -245,7 +275,11 @@ export default class RICUpdateManager {
     }
 
     // Test ONLY truncate the main firmware
-    if (this._updateESPRequired && mainFwInfo != null && this.TEST_TRUNCATE_ESP_FILE) {
+    if (
+      this._updateESPRequired &&
+      mainFwInfo != null &&
+      this.TEST_TRUNCATE_ESP_FILE
+    ) {
       firmwareData[0] = new Uint8Array(500);
     }
 
@@ -256,52 +290,72 @@ export default class RICUpdateManager {
     }
 
     // Debug
-    RICLog.debug(`fwUpdate got ok ${firmwareData.length} files total ${totalBytes} bytes`);
+    RICLog.debug(
+      `fwUpdate got ok ${firmwareData.length} files total ${totalBytes} bytes`
+    );
 
     // Start uploading
-    this._eventListener(RICUpdateEvent.UPDATE_PROGRESS, { stage: 'Starting firmware upload', progress: this._progressAfterDownload , updatingFilesystem: false});
+    this._eventListener(RICUpdateEvent.UPDATE_PROGRESS, {
+      stage: "Starting firmware upload",
+      progress: this._progressAfterDownload,
+      updatingFilesystem: false,
+    });
 
     // Upload each file
-    let updateStage = "Uploading new firmware\nThis may take a while, please be patient";
+    let updateStage =
+      "Uploading new firmware\nThis may take a while, please be patient";
     let updatingFilesystem = false;
     try {
       let sentBytes = 0;
       for (let fwIdx = 0; fwIdx < firmwareData.length; fwIdx++) {
-        RICLog.debug(`fwUpdate uploading file name ${firmwareList[fwIdx].destname} len ${firmwareData[fwIdx].length}`);
-        const elemType = firmwareList[fwIdx].elemType === this._firmwareTypeStrForMainFw
-          ? RICFileSendType.RIC_FIRMWARE_UPDATE
-          : RICFileSendType.RIC_NORMAL_FILE;
-        let percComplete = ((sentBytes /totalBytes) * this._progressDuringUpload + this._progressAfterDownload);
+        RICLog.debug(
+          `fwUpdate uploading file name ${firmwareList[fwIdx].destname} len ${firmwareData[fwIdx].length}`
+        );
+        const elemType =
+          firmwareList[fwIdx].elemType === this._firmwareTypeStrForMainFw
+            ? RICFileSendType.RIC_FIRMWARE_UPDATE
+            : RICFileSendType.RIC_NORMAL_FILE;
+        let percComplete =
+          (sentBytes / totalBytes) * this._progressDuringUpload +
+          this._progressAfterDownload;
 
-        if (!updatingFilesystem && elemType == RICFileSendType.RIC_NORMAL_FILE){
+        if (
+          !updatingFilesystem &&
+          elemType == RICFileSendType.RIC_NORMAL_FILE
+        ) {
           // start of filesystem updates
-          updateStage = 'Updating system files\nThis may take a while, please be patient\nUpdate cannot be cancelled during this stage\n';
+          updateStage =
+            "Updating system files\nThis may take a while, please be patient\nUpdate cannot be cancelled during this stage\n";
           updatingFilesystem = true;
           // emit event so app can deactivate cancel button
-          this._eventListener(RICUpdateEvent.UPDATE_PROGRESS,
-            {
-              stage: updateStage,
-              progress: percComplete,
-              updatingFilesystem: updatingFilesystem,
-            }
-          );
-          if (this._ricHwRevNo == 1){
+          this._eventListener(RICUpdateEvent.UPDATE_PROGRESS, {
+            stage: updateStage,
+            progress: percComplete,
+            updatingFilesystem: updatingFilesystem,
+          });
+          if (this._ricHwRevNo == 1) {
             // the spiffs filesystem used on rev 1 doesn't delete files properly and has issues being more than 75% full
             // it must be formatted to prevent issues after multiple OTA updates
             // Reformat filesystem. This will take a few seconds so set a long timeout for the response
             RICLog.debug(`Beginning file system update. Reformatting FS.`);
-            await this._ricMsgHandler.sendRICRESTURL<RICOKFail>("reformatfs", 15000);
+            await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
+              "reformatfs",
+              15000
+            );
             // trigger and wait for reboot
             RICLog.debug(`Restarting RIC`);
             await this._ricSystem.runCommand("reset", {});
-            if (!(await this.waitForRestart(percComplete))){
+            if (!(await this.waitForRestart(percComplete))) {
               this._eventListener(RICUpdateEvent.UPDATE_FAILED);
               return RICUpdateEvent.UPDATE_FAILED;
             }
           }
         }
 
-        if (elemType == RICFileSendType.RIC_FIRMWARE_UPDATE && this.TEST_SKIP_FW_UPDATE ){
+        if (
+          elemType == RICFileSendType.RIC_FIRMWARE_UPDATE &&
+          this.TEST_SKIP_FW_UPDATE
+        ) {
           RICLog.debug("fwUpdate: Skipping FW update");
         } else {
           await this.fileSend(
@@ -311,33 +365,42 @@ export default class RICUpdateManager {
             (_, __, progress) => {
               let percComplete =
                 ((sentBytes + progress * firmwareData[fwIdx].length) /
-                  totalBytes) * this._progressDuringUpload +
+                  totalBytes) *
+                  this._progressDuringUpload +
                 this._progressAfterDownload;
-              if (elemType == RICFileSendType.RIC_NORMAL_FILE) percComplete += (this._progressDuringRestart*2);
+              if (elemType == RICFileSendType.RIC_NORMAL_FILE)
+                percComplete += this._progressDuringRestart * 2;
               if (percComplete > 1.0) percComplete = 1.0;
               RICLog.debug(
-                `fwUpdate progress ${progress.toFixed(2)} sent ${sentBytes} len ${firmwareData[fwIdx].length} total ${totalBytes} propComplete ${percComplete.toFixed(2)}`,
+                `fwUpdate progress ${progress.toFixed(
+                  2
+                )} sent ${sentBytes} len ${
+                  firmwareData[fwIdx].length
+                } total ${totalBytes} propComplete ${percComplete.toFixed(2)}`
               );
-              this._eventListener(
-                RICUpdateEvent.UPDATE_PROGRESS,
-                {
-                  stage: updateStage,
-                  progress: percComplete,
-                  updatingFilesystem: updatingFilesystem,
-                }
-              );
-            },
+              this._eventListener(RICUpdateEvent.UPDATE_PROGRESS, {
+                stage: updateStage,
+                progress: percComplete,
+                updatingFilesystem: updatingFilesystem,
+              });
+            }
           );
         }
         sentBytes += firmwareData[fwIdx].length;
-        if (elemType == RICFileSendType.RIC_FIRMWARE_UPDATE){
-          percComplete = (sentBytes /totalBytes) * this._progressDuringUpload + this._progressAfterDownload;
+        if (elemType == RICFileSendType.RIC_FIRMWARE_UPDATE) {
+          percComplete =
+            (sentBytes / totalBytes) * this._progressDuringUpload +
+            this._progressAfterDownload;
           // if the element was firmware, RIC will now restart automatically
-          if (!(await this.waitForRestart(percComplete, this._latestVersionInfo?.firmwareVersion))){
+          if (
+            !(await this.waitForRestart(
+              percComplete,
+              this._latestVersionInfo?.firmwareVersion
+            ))
+          ) {
             this._eventListener(RICUpdateEvent.UPDATE_FAILED);
             return RICUpdateEvent.UPDATE_FAILED;
           }
-          
         }
       }
     } catch (error) {
@@ -354,7 +417,11 @@ export default class RICUpdateManager {
       const percComplete =
         this._progressAfterUpload +
         ((1 - this._progressAfterUpload) * elemFwIdx) / firmwareList.length;
-      this._eventListener(RICUpdateEvent.UPDATE_PROGRESS, { stage: 'Updating elements', progress: percComplete, updatingFilesystem: true });
+      this._eventListener(RICUpdateEvent.UPDATE_PROGRESS, {
+        stage: "Updating elements",
+        progress: percComplete,
+        updatingFilesystem: true,
+      });
       elemFwIdx++;
 
       // Check element is not main
@@ -368,7 +435,9 @@ export default class RICUpdateManager {
       try {
         await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(updateCmd);
       } catch (error) {
-        RICLog.debug(`fwUpdate failed to start hw-elem firmware update cmd ${updateCmd}`);
+        RICLog.debug(
+          `fwUpdate failed to start hw-elem firmware update cmd ${updateCmd}`
+        );
 
         // Continue with other firmwares
         continue;
@@ -382,17 +451,20 @@ export default class RICUpdateManager {
       ) {
         try {
           // Wait for process to start on ESP32
-          await new Promise(resolve => setTimeout(resolve, 5000));
+          await new Promise((resolve) => setTimeout(resolve, 5000));
 
           // Get result (or status)
-          const elUpdRslt = await this._ricMsgHandler.sendRICRESTURL<RICHWFWUpdRslt>('hwfwupd');
+          const elUpdRslt =
+            await this._ricMsgHandler.sendRICRESTURL<RICHWFWUpdRslt>("hwfwupd");
 
           // Check result
           if (
-            elUpdRslt.rslt === 'ok' &&
-            (elUpdRslt.st.s === 'idle' || elUpdRslt.st.s === 'done')
+            elUpdRslt.rslt === "ok" &&
+            (elUpdRslt.st.s === "idle" || elUpdRslt.st.s === "done")
           ) {
-            RICLog.debug(`fwUpdate hw-elem firmware updated ok - status ${elUpdRslt.st.s} rsltmsg ${elUpdRslt.st.m}`);
+            RICLog.debug(
+              `fwUpdate hw-elem firmware updated ok - status ${elUpdRslt.st.s} rsltmsg ${elUpdRslt.st.m}`
+            );
 
             // Check if any update outstanding (incomplete === 0)
             allElemsUpdatedOk = elUpdRslt.st.i === 0;
@@ -405,7 +477,11 @@ export default class RICUpdateManager {
     }
 
     // Done update
-    this._eventListener(RICUpdateEvent.UPDATE_PROGRESS, { stage: 'Finished', progress: 1, updatingFilesystem: false });
+    this._eventListener(RICUpdateEvent.UPDATE_PROGRESS, {
+      stage: "Finished",
+      progress: 1,
+      updatingFilesystem: false,
+    });
     let updateResult = RICUpdateEvent.UPDATE_SUCCESS_ALL;
     if (allElemsUpdatedOk) {
       this._eventListener(updateResult, this._ricSystem.getCachedSystemInfo());
@@ -416,38 +492,42 @@ export default class RICUpdateManager {
     return updateResult;
   }
 
-  async waitForRestart(percComplete : number, checkFwVersion : string | null = null){
-    RICLog.debug(`fwUpdate: Waiting for restart. percComplete ${percComplete}, checkFwVersion: ${checkFwVersion}`);
-    /*
-    // manually disconnecting
-    // but before we need to grab the device info so we can reconnect
-    // TODO - use device info saved at start of firmware update process instead. debug this
-    let idToConnectTo = "";
-    let nameToConnectTo = "";
-    RICLog.debug("Disconnecting from BLE");
-    if (this._ricChannel) {
-      const deviceInfo: BluetoothDevice = this._ricChannel.getConnectedLocator() as BluetoothDevice;
-      idToConnectTo = deviceInfo.id;
-      nameToConnectTo = deviceInfo.name || "Marty";
-      RICLog.debug("iDToConnectTo " + idToConnectTo);
-      RICLog.debug("nameToConnectTo " + nameToConnectTo);
-      await this._ricChannel.disconnect();
-    }
-    */
+  async manualReconnect() {
+    return this._ricChannel?.connect({
+      name: this._nameToConnectTo,
+      localName: this._nameToConnectTo,
+      id: this._idToConnectTo || "",
+      rssi: 0,
+    });
+  }
+
+  async waitForRestart(
+    percComplete: number,
+    checkFwVersion: string | null = null
+  ) {
+    RICLog.debug(
+      `fwUpdate: Waiting for restart. percComplete ${percComplete}, checkFwVersion: ${checkFwVersion}`
+    );
+    // sending the appropriate disconnect event to the UI so it knows that the device is disconnected
+      this._eventListener(RICUpdateEvent.UPDATE_RIC_DISCONNECTED);
+    
     // Wait for firmware update to complete, restart to occur
     // and BLE reconnection to happen
     const waitTime = 5000;
     const iterations = 3;
     for (let i = 0; i < iterations; i++) {
-      await new Promise(resolve => setTimeout(resolve, waitTime));
-      this._eventListener(RICUpdateEvent.UPDATE_PROGRESS,
-        {
-          stage: 'Restarting Marty',
-          progress: percComplete + (this._progressDuringRestart*i)/3,
-          updatingFilesystem: true,
-        }
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
+      this._eventListener(RICUpdateEvent.UPDATE_PROGRESS, {
+        stage: "Restarting Marty",
+        progress: percComplete + (this._progressDuringRestart * i) / 3,
+        updatingFilesystem: true,
+      });
+      RICLog.debug(
+        "fwUpdate waiting for reset, seconds: " +
+          i * waitTime +
+          " / " +
+          iterations * waitTime
       );
-      RICLog.debug('fwUpdate waiting for reset, seconds: ' + (i * waitTime) + ' / ' + (iterations * waitTime) );
     }
 
     // Attempt to get status from main ESP32 update
@@ -459,34 +539,33 @@ export default class RICUpdateManager {
       fwUpdateCheckCount++
     ) {
       try {
-        /*
-        // manually try to connect to ble again
-        // TODO - use saved name and id from the start of the update process
-        // debug this, or try using manual disconnect / reconnect only as a fallback in case the auto-reconnect fails
-        RICLog.debug("Trying to recconect to BLE: " + idToConnectTo);
-        await this._ricChannel?.connect({
-          name: nameToConnectTo,
-          localName: nameToConnectTo,
-          id: idToConnectTo || "",
-          rssi: 0,
-        });
-        this.onOTAReconnectCb && this.onOTAReconnectCb();
-        */
         // Get version
-        RICLog.debug(`fwUpdate attempting to get RIC version attempt ${fwUpdateCheckCount}`);
+        RICLog.debug(
+          `fwUpdate attempting to get RIC version attempt ${fwUpdateCheckCount}`
+        );
         const systemInfo = await this._ricSystem.getRICSystemInfo(true);
         RICLog.debug(
-          `fwUpdate version rslt "${systemInfo.rslt}" RIC Version ${systemInfo.SystemVersion}`,
+          `fwUpdate version rslt "${systemInfo.rslt}" RIC Version ${systemInfo.SystemVersion}`
         );
-        if (systemInfo.rslt !== 'ok') {
-          continue;
+
+        if (systemInfo.rslt !== "ok") {
+          let shouldContiue = true; // if this is not the last attempt, or if the manual reconnect fails, we should continue the loop
+          if (fwUpdateCheckCount === this.FW_UPDATE_CHECKS_BEFORE_ASSUME_FAILED - 1) {
+            // we have failed to get the version after the last attempt, so we need to fallback to manually reconnecting
+            const didConnect = await this.manualReconnect();
+            if (didConnect) shouldContiue = false;
+          }
+          if (shouldContiue) continue;
         }
 
-        if (checkFwVersion != null){
+        // at this point we are connected to BLE again, so we can send to the UI the appropriate events
+        this._eventListener(RICUpdateEvent.UPDATE_RIC_RECONNECTED);
+
+        if (checkFwVersion != null) {
           // Check version
           versionConfirmed = RICUtils.isVersionEqual(
             checkFwVersion,
-            systemInfo.SystemVersion,
+            systemInfo.SystemVersion
           );
           RICLog.debug(`fwUpdate got version rslt ${versionConfirmed}`);
         } else {
@@ -499,10 +578,12 @@ export default class RICUpdateManager {
         }
         break;
       } catch (error) {
-        RICLog.debug(`fwUpdate failed to get version attempt', ${fwUpdateCheckCount} error ${error}`);
+        RICLog.debug(
+          `fwUpdate failed to get version attempt', ${fwUpdateCheckCount} error ${error}`
+        );
       }
     }
-  
+
     return versionConfirmed;
   }
 
@@ -527,13 +608,13 @@ export default class RICUpdateManager {
     fileName: string,
     fileType: RICFileSendType,
     fileContents: Uint8Array,
-    progressCallback: (sent: number, total: number, progress: number) => void,
+    progressCallback: (sent: number, total: number, progress: number) => void
   ): Promise<boolean> {
     return await this._ricFileHandler.fileSend(
       fileName,
       fileType,
       fileContents,
-      progressCallback,
+      progressCallback
     );
   }
 
