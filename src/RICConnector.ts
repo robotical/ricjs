@@ -113,7 +113,7 @@ export default class RICConnector {
       appUpdateURL,
       this._ricChannel
     );
-    this._ricUpdateManager.setOnOTAReconnectCb(this.retrieveMartySystemInfo.bind(this));
+    //this._ricUpdateManager.setOnOTAReconnectCb(this.retrieveMartySystemInfo.bind(this));
   }
 
   setEventListener(onEventFn: RICEventFn): void {

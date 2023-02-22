@@ -35,7 +35,10 @@ export default class RICUpdateManager {
   private _progressDuringRestart = 0.015;
   // there may be two restarts during an update
   private _progressAfterUpload = this._progressAfterDownload + this._progressDuringUpload + 2*this._progressDuringRestart;
-  
+
+  private _idToConnectTo: string | null = null;
+  private _nameToConnectTo: string | null = null;
+  private _ricHwRevNo: number | null = null;
 
   // TESTS - set to true for testing OTA updates ONLY
   private readonly TEST_TRUNCATE_ESP_FILE = false;
@@ -44,7 +47,7 @@ export default class RICUpdateManager {
   private readonly TEST_PRETEND_FINAL_VERSIONS_MATCH = false;
   private readonly TEST_SKIP_FW_UPDATE = false;
 
-  private onOTAReconnectCb: (() => void) | null = null; // callback to be called when OTA reconnect is complete
+  //private onOTAReconnectCb: (() => void) | null = null; // callback to be called when OTA reconnect is complete
 
   constructor(private _ricMsgHandler: RICMsgHandler,
     private _ricFileHandler: RICFileHandler,
@@ -59,11 +62,13 @@ export default class RICUpdateManager {
     ) {
   }
 
+  /*
   setOnOTAReconnectCb(onOTAReconnectCb: () => void) {
     // callback to be called when OTA reconnect is complete
     // usually used to get the system info again
     this.onOTAReconnectCb = onOTAReconnectCb;
   }
+  */
 
   async checkForUpdate(systemInfo: RICSystemInfo | null): Promise<RICUpdateEvent> {
 
@@ -173,6 +178,20 @@ export default class RICUpdateManager {
     // Check valid
     if (this._latestVersionInfo === null) return RICUpdateEvent.UPDATE_NOT_CONFIGURED;
 
+    // save RIC info for later restarts
+    const ricSystemInfo = this._ricSystem.getCachedSystemInfo();
+    if (this._ricChannel && ricSystemInfo !== null) {
+      const deviceInfo: BluetoothDevice = this._ricChannel.getConnectedLocator() as BluetoothDevice;
+      this._idToConnectTo = deviceInfo.id;
+      this._nameToConnectTo = deviceInfo.name || "Marty";
+      this._ricHwRevNo = ricSystemInfo.RicHwRevNo;
+      RICLog.debug("iDToConnectTo " + this._idToConnectTo);
+      RICLog.debug("nameToConnectTo " + this._nameToConnectTo);
+      RICLog.debug("RIC HW Rev " + this._ricHwRevNo.toString());
+    } else {
+      return RICUpdateEvent.UPDATE_FAILED;
+    }
+
     // Update started
     this._eventListener(RICUpdateEvent.UPDATE_STARTED);
     this._eventListener(RICUpdateEvent.UPDATE_PROGRESS, { stage: 'Downloading firmware', progress: 0, updatingFilesystem: false });
@@ -266,15 +285,19 @@ export default class RICUpdateManager {
               updatingFilesystem: updatingFilesystem,
             }
           );
-          // Reformat filesystem. This will take a few seconds so set a long timeout for the response
-          RICLog.debug(`Beginning file system update. Reformatting FS.`);
-          await this._ricMsgHandler.sendRICRESTURL<RICOKFail>("reformatfs", 15000);
-          // trigger and wait for reboot
-          RICLog.debug(`Restarting RIC`);
-          await this._ricSystem.runCommand("reset", {});
-          if (!(await this.waitForRestart(percComplete))){
-            this._eventListener(RICUpdateEvent.UPDATE_FAILED);
-            return RICUpdateEvent.UPDATE_FAILED;
+          if (this._ricHwRevNo == 1){
+            // the spiffs filesystem used on rev 1 doesn't delete files properly and has issues being more than 75% full
+            // it must be formatted to prevent issues after multiple OTA updates
+            // Reformat filesystem. This will take a few seconds so set a long timeout for the response
+            RICLog.debug(`Beginning file system update. Reformatting FS.`);
+            await this._ricMsgHandler.sendRICRESTURL<RICOKFail>("reformatfs", 15000);
+            // trigger and wait for reboot
+            RICLog.debug(`Restarting RIC`);
+            await this._ricSystem.runCommand("reset", {});
+            if (!(await this.waitForRestart(percComplete))){
+              this._eventListener(RICUpdateEvent.UPDATE_FAILED);
+              return RICUpdateEvent.UPDATE_FAILED;
+            }
           }
         }
 
@@ -395,8 +418,10 @@ export default class RICUpdateManager {
 
   async waitForRestart(percComplete : number, checkFwVersion : string | null = null){
     RICLog.debug(`fwUpdate: Waiting for restart. percComplete ${percComplete}, checkFwVersion: ${checkFwVersion}`);
+    /*
     // manually disconnecting
     // but before we need to grab the device info so we can reconnect
+    // TODO - use device info saved at start of firmware update process instead. debug this
     let idToConnectTo = "";
     let nameToConnectTo = "";
     RICLog.debug("Disconnecting from BLE");
@@ -408,6 +433,7 @@ export default class RICUpdateManager {
       RICLog.debug("nameToConnectTo " + nameToConnectTo);
       await this._ricChannel.disconnect();
     }
+    */
     // Wait for firmware update to complete, restart to occur
     // and BLE reconnection to happen
     const waitTime = 5000;
@@ -433,7 +459,10 @@ export default class RICUpdateManager {
       fwUpdateCheckCount++
     ) {
       try {
+        /*
         // manually try to connect to ble again
+        // TODO - use saved name and id from the start of the update process
+        // debug this, or try using manual disconnect / reconnect only as a fallback in case the auto-reconnect fails
         RICLog.debug("Trying to recconect to BLE: " + idToConnectTo);
         await this._ricChannel?.connect({
           name: nameToConnectTo,
@@ -442,6 +471,7 @@ export default class RICUpdateManager {
           rssi: 0,
         });
         this.onOTAReconnectCb && this.onOTAReconnectCb();
+        */
         // Get version
         RICLog.debug(`fwUpdate attempting to get RIC version attempt ${fwUpdateCheckCount}`);
         const systemInfo = await this._ricSystem.getRICSystemInfo(true);
