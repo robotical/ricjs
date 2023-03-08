@@ -64,7 +64,7 @@ export default class RICStreamHandler {
 
   // Start streaming audio
   streamAudio(streamContents: Uint8Array, clearExisting: boolean, audioDuration: number): void {
-    if (this._streamIsStarting){
+    if (this._streamIsStarting) {
       RICLog.error(`Unable to start sound, previous stream is still starting`);
       return;
     }
@@ -75,9 +75,7 @@ export default class RICStreamHandler {
       // clear streaming issue timer
       this.clearFinishPointTimeout();
       this._streamAudioQueue = [];
-      if (this._streamID !== null) {
-        this._isCancelled = true;
-      }
+      this._isCancelled = true;
     }
     this._streamAudioQueue.push({
       streamContents,
@@ -107,7 +105,7 @@ export default class RICStreamHandler {
       } catch (error) {
         RICLog.error(`RICStreamHandler._handleStreamStart ${error}`);
         this._streamIsStarting = false;
-        this._streamAudioQueue.splice(0, 1); 
+        this._streamAudioQueue.splice(0, 1);
       }
     }, 0);
   }
@@ -129,13 +127,14 @@ export default class RICStreamHandler {
       RICLog.debug('_streamAudioSend cancelling');
       try {
         await this._sendStreamCancelMsg();
+        await this._sendAudioStopMsg();
       } catch (error) {
         RICLog.error(`RICStreamHandler._streamAudioSend ${error}`);
       }
       // Clear state
       this._streamID = null;
       this._isCancelled = false;
-      this._streamAudioQueue.splice(0, 1); 
+      this._streamAudioQueue.splice(0, 1);
     }
 
     // Send file start message
@@ -144,12 +143,12 @@ export default class RICStreamHandler {
 
       // Send contents
       if (await this._sendStreamContents(streamContents)) {
-      
+
         // Send file end
         await this._sendStreamEndMsg(this._streamID);
       }
     }
-    this._streamAudioQueue.splice(0, 1); 
+    this._streamAudioQueue.splice(0, 1);
     this._streamIsStarting = false;
 
     // Check if any more audio to play
@@ -165,10 +164,10 @@ export default class RICStreamHandler {
   }
 
   clearFinishPointTimeout() {
-      if (this.soundFinishPoint) {
-        clearTimeout(this.soundFinishPoint);
-        this.soundFinishPoint = null;
-      } 
+    if (this.soundFinishPoint) {
+      clearTimeout(this.soundFinishPoint);
+      this.soundFinishPoint = null;
+    }
   }
 
   streamingPerformanceChecker() {
@@ -176,12 +175,12 @@ export default class RICStreamHandler {
       this.soundFinishPoint = setTimeout(() => {
         // if the streaming hasn't finished before the end of the audio
         // we can assume we are having streaming issues
-        
+
         // publish event in case we are having issues
         !this.streamingEnded && this._ricConnector.onConnEvent(RICConnEvent.CONN_STREAMING_ISSUE);
 
         this.clearFinishPointTimeout();
-      } , this.audioDuration + 500);
+      }, this.audioDuration + 500);
     }
   }
 
@@ -202,7 +201,7 @@ export default class RICStreamHandler {
 
     // Send
     let streamStartResp = null;
-    try {    
+    try {
       streamStartResp = await this._msgHandler.sendRICREST<RICStreamStartResp>(
         cmdMsg,
         RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
@@ -241,7 +240,7 @@ export default class RICStreamHandler {
 
     // Send
     let streamEndResp = null;
-    try {    
+    try {
       streamEndResp = await this._msgHandler.sendRICREST<RICOKFail>(
         cmdMsg,
         RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
@@ -252,6 +251,19 @@ export default class RICStreamHandler {
     }
     this.streamingEnded = true;
     return streamEndResp.rslt === 'ok';
+  }
+
+  private async _sendAudioStopMsg(): Promise<RICOKFail> {
+    const cmdMsg = `{"cmdName":"audio/stop"}`;
+
+    // Debug
+    RICLog.debug(`sendAudioStopMsg ${cmdMsg}`);
+
+    // Send
+    return this._msgHandler.sendRICREST<RICOKFail>(
+      cmdMsg,
+      RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
+    );
   }
 
   private async _sendStreamCancelMsg(): Promise<RICOKFail> {
@@ -270,7 +282,7 @@ export default class RICStreamHandler {
 
   private async _sendStreamContents(
     streamContents: Uint8Array,
-  ) : Promise<boolean> {
+  ): Promise<boolean> {
 
     this._soktoReceived = false;
     this._soktoPos = 0;
@@ -293,7 +305,7 @@ export default class RICStreamHandler {
       // Check for new sokto
       if (this._soktoReceived) {
         streamPos = this._soktoPos;
-        RICLog.verbose(`sendStreamContents ${Date.now()-streamStartTime}ms soktoReceived for ${streamPos}`);
+        RICLog.verbose(`sendStreamContents ${Date.now() - streamStartTime}ms soktoReceived for ${streamPos}`);
         this._soktoReceived = false;
       }
 
@@ -305,7 +317,7 @@ export default class RICStreamHandler {
         this._commsStats.recordStreamBytes(block.length);
 
         RICLog.verbose(
-          `sendStreamContents ${sentOk ? "OK" : "FAILED"} ${Date.now()-streamStartTime}ms pos ${streamPos} ${blockSize} ${block.length} ${this._soktoPos}`,
+          `sendStreamContents ${sentOk ? "OK" : "FAILED"} ${Date.now() - streamStartTime}ms pos ${streamPos} ${blockSize} ${block.length} ${this._soktoPos}`,
         );
         if (!sentOk) {
           return false;
