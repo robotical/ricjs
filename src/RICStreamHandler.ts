@@ -256,7 +256,7 @@ export default class RICStreamHandler {
     return streamEndResp.rslt === 'ok';
   }
 
-
+/*
   private async _sendAudioStopMsg(): Promise<RICOKFail> {
     const cmdMsg = `{"cmdName":"audio/stop"}`;
 
@@ -283,7 +283,7 @@ export default class RICStreamHandler {
       RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
     );
   }
-
+*/
   private async _sendStreamContents(
     streamContents: Uint8Array,
   ): Promise<boolean> {
@@ -303,8 +303,8 @@ export default class RICStreamHandler {
 
       // Check if cancelled
       if (this._isCancelled) {
-        await this._sendStreamCancelMsg();
-        await this._sendAudioStopMsg();
+        //await this._sendStreamCancelMsg();
+        //await this._sendAudioStopMsg();
         this._isCancelled = false;
         return false;
       }
