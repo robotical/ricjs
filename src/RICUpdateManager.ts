@@ -182,7 +182,7 @@ export default class RICUpdateManager {
     return this._updateESPRequired || this._updateElemsRequired;
   }
 
-  // Mark: Firmware udpate ------------------------------------------------------------------------------------------------
+  // Mark: Firmware update ------------------------------------------------------------------------------------------------
 
   async firmwareUpdate(): Promise<RICUpdateEvent> {
     // Check valid
@@ -219,7 +219,7 @@ export default class RICUpdateManager {
     const firmwareList: Array<RICFWInfo> = [];
     let mainFwInfo: RICFWInfo | null = null;
     this._latestVersionInfo.files.forEach((fileInfo) => {
-      if (fileInfo.updaters.includes("ota")) {
+      if (fileInfo.updaters.indexOf("ota") != -1) {
         fileInfo.downloadUrl = fileInfo.firmware || fileInfo.downloadUrl;
         if (fileInfo.elemType === this._firmwareTypeStrForMainFw) {
           mainFwInfo = fileInfo;

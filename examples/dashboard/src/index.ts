@@ -150,6 +150,35 @@ function genStatusBlock(id: string, elclass: string | Array<string>, parent: Ele
   return statusBlock;
 }
 
+function setFileRxStatusMsg(msg: string): void {
+  const statusContainer = document.getElementById('file-status-container');
+  if (statusContainer !== null) {
+    statusContainer.innerHTML = "";
+    const status = document.createElement('div');
+    status.innerHTML = `<div>${msg}</div>`;
+    status.classList.add('status');
+    statusContainer.appendChild(status);
+  }
+}
+
+function fileRxProgressCB(progress: number, total: number): void {
+  setFileRxStatusMsg(`File transfer progress ${progress} / ${total}`);
+}
+
+export async function fileRxGetContent(params: string[]): Promise<boolean> {
+  const startTime = Date.now();
+  let result = null;
+  try {
+    result = await globalThis.ricConnector.fsGetContents(params[0], fileRxProgressCB);
+  } catch (err) {
+    setFileRxStatusMsg(`fileRxGetContent error ${err}`);
+    return false;
+  }
+  console.log(`fileRxGetContent resultOk ${result.downloadedOk} length ${result.fileData ? result.fileData.length : 0}`);
+  setFileRxStatusMsg(`Received ${result.downloadedOk ? "OK" : "Failed"} ${result.fileData ? result.fileData.length : 0} bytes in ${((Date.now() - startTime) / 1000).toFixed(1)} seconds rate is ${result.fileData ? (result.fileData.length / ((Date.now() - startTime) / 1000)).toFixed(0) : 0} bytes/sec`);
+  return true;
+}
+
 function component() {
   const element = document.createElement('div');
   element.classList.add('main-container');
@@ -183,6 +212,11 @@ function component() {
   genStatusBlock('wifi-status-container', 'info-status-container', statusContainer);
   genStatusBlock('comms-stats-container', 'info-status-container', statusContainer);
   genStatusBlock('response-field', ['info-status-container', 'info-status-scroll'], statusContainer);
+
+  const fileStatusContainer = document.createElement('div');
+  fileStatusContainer.classList.add('file-status-container');
+  fileStatusContainer.id = 'file-status-container';
+  statusContainer.appendChild(fileStatusContainer);
 
   const buttonsContainer = document.createElement('div');
   buttonsContainer.classList.add('buttons-container');
@@ -229,6 +263,7 @@ function component() {
     { name: "5V Off", button: "%1", func: sendREST, params: ["pwrctrl/5voff"] },
     { name: "WiFi Scan", button: "Start", func: sendREST, params: ["wifiscan/start"] },
     { name: "WiFi Scan", button: "Results", func: sendREST, params: ["wifiscan/results"] },
+    { name: "File", button: "Get index.html", func: fileRxGetContent, params: ["index.html"] },
   ]
 
   // Add buttonDefs

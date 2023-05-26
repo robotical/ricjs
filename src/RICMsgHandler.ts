@@ -27,6 +27,9 @@ import {
   RICSERIAL_PROTOCOL_POS,
   RICREST_REST_ELEM_CODE_POS,
   RICREST_HEADER_PAYLOAD_POS,
+  RICREST_FILEBLOCK_CHANNEL_POS,
+  RICREST_FILEBLOCK_FILEPOS_POS,
+  RICREST_FILEBLOCK_PAYLOAD_POS,
 } from './RICProtocolDefs';
 import RICMiniHDLC from './RICMiniHDLC';
 import RICAddOnManager from './RICAddOnManager';
@@ -69,6 +72,10 @@ export interface RICMessageResult {
     msgRsltJsonObj: object | null,
   ): void;
   onRxUnnumberedMsg(msgRsltJsonObj: object): void;
+  onRxFileBlock(
+    filePos: number,
+    fileBlockData: Uint8Array
+  ): void;
   onRxSmartServo(smartServos: ROSSerialSmartServos): void;
   onRxIMU(imuData: ROSSerialIMU): void;
   onRxPowerStatus(powerStatus: ROSSerialPowerStatus): void;
@@ -215,9 +222,15 @@ export default class RICMsgHandler {
 
       } else {
         const binMsgLen = rxMsg.length - RICSERIAL_PAYLOAD_POS - RICREST_HEADER_PAYLOAD_POS;
-        RICLog.debug(
-          `_onHDLCFrameDecode RICREST rx binary message elemCode ${ricRestElemCode} len ${binMsgLen}`,
+        RICLog.verbose(
+          `_onHDLCFrameDecode RICREST rx binary message elemCode ${ricRestElemCode} len ${binMsgLen} data ${RICUtils.bufferToHex(rxMsg)}`,
         );
+        if (ricRestElemCode == RICRESTElemCode.RICREST_ELEM_CODE_FILEBLOCK) {
+          const filePos = RICUtils.getBEUint32FromBuf(rxMsg, RICSERIAL_PAYLOAD_POS + RICREST_HEADER_PAYLOAD_POS + RICREST_FILEBLOCK_FILEPOS_POS);
+          this._msgResultHandler?.onRxFileBlock(
+                filePos, 
+                rxMsg.slice(RICSERIAL_PAYLOAD_POS + RICREST_HEADER_PAYLOAD_POS + RICREST_FILEBLOCK_PAYLOAD_POS, rxMsg.length));
+        }
       }
     } else if (rxProtocol == RICCommsMsgProtocol.MSG_PROTOCOL_ROSSERIAL) {
       // Extract ROSSerial messages - decoded messages returned via _msgResultHandler
@@ -330,6 +343,43 @@ export default class RICMsgHandler {
       true,
       msgTimeoutMs,
     );
+  }
+
+  async sendRICRESTNoResp(
+    cmdStr: string,
+    ricRESTElemCode: RICRESTElemCode,
+  ): Promise<boolean> {
+
+    // Check there is a sender
+    if (!this._msgSender) {
+      return false;
+    }
+
+    // Put cmdStr into buffer
+    const cmdBytes = new Uint8Array(cmdStr.length + 1);
+    RICUtils.addStringToBuffer(cmdBytes, cmdStr, 0);
+    cmdBytes[cmdBytes.length - 1] = 0;
+
+    // Form message
+    const cmdMsg = new Uint8Array(cmdBytes.length + RICREST_HEADER_PAYLOAD_POS);
+    cmdMsg[RICREST_REST_ELEM_CODE_POS] = ricRESTElemCode;
+    cmdMsg.set(cmdBytes, RICREST_HEADER_PAYLOAD_POS);
+
+    // Frame the message
+    const framedMsg = this.frameCommsMsg(cmdMsg, 
+      RICCommsMsgTypeCode.MSG_TYPE_COMMAND,
+      RICCommsMsgProtocol.MSG_PROTOCOL_RICREST,
+      true);
+    if (!framedMsg) {
+      return false;
+    }
+    
+    if (!await this._msgSender.sendTxMsg(framedMsg, false)) {
+      RICLog.warn(`sendRICRESTNoResp failed to send message`);
+      this._commsStats.recordMsgNoConnection();
+    }
+
+    return true;
   }
 
   async sendRICRESTBytes<T>(

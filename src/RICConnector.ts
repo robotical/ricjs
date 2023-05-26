@@ -14,7 +14,7 @@ import RICMsgHandler, { RICMsgResultCode } from "./RICMsgHandler";
 import RICChannelWebSocket from "./RICChannelWebSocket";
 import RICLEDPatternChecker from "./RICLEDPatternChecker";
 import RICCommsStats from "./RICCommsStats";
-import { RICEventFn, RICFileDownloadFn, RICLedLcdColours, RICOKFail, RICStateInfo } from "./RICTypes";
+import { RICEventFn, RICFileDownloadFn, RICLedLcdColours, RICOKFail, RICStateInfo, RICFileDownloadResult, RICProgressCBType } from "./RICTypes";
 import RICAddOnManager from "./RICAddOnManager";
 import RICSystem from "./RICSystem";
 import RICFileHandler from "./RICFileHandler";
@@ -312,6 +312,14 @@ export default class RICConnector {
     }
   }
 
+  onRxFileBlock(
+    filePos: number,
+    fileBlockData: Uint8Array
+  ): void {
+    // RICLog.info(`onRxFileBlock filePos ${filePos} fileBlockData ${RICUtils.bufferToHex(fileBlockData)}`);
+    this._ricFileHandler.onFileBlock(filePos, fileBlockData);
+  } 
+
   // Mark: Published data handling -----------------------------------------------------------------------------------------
 
   onRxOtherROSSerialMsg(topicID: number, payload: Uint8Array): void {
@@ -509,6 +517,12 @@ export default class RICConnector {
 
   isStreamStarting() {
     return this._ricStreamHandler.isStreamStarting();
+  }
+
+  // Mark: File system --------------------------------------------------------------------------------
+  fsGetContents(fileName: string, 
+          progressCallback: RICProgressCBType | undefined): Promise<RICFileDownloadResult> {
+    return this._ricFileHandler.fileReceive(fileName, progressCallback);
   }
 
   // Mark: Connection performance--------------------------------------------------------------------------

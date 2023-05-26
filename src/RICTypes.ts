@@ -386,8 +386,17 @@ export type RICProgressCBType = (received: number, total: number) => void;
 
 export class RICFileDownloadResult
 {
-    fileData: Uint8Array | null = null;
-    downloadedOk = false;
+  fileData: Uint8Array | null = null;
+  downloadedOk = false;
+  constructor(buffer: Uint8Array | undefined = undefined) {
+    if (buffer !== undefined) {
+      this.fileData = buffer;
+      this.downloadedOk = true;
+    } else {
+      this.fileData = null;
+      this.downloadedOk = false;
+    }
+  }
 }
 
 export type RICFileDownloadFn = (downloadUrl: string, progressCB:RICProgressCBType) => Promise<RICFileDownloadResult>;
@@ -395,6 +404,21 @@ export type RICFileDownloadFn = (downloadUrl: string, progressCB:RICProgressCBTy
 export type RICLEDPatternCheckerColour = {
   led: string;
   lcd: string;
+}
+
+export type RICFileDownloadResp = {
+  req: string;
+  rslt: string;
+}
+
+export type RICFileDownloadStartResp = {
+  req: string;
+  rslt: string;
+  batchMsgSize: number;
+  batchAckSize: number;
+  streamID: number;
+  fileLen: number;
+  crc16: string;
 }
 
 export type RICLedLcdColours = Array<RICLEDPatternCheckerColour>;
