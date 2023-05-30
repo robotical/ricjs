@@ -499,7 +499,9 @@ export default class RICConnector {
         `{"name":"AddOnStatus","rateHz":${this._subscribeRateHz.toString()}}` +
         ']}';
 
-      const ricResp = await this._ricMsgHandler.sendRICRESTCmdFrame<RICOKFail>(enable ? subscribeEnable : subscribeDisable);
+      const ricResp = await this._ricMsgHandler.sendRICRESTCmdFrame<RICOKFail>(
+          enable ? subscribeEnable : subscribeDisable
+        );
 
       // Debug
       RICLog.debug(`subscribe enable/disable returned ${JSON.stringify(ricResp)}`);
@@ -520,9 +522,13 @@ export default class RICConnector {
   }
 
   // Mark: File system --------------------------------------------------------------------------------
+  // @param fileName - name of file to get
+  // @param fileSource - source of file to get (e.g. "fs" or "bridgeserial1", if omitted defaults to "fs")
+  // @param progressCallback - callback to receive progress updates
   fsGetContents(fileName: string, 
+          fileSource: string,
           progressCallback: RICProgressCBType | undefined): Promise<RICFileDownloadResult> {
-    return this._ricFileHandler.fileReceive(fileName, progressCallback);
+    return this._ricFileHandler.fileReceive(fileName, fileSource, progressCallback);
   }
 
   // Mark: Connection performance--------------------------------------------------------------------------

@@ -14,6 +14,7 @@ import
   RICRESTElemCode,
 } from './RICMsgHandler';
 import {
+  RICBridgeSetupResp,
   RICFileDownloadResp,
   RICFileDownloadResult,
   RICFileDownloadStartResp,
@@ -422,19 +423,41 @@ export default class RICFileHandler {
 
   async fileReceive(
     fileName: string,
+    fileSource: string,
     progressCallback: RICProgressCBType | undefined,
   ): Promise<RICFileDownloadResult> {
     this._isRxCancelled = false;
 
+    // Check for bridgeserial1..N as fileSource - in this case use the RICREST bridging protocol
+    // as attached devices using CommandSerial require bridging
+    let bridgeID: number | undefined = undefined;
+    const bridgeSerialPrefix = 'bridgeserial';
+    if (fileSource.startsWith(bridgeSerialPrefix)) {
+
+      // Establish a bridge
+      const martycamSerialPort = "Serial" + fileSource.slice(bridgeSerialPrefix.length);
+      const cmdResp = await this._msgHandler.sendRICRESTURL<RICBridgeSetupResp>(
+        `commandserial/bridge/setup?port=${martycamSerialPort}&name=fileSource`,
+      )
+      if (cmdResp.rslt != "ok") {
+        RICLog.error(`fileReceive - failed to setup bridge ${cmdResp.rslt}`);
+        return new RICFileDownloadResult();
+      }
+      bridgeID = cmdResp.bridgeID;
+
+      // Debug
+      RICLog.info(`fileReceive - bridge setup ${bridgeID}`);
+    }
+
     // Send file start message
-    if (!await this._receiveFileStart(fileName))
+    if (!await this._receiveFileStart(fileName, bridgeID))
       return new RICFileDownloadResult();
 
     // Send contents
-    const fileContents = await this._receiveFileContents(progressCallback);
+    const fileContents = await this._receiveFileContents(progressCallback, bridgeID);
 
     // Send file end
-    await this._receiveFileEnd(fileName);
+    await this._receiveFileEnd(fileName, bridgeID);
 
     // Clean up
     await this.awaitOutstandingMsgPromises(true);
@@ -447,7 +470,7 @@ export default class RICFileHandler {
     this._isRxCancelled = true;
   }
 
-  async _receiveFileStart(fileName: string) : Promise<boolean> {
+  async _receiveFileStart(fileName: string, bridgeID: number | undefined) : Promise<boolean> {
 
     let blockMaxSize = 5000;
     let batchAckSize = 10;
@@ -465,6 +488,7 @@ export default class RICFileHandler {
       cmdResp = await this._msgHandler.sendRICREST<RICFileDownloadStartResp>(
         cmdMsg,
         RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
+        bridgeID,
       );
     } catch (err) {
       RICLog.error(`_receiveFileStartMsg error ${err}`);
@@ -486,8 +510,9 @@ export default class RICFileHandler {
     return cmdResp.rslt === 'ok';
   }
 
-  async _receiveFileContents(    
-        progressCallback: RICProgressCBType | undefined
+  async _receiveFileContents(
+        progressCallback: RICProgressCBType | undefined,
+        bridgeID: number | undefined
   ): Promise<RICFileDownloadResult> {
 
     // Wait for file to be received
@@ -512,7 +537,7 @@ export default class RICFileHandler {
           this._isRxCancelled = false;
           this._fileRxActive = false;
           // Send cancel message
-          this._sendFileRxCancelMsg();
+          this._sendFileRxCancelMsg(bridgeID);
           // abort the upload process
           reject(new Error('getFile Cancelled'));
           return;
@@ -575,7 +600,7 @@ export default class RICFileHandler {
     });
   }
 
-  async _receiveFileEnd(fileName: string): Promise<boolean> {
+  async _receiveFileEnd(fileName: string, bridgeID: number | undefined): Promise<boolean> {
 
     // Send file end message
     const cmdMsg = `{"cmdName":"dfAck","reqStr":"getFile","okto":${this._fileRxBuffer.length},` +
@@ -590,12 +615,13 @@ export default class RICFileHandler {
     return false;
   }
 
-  async _sendFileRxCancelMsg(): Promise<void> {
+  async _sendFileRxCancelMsg(bridgeID: number | undefined): Promise<void> {
     // Send file end message
     const cmdMsg = `{"cmdName":"dfCancel","reqStr":"getFile","streamID":${this._fileRxStreamID}}`
     this._msgHandler.sendRICRESTNoResp(
       cmdMsg,
       RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
+      bridgeID
     );
   }
 

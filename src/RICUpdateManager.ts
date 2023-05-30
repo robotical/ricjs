@@ -340,6 +340,7 @@ export default class RICUpdateManager {
             RICLog.debug(`Beginning file system update. Reformatting FS.`);
             await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
               "reformatfs",
+              undefined,
               15000
             );
             // trigger and wait for reboot

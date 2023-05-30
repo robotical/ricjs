@@ -142,6 +142,11 @@ export type RICStreamStartResp = {
   maxBlockSize?: number;
 };
 
+export type RICBridgeSetupResp = {
+  rslt: string;
+  bridgeID: number;
+};
+
 export class RICStateInfo {
   smartServos: ROSSerialSmartServos = new ROSSerialSmartServos();
   smartServosValidMs = 0;

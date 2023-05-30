@@ -169,7 +169,7 @@ export async function fileRxGetContent(params: string[]): Promise<boolean> {
   const startTime = Date.now();
   let result = null;
   try {
-    result = await globalThis.ricConnector.fsGetContents(params[0], fileRxProgressCB);
+    result = await globalThis.ricConnector.fsGetContents(params[0], params[1], fileRxProgressCB);
   } catch (err) {
     setFileRxStatusMsg(`fileRxGetContent error ${err}`);
     return false;
@@ -263,7 +263,8 @@ function component() {
     { name: "5V Off", button: "%1", func: sendREST, params: ["pwrctrl/5voff"] },
     { name: "WiFi Scan", button: "Start", func: sendREST, params: ["wifiscan/start"] },
     { name: "WiFi Scan", button: "Results", func: sendREST, params: ["wifiscan/results"] },
-    { name: "File", button: "Get index.html", func: fileRxGetContent, params: ["index.html"] },
+    { name: "File", button: "Get index.html", func: fileRxGetContent, params: ["index.html", "fs"] },
+    { name: "Camera", button: "Get image", func: fileRxGetContent, params: ["img.jpeg", "bridgeserial1"] },
   ]
 
   // Add buttonDefs
