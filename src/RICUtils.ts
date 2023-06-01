@@ -434,7 +434,7 @@ export default class RICUtils {
 
   static withTimeout(ms: number, promise: Promise<any>) {
     let id: NodeJS.Timeout;
-    let timeout = new Promise((_, reject) => {
+    const timeout = new Promise((_, reject) => {
       id = setTimeout(() => {
         clearTimeout(id);
         reject('Timed out in '+ ms + 'ms.')
