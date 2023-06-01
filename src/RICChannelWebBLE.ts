@@ -12,6 +12,7 @@ import RICChannel from "./RICChannel";
 import { RICConnEvent, RICConnEventFn } from "./RICConnEvents";
 import RICLog from "./RICLog";
 import RICMsgHandler from "./RICMsgHandler";
+import RICUtils from "./RICUtils";
 
 export default class RICChannelWebBLE implements RICChannel {
 
@@ -105,7 +106,7 @@ export default class RICChannelWebBLE implements RICChannel {
         for (let connRetry = 0; connRetry < this._maxConnRetries; connRetry++) {
 
           // Connect
-          await this._bleDevice.gatt.connect();
+          await RICUtils.withTimeout(2000, this._bleDevice.gatt.connect());
           RICLog.debug(`RICChannelWebBLE.connect - ${this._bleDevice.gatt.connected ? "OK" : "FAILED"} connection to device ${this._bleDevice.name}`);
 
           // Get service
