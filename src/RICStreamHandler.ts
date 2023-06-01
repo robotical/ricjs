@@ -41,6 +41,8 @@ export default class RICStreamHandler {
 
   // Cancel flag
   private _isCancelled = false;
+  private _isStreaming = false;
+  private _numStreams = 0;
 
   // Flow control
   private _soktoReceived = false;
@@ -51,6 +53,7 @@ export default class RICStreamHandler {
   private streamingEnded = false;
 
   private _streamIsStarting = false;
+  private _lastStreamStartTime = 0;
 
   // soundFinishPoint timer
   private soundFinishPoint: NodeJS.Timeout | null = null;
@@ -64,25 +67,30 @@ export default class RICStreamHandler {
 
   // Start streaming audio
   streamAudio(streamContents: Uint8Array, clearExisting: boolean, audioDuration: number): void {
-    if (this._streamIsStarting) {
-      RICLog.error(`Unable to start sound, previous stream is still starting`);
-      return;
-    }
-
     this.audioDuration = audioDuration;
     // Clear (if required) and add to queue
     if (clearExisting) {
+      if (this._streamIsStarting || this._lastStreamStartTime > Date.now() - 500 || this._isCancelled) {
+        RICLog.error(`Unable to start sound, previous stream is still starting`);
+        return;
+      }
+      this._streamIsStarting = true;
+      this._lastStreamStartTime = Date.now();
       // clear streaming issue timer
       this.clearFinishPointTimeout();
       this._streamAudioQueue = [];
-      this._isCancelled = true;
+      // if there is an ongoing sound playing, mark that it should be cancelled
+      if (this._numStreams)
+        this._isCancelled = true;
     }
     this._streamAudioQueue.push({
       streamContents,
       audioDuration
     });
 
-    this._handleStreamStart();
+    // prevent recurrent instances - if we're already streaming don't start again
+    if (!this._isStreaming)
+      this._handleStreamStart();
   }
 
   async streamCancel(): Promise<void> {
@@ -91,21 +99,24 @@ export default class RICStreamHandler {
 
   // Handle starting of streaming
   private _handleStreamStart(): void {
+
     // Get next stream
     const stream = this._streamAudioQueue[0];
     if (stream === undefined) {
       return;
     }
-    this._streamIsStarting = true;
 
+    this._isStreaming = true;
     // Send stream
     setTimeout(async () => {
       try {
         this._streamAudioSend("audio.mp3", "streamaudio", RICStreamType.RIC_REAL_TIME_STREAM, stream.streamContents);
+        this._isStreaming = false;
       } catch (error) {
         RICLog.error(`RICStreamHandler._handleStreamStart ${error}`);
         this._streamIsStarting = false;
         this._streamAudioQueue.splice(0, 1);
+        this._isStreaming = false;
       }
     }, 0);
   }
@@ -121,22 +132,12 @@ export default class RICStreamHandler {
     streamContents: Uint8Array,
   ): Promise<boolean> {
 
-    // Check if waiting for cancel
-    if (this._isCancelled) {
-      // Send cancel message
-      RICLog.debug('_streamAudioSend cancelling');
-      try {
-        await this._sendStreamCancelMsg();
-        await this._sendAudioStopMsg();
-      } catch (error) {
-        RICLog.error(`RICStreamHandler._streamAudioSend ${error}`);
-      }
-      // Clear state
-      this._streamID = null;
-      this._isCancelled = false;
-      this._streamAudioQueue.splice(0, 1);
+    // ensure we don't start streaming before another stream is finished
+    while (this._numStreams){
+      await new Promise((resolve) => setTimeout(resolve, 1));
     }
 
+    this._numStreams += 1;
     // Send file start message
     if (await this._sendStreamStartMsg(streamName, targetEndpoint, streamType, streamContents)) {
       this._streamIsStarting = false;
@@ -148,6 +149,7 @@ export default class RICStreamHandler {
         await this._sendStreamEndMsg(this._streamID);
       }
     }
+    this._numStreams -= 1;
     this._streamAudioQueue.splice(0, 1);
     this._streamIsStarting = false;
 
@@ -172,6 +174,7 @@ export default class RICStreamHandler {
 
   streamingPerformanceChecker() {
     if (this.audioDuration) {
+      this.clearFinishPointTimeout();
       this.soundFinishPoint = setTimeout(() => {
         // if the streaming hasn't finished before the end of the audio
         // we can assume we are having streaming issues
@@ -197,7 +200,7 @@ export default class RICStreamHandler {
     const cmdMsg = `{"cmdName":"ufStart","reqStr":"ufStart","fileType":"${streamType}","fileName":"${streamName}","endpoint":"${targetEndpoint}","fileLen":${streamContents.length}}`;
 
     // Debug
-    RICLog.debug(`sendStreamStartMsg ${cmdMsg}`);
+    RICLog.debug(`sendStreamStartMsg ${cmdMsg} numStreams ${this._numStreams}`);
 
     // Send
     let streamStartResp = null;
@@ -253,6 +256,7 @@ export default class RICStreamHandler {
     return streamEndResp.rslt === 'ok';
   }
 
+/*
   private async _sendAudioStopMsg(): Promise<RICOKFail> {
     const cmdMsg = `{"cmdName":"audio/stop"}`;
 
@@ -268,7 +272,7 @@ export default class RICStreamHandler {
 
   private async _sendStreamCancelMsg(): Promise<RICOKFail> {
     // File cancel command message
-    const cmdMsg = `{"cmdName":"ufCancel"}`;
+    const cmdMsg = `{"cmdName":"ufCancel","reqStr":"ufCancel","streamID":${this._streamID}}`;
 
     // Debug
     RICLog.debug(`sendStreamCancelMsg ${cmdMsg}`);
@@ -279,7 +283,7 @@ export default class RICStreamHandler {
       RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
     );
   }
-
+*/
   private async _sendStreamContents(
     streamContents: Uint8Array,
   ): Promise<boolean> {
@@ -299,6 +303,9 @@ export default class RICStreamHandler {
 
       // Check if cancelled
       if (this._isCancelled) {
+        //await this._sendStreamCancelMsg();
+        //await this._sendAudioStopMsg();
+        this._isCancelled = false;
         return false;
       }
 
