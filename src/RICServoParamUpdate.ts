@@ -206,7 +206,11 @@ class ServoParamUpdate {
     if (!this._dataArrived || !this._robotConnected) return;
     console.log("starting servo update process");
     this.attachApplyConfigReportCallback();
-    this.servos = await this.getServoInfos();
+    try {
+      this.servos = await this.getServoInfos();
+    } catch (_) {
+      this.servos = [];
+    }
     for (const servo of this.servos) {
       this.requestingServoReport(servo.name);
     }
@@ -214,9 +218,14 @@ class ServoParamUpdate {
 
   async getServoInfos() {
     // getting servo infos
-    const ricHWListStr = await this.ricMsgHandler.sendRICRESTURL<
-      RICHWElemList_Str
-    >("hwstatus/strstat?filterByType=SmartServo");
+    let ricHWListStr;
+    try {
+      ricHWListStr = await this.ricMsgHandler.sendRICRESTURL<
+        RICHWElemList_Str
+      >("hwstatus/strstat?filterByType=SmartServo");
+    } catch (_) {
+      return [];
+    }
     if (
       !ricHWListStr ||
       !Object.prototype.hasOwnProperty.call(ricHWListStr, "hw")
@@ -234,9 +243,13 @@ class ServoParamUpdate {
     if (hwElems.length) {
       if (typeof hwElems[0] !== "object") {
         // we are on an older version
-        hwElemList = await this.ricMsgHandler.sendRICRESTURL<RICHWElemList>(
-          `hwstatus?filterByType=SmartServo`
-        );
+        try {
+          hwElemList = await this.ricMsgHandler.sendRICRESTURL<RICHWElemList>(
+            `hwstatus?filterByType=SmartServo`
+          );
+        } catch (e) {
+          console.log(e);
+        }
       } else {
         // we are on the fw version that supports strstat
         hwElemList = RICHWElemList_Str.expand(ricHWListStr);
@@ -270,11 +283,15 @@ class ServoParamUpdate {
       this.msgKeyCounter++;
       const ricRestCmd = `elem/${servoName}/json?cmd=raw&hexWr=${dataToWrite}&numToRd=${numBytesToRead}&msgKey=${msgKey}`;
       console.log(ricRestCmd, "ServoParamUpdate.ts", "line: ", "222");
-      const response = await this.ricMsgHandler.sendRICRESTURL<RICOKFail>(
-        ricRestCmd
-      );
-      if (response.rslt === "ok") {
-        return true;
+      try {
+        const response = await this.ricMsgHandler.sendRICRESTURL<RICOKFail>(
+          ricRestCmd
+        );
+        if (response.rslt === "ok") {
+          return true;
+        }
+      } catch (e) {
+        console.log(e)
       }
       numAttempts--;
       await new Promise((resolve) => setTimeout(resolve, 200));
@@ -362,11 +379,19 @@ class ServoParamUpdate {
             );
             const ricRestCmd = `elem/${servoName}/${paramKey}/${targetValue}`;
             const saveParamCmd = `elem/${servoName}/saveparams`;
-            await this.ricMsgHandler.sendRICRESTURL<RICOKFail>(ricRestCmd);
+            try {
+              await this.ricMsgHandler.sendRICRESTURL<RICOKFail>(ricRestCmd);
+            } catch (e) {
+              console.log(e);
+            }
             // saving the parameters... (For the new servo boards it is necessary
             // to send a "save" command after the calibration ones or any servo
             // parameter changes in order to save any changes made into nonvolatile storage)
-            await this.ricMsgHandler.sendRICRESTURL<RICOKFail>(saveParamCmd);
+            try {
+              await this.ricMsgHandler.sendRICRESTURL<RICOKFail>(saveParamCmd);
+            } catch (e) {
+              console.log(e);
+            }
           }
         }
       }

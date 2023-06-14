@@ -25,6 +25,7 @@ import RICLog from "./RICLog";
 import { RICConnEvent, RICConnEventNames } from "./RICConnEvents";
 import RICUpdateManager from "./RICUpdateManager";
 import { RICUpdateEvent, RICUpdateEventNames } from "./RICUpdateEvents";
+import RICServoFaultDetector from "./RICServoFaultDetector";
 
 export default class RICConnector {
 
@@ -92,6 +93,9 @@ export default class RICConnector {
   // Event listener
   private _onEventFn: RICEventFn | null = null;
 
+  // RICServoFaultDetector for detecting servo faults
+  public ricServoFaultDetector: RICServoFaultDetector = new RICServoFaultDetector(this._ricMsgHandler);
+  
   constructor() {
     // Debug
     RICLog.debug('RICConnector starting up');
