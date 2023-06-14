@@ -42,7 +42,7 @@ export default class RICServoFaultDetector {
         }
     }
 
-    async atomicReadOperation(expirationTime: number = 5000): Promise<void> {
+    async atomicReadOperation(expirationTime = 5000): Promise<void> {
         await this.getAllServos();
         // setting an expiration date within which the interpreter should receive the report msg
         RICServoFaultDetector.expirationDate = new Date(Date.now() + expirationTime);

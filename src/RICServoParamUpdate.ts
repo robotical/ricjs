@@ -247,7 +247,9 @@ class ServoParamUpdate {
           hwElemList = await this.ricMsgHandler.sendRICRESTURL<RICHWElemList>(
             `hwstatus?filterByType=SmartServo`
           );
-        } catch (_) { }
+        } catch (e) {
+          console.log(e);
+        }
       } else {
         // we are on the fw version that supports strstat
         hwElemList = RICHWElemList_Str.expand(ricHWListStr);
@@ -288,7 +290,9 @@ class ServoParamUpdate {
         if (response.rslt === "ok") {
           return true;
         }
-      } catch (_) {}
+      } catch (e) {
+        console.log(e)
+      }
       numAttempts--;
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
@@ -377,13 +381,17 @@ class ServoParamUpdate {
             const saveParamCmd = `elem/${servoName}/saveparams`;
             try {
               await this.ricMsgHandler.sendRICRESTURL<RICOKFail>(ricRestCmd);
-            } catch (_) { }
+            } catch (e) {
+              console.log(e);
+            }
             // saving the parameters... (For the new servo boards it is necessary
             // to send a "save" command after the calibration ones or any servo
             // parameter changes in order to save any changes made into nonvolatile storage)
             try {
               await this.ricMsgHandler.sendRICRESTURL<RICOKFail>(saveParamCmd);
-            } catch (_) { }
+            } catch (e) {
+              console.log(e);
+            }
           }
         }
       }
