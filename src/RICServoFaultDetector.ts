@@ -8,6 +8,7 @@
 
  * To detect these faults:
     1) get the list of all servos
+        1.1) We filter out the servos that don't have the fault bit enabled in their status byte
     2) sending an atomic read command to the servos
         2.1) the servos will respond with a report msg
         2.2) the fault flags are on the 11th byte of the report msg
@@ -21,22 +22,38 @@
 
 import RICLog from "./RICLog";
 import RICMsgHandler from "./RICMsgHandler";
-import { RICHWElemList_Name, RICReportMsg, RICServoFaultFlags } from "./RICTypes";
+import { RICHWElemList_Min, RICReportMsg, RICServoFaultFlags, RICStateInfo } from "./RICTypes";
 
 export default class RICServoFaultDetector {
     private _ricMsgHandler: RICMsgHandler;
     private static expirationDate: Date = new Date();
     private static _servoList: string[] = [];
+    private ricStateReference: RICStateInfo;
 
-    constructor(ricMsgHandler: RICMsgHandler) {
+    constructor(ricMsgHandler: RICMsgHandler, ricStateReference: RICStateInfo) {
         this._ricMsgHandler = ricMsgHandler;
+        this.ricStateReference = ricStateReference;
     }
 
     private async getAllServos(): Promise<void> {
         RICServoFaultDetector._servoList = [];
-        const response = await this._ricMsgHandler.sendRICRESTURL<RICHWElemList_Name>("hwstatus/name?filterByType=SmartServo");
+        const response = await this._ricMsgHandler.sendRICRESTURL<RICHWElemList_Min>("hwstatus/minstat?filterByType=SmartServo");
+        if (!response || !response.hw) {
+            RICLog.warn("RICServoFaultDetector: Error getting servo list");
+            return;
+        }
+        const servosWithIdAndName = response.hw.map((smartServo) => ({ id: smartServo.I, name: smartServo.n }));
+        // filter only the servos that they have enabled the fault bit in their status byte
+        const servosWithFaultBitEnabled = servosWithIdAndName.filter((smartServo) => {
+            const foundSmartServoStatus = this.ricStateReference.smartServos.smartServos.find((smartServoStat) => smartServoStat.id === +smartServo.id);
+            if (!foundSmartServoStatus) {
+                return false;
+            }
+            return RICServoFaultDetector.isFaultBitEnabled(foundSmartServoStatus.status);
+        });
+        const filteredServoArrayWithNames = servosWithFaultBitEnabled.map((smartServo) => smartServo.name);
         try {
-            RICServoFaultDetector._servoList = response.hw;
+            RICServoFaultDetector._servoList = filteredServoArrayWithNames;
         } catch (e) {
             console.log("Error getting servo list");
         }
@@ -93,10 +110,34 @@ export default class RICServoFaultDetector {
     private static decodeFault(faultByteHex: string): RICServoFaultFlags {
         const byte = parseInt(faultByteHex, 16);
         return {
-          intermittentConnection: !!(byte & 0b0001),
-          noConnection: !!(byte & 0b0010),
-          faultyConnection: !!(byte & 0b0100),
-          servoHornPositionError: !!(byte & 0b1000)
+            intermittentConnection: !!(byte & 0b0001),
+            noConnection: !!(byte & 0b0010),
+            faultyConnection: !!(byte & 0b0100),
+            servoHornPositionError: !!(byte & 0b1000)
         };
     }
+
+    public static isFaultBitEnabled(input: number | string): boolean {
+        let num: number;
+
+        // If input is a hexadecimal string, convert it to a decimal number
+        if (typeof input === "string") {
+            if (!input.startsWith("0x")) {
+                throw new Error("Input string must start with '0x' for hexadecimal representation");
+            }
+            num = parseInt(input, 16);
+        } else {
+            num = input;
+        }
+
+        // Check if number is an 8-bit number
+        if (num < 0 || num > 255 || !Number.isInteger(num)) {
+            throw new Error("Input is not an 8-bit number");
+        }
+
+        // Check if the 6th bit (from the right) is enabled
+        return Boolean(num & 64);
+    }
+
+
 }

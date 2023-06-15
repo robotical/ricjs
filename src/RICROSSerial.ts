@@ -244,8 +244,6 @@ export class RICROSSerial {
     }
   }
 
-
-
   static extractSmartServos(buf: Uint8Array): ROSSerialSmartServos {
     // Each group of attributes for a servo is a fixed size
     const ROS_SMART_SERVOS_ATTR_GROUP_BYTES = 6;
