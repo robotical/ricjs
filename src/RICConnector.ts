@@ -94,7 +94,7 @@ export default class RICConnector {
   private _onEventFn: RICEventFn | null = null;
 
   // RICServoFaultDetector for detecting servo faults
-  public ricServoFaultDetector: RICServoFaultDetector = new RICServoFaultDetector(this._ricMsgHandler);
+  public ricServoFaultDetector: RICServoFaultDetector = new RICServoFaultDetector(this._ricMsgHandler, this._ricStateInfo);
   
   constructor() {
     // Debug
