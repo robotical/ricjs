@@ -322,9 +322,9 @@ class ServoParamUpdate {
         const variants: VariantType[] = this._servoSettings[settingKey];
         for (const variant of variants) {
           const filters: SettingsFilters = variant.filters;
-          if (!filters.servos.includes(servoInfo.name)) continue;
-          if (!filters.DTIDs.includes(+servoInfo.whoAmITypeCode)) continue;
-          if (!filters.fwVersions.includes(servoInfo.versionStr)) continue;
+          if (!filters.servos.includes(servoInfo?.name)) continue;
+          if (!filters.DTIDs.includes(+servoInfo?.whoAmITypeCode)) continue;
+          if (!filters.fwVersions.includes(servoInfo?.versionStr)) continue;
           config[settingKey] = variant.value;
         }
       }
