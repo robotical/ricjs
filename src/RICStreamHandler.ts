@@ -27,7 +27,7 @@ export default class RICStreamHandler {
 
   // Stream state
   private _streamID: number | null = null;
-  DEFAULT_MAX_BLOCK_SIZE = 400;
+  DEFAULT_MAX_BLOCK_SIZE = 475;
   private _maxBlockSize: number = this.DEFAULT_MAX_BLOCK_SIZE;
 
   // Handler of messages
@@ -51,6 +51,7 @@ export default class RICStreamHandler {
   // audio duration
   private audioDuration = 0;
   private streamingEnded = false;
+  private audioByteRate = 0;
 
   private _streamIsStarting = false;
   private _lastStreamStartTime = 0;
@@ -67,7 +68,8 @@ export default class RICStreamHandler {
 
   // Start streaming audio
   streamAudio(streamContents: Uint8Array, clearExisting: boolean, audioDuration: number): void {
-    this.audioDuration = audioDuration;
+    //this.audioDuration = audioDuration;
+
     // Clear (if required) and add to queue
     if (clearExisting) {
       if (this._streamIsStarting || this._lastStreamStartTime > Date.now() - 500 || this._isCancelled) {
@@ -105,6 +107,9 @@ export default class RICStreamHandler {
     if (stream === undefined) {
       return;
     }
+
+    this.audioDuration = stream.audioDuration;
+    this.audioByteRate = (stream.streamContents.length / stream.audioDuration)*1000;
 
     this._isStreaming = true;
     // Send stream
@@ -298,6 +303,7 @@ export default class RICStreamHandler {
       return false;
     }
 
+    let blockNum = 0;
     // Send stream blocks
     while (this._soktoPos < streamContents.length) {
 
@@ -311,7 +317,8 @@ export default class RICStreamHandler {
 
       // Check for new sokto
       if (this._soktoReceived) {
-        streamPos = this._soktoPos;
+        // the sokto message is now informational only, to allow the central to slow down sending of data if it is swamping the peripheral
+        //streamPos = this._soktoPos;
         RICLog.verbose(`sendStreamContents ${Date.now() - streamStartTime}ms soktoReceived for ${streamPos}`);
         this._soktoReceived = false;
       }
@@ -330,6 +337,13 @@ export default class RICStreamHandler {
           return false;
         }
         streamPos += blockSize;
+        blockNum += 1;
+
+        if (this.audioByteRate && blockNum > 40){
+          let pauseTime = ((blockSize / this.audioByteRate)*1000) - 10;
+          RICLog.debug(`Pausing for ${pauseTime} ms between audio packets. Bit rate ${this.audioByteRate * 8}`)
+          await new Promise((resolve) => setTimeout(resolve, pauseTime));
+        }
       }
 
       // Wait to ensure we don't hog the CPU
