@@ -279,7 +279,7 @@ private async _sendStreamBuffer(): Promise<boolean> {
         blockNum += 1;
 
         if (this._audioByteRate && blockNum > 40){
-          let pauseTime = ((blockSize / this._audioByteRate)*1000) - 10;
+          const pauseTime = ((blockSize / this._audioByteRate)*1000) - 10;
           RICLog.debug(`Pausing for ${pauseTime} ms between audio packets. Bit rate ${this._audioByteRate * 8}`)
           await new Promise((resolve) => setTimeout(resolve, pauseTime));
         }
