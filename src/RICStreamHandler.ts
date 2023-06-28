@@ -54,6 +54,8 @@ export default class RICStreamHandler {
   private _audioDuration = 0;
   private _audioByteRate = 0;
   private _streamPos = 0;
+  private _numBlocksWithoutPause = 15;
+  private _legacySoktoMode = false;
 
 
   // soundFinishPoint timer
@@ -66,10 +68,17 @@ export default class RICStreamHandler {
     this.onSoktoMsg = this.onSoktoMsg.bind(this);
   }
 
+  setNumBlocksWithoutPause(numBlocks: number){
+    this._numBlocksWithoutPause = numBlocks;
+  }
+
+  setLegacySoktoMode(legacyMode: boolean){
+    RICLog.debug(`Setting legacy sokto mode to ${legacyMode}`);
+    this._legacySoktoMode = legacyMode;
+  }
+
   // Start streaming audio
   streamAudio(streamContents: Uint8Array, clearExisting: boolean, audioDuration: number): void {
-    //this.audioDuration = audioDuration;
-
     if (!clearExisting)
       RICLog.debug(`only clearExisting = true is supported right now.`);
 
@@ -257,7 +266,10 @@ private async _sendStreamBuffer(): Promise<boolean> {
 
       // Check for new sokto
       if (this._soktoReceived) {
-        // the sokto message is now informational only, to allow the central to slow down sending of data if it is swamping the peripheral
+        if (this._legacySoktoMode)
+          this._streamPos = this._soktoPos;
+        // apart from when in legacy mode, the sokto message is now informational only, 
+        // to allow the central to slow down sending of data if it is swamping the peripheral
         RICLog.verbose(`sendStreamContents ${Date.now() - streamStartTime}ms soktoReceived for ${this._streamPos}`);
         this._soktoReceived = false;
       }
@@ -278,7 +290,7 @@ private async _sendStreamBuffer(): Promise<boolean> {
         this._streamPos += blockSize;
         blockNum += 1;
 
-        if (this._audioByteRate && blockNum > 40){
+        if (this._audioByteRate && blockNum > this._numBlocksWithoutPause){
           const pauseTime = ((blockSize / this._audioByteRate)*1000) - 10;
           RICLog.debug(`Pausing for ${pauseTime} ms between audio packets. Bit rate ${this._audioByteRate * 8}`)
           await new Promise((resolve) => setTimeout(resolve, pauseTime));
@@ -300,6 +312,6 @@ private async _sendStreamBuffer(): Promise<boolean> {
     // Get how far we've progressed in file
     this._soktoPos = soktoPos;
     this._soktoReceived = true;
-    RICLog.verbose(`onSoktoMsg received file up to ${this._soktoPos}`);
+    RICLog.debug(`onSoktoMsg received file up to ${this._soktoPos}`);
   }
 }
