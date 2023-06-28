@@ -272,6 +272,9 @@ private async _sendStreamBuffer(): Promise<boolean> {
         // to allow the central to slow down sending of data if it is swamping the peripheral
         RICLog.verbose(`sendStreamContents ${Date.now() - streamStartTime}ms soktoReceived for ${this._streamPos}`);
         this._soktoReceived = false;
+
+        // receiving an sokto message before the completion of the stream means that the streaming is not keeping up
+        this._ricConnector.onConnEvent(RICConnEvent.CONN_STREAMING_ISSUE);
       }
 
       // Send stream block
@@ -292,7 +295,7 @@ private async _sendStreamBuffer(): Promise<boolean> {
 
         if (this._audioByteRate && blockNum > this._numBlocksWithoutPause){
           const pauseTime = ((blockSize / this._audioByteRate)*1000) - 10;
-          RICLog.debug(`Pausing for ${pauseTime} ms between audio packets. Bit rate ${this._audioByteRate * 8}`)
+          RICLog.verbose(`Pausing for ${pauseTime} ms between audio packets. Bit rate ${this._audioByteRate * 8}`)
           await new Promise((resolve) => setTimeout(resolve, pauseTime));
         }
       }
