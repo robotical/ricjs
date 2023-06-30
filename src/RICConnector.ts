@@ -12,6 +12,7 @@ import RICChannel from "./RICChannel";
 import RICChannelWebBLE from "./RICChannelWebBLE";
 import RICMsgHandler, { RICMsgResultCode } from "./RICMsgHandler";
 import RICChannelWebSocket from "./RICChannelWebSocket";
+import RICChannelWebSerial from "./RICChannelWebSerial";
 import RICLEDPatternChecker from "./RICLEDPatternChecker";
 import RICCommsStats from "./RICCommsStats";
 import { RICEventFn, RICFileDownloadFn, RICLedLcdColours, RICOKFail, RICStateInfo } from "./RICTypes";
@@ -197,7 +198,10 @@ export default class RICConnector {
       // Create channel
       this._ricChannel = new RICChannelWebSocket();
       connMethod = 'WebSocket';
-    } 
+    } else if (((method === 'WebSerial'))) {
+      this._ricChannel = new RICChannelWebSerial();
+      connMethod = 'WebSerial';
+    }
 
     // Check channel established
     let connOk = false;

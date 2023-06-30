@@ -1,4 +1,4 @@
-import { acceptCheckCorrectRIC, connectBLE, connectWiFi, disconnect, rejectCheckCorrectRIC, startCheckCorrectRIC } from './connect';
+import { acceptCheckCorrectRIC, connectBLE, connectWiFi, connectWebSerial, disconnect, rejectCheckCorrectRIC, startCheckCorrectRIC } from './connect';
 import { sendREST, streamSoundFile } from './stream';
 import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest, setReconnect, pixGetColourStr, commsStatusFormat, powerStatusFormat, addonValListFormat } from './system';
 import { RICConnEvent } from '../../../src/RICConnEvents';
@@ -205,6 +205,10 @@ function component() {
     { name: "Connect WiFi", button: "Connect", func: connectWiFi, params: [] as Array<string> },
   ]
 
+  const webserialConnDefs = [
+    { name: "Connect WebSerial", button: "Connect", func: connectWebSerial, params: [] as Array<string>},
+  ]
+
   const buttonDefs = [
     { name: "BLE Perf", button: "Perf Test BLE", func: connPerfTest, params: [] },
     { name: "Enable reconnect", button: "Reconnect 10s", func: setReconnect, params: [true, 10] },
@@ -232,6 +236,7 @@ function component() {
   ]
 
   // Add buttonDefs
+  addButtons(webserialConnDefs, buttonsContainer);
   addButtons(bleConnDefs, buttonsContainer);
   addFields(wifiIPDefs, buttonsContainer);
   addButtons(wifiConnDefs, buttonsContainer);
