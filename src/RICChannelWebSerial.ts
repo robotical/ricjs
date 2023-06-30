@@ -163,7 +163,7 @@ export default class RICChannelWebSerial implements RICChannel {
       encoded frame (bytes)
     */
     // Iterate over frame
-    let encodedFrame: number[] = [];
+    const encodedFrame: number[] = [];
     for (let i=0; i < inData.length;  i++){
       if (inData[i] <= 0x0f){
         encodedFrame.push(this._OVERASCII_ESCAPE_1);
@@ -223,9 +223,11 @@ export default class RICChannelWebSerial implements RICChannel {
     RICLog.verbose(`RICChannelWebSerial.sendTxMsg ${msg.toString()} ${decoder.decode(msg)} sendWithResp ${sendWithResponse.toString()}`);
 
     try {
-      const writer = this._port.writable!.getWriter();
-      await writer.write(this._overasciiEncode(msg));
-      writer.releaseLock();
+      if (this._port.writable != null){
+        const writer = this._port.writable.getWriter();
+        await writer.write(this._overasciiEncode(msg));
+        writer.releaseLock();
+      }
     } catch (err) {
       RICLog.warn("sendMsg error: " + JSON.stringify(err));
       return false;
@@ -246,8 +248,10 @@ export default class RICChannelWebSerial implements RICChannel {
     RICLog.verbose(`RICChannelWebSerial.sendTxMsgNoAwait ${msg.toString()} sendWithResp ${sendWithResponse.toString()}`);
 
     try {
-      const writer = this._port.writable!.getWriter();
-      writer.write(msg).then(() => {writer.releaseLock();});
+      if (this._port.writable != null){
+        const writer = this._port.writable.getWriter();
+        writer.write(msg).then(() => {writer.releaseLock();});
+      }
     } catch (err) {
       RICLog.error("sendMsg error: " + JSON.stringify(err));
     }
@@ -263,10 +267,14 @@ export default class RICChannelWebSerial implements RICChannel {
 
     let retries = 10;
     try {
-      this._reader = this._port.readable!.getReader();
+      if (!this._port.readable){
+        RICLog.error("RICChannelWebSerial _readLoop port is not readble");
+        return;
+      }
+      this._reader = this._port.readable.getReader();
       while (this._port.readable && this._isConnected) {
         try {
-          const { value, done } = await this._reader!.read();
+          const { value, done } = await this._reader.read();
           if (done) {
             this._reader!.releaseLock();
             break;
@@ -284,7 +292,7 @@ export default class RICChannelWebSerial implements RICChannel {
           this._reader = this._port.readable!.getReader();
         }
     }
-    this._reader!.releaseLock();
+    this._reader.releaseLock();
     this._reader = undefined;
     } catch (err) {
       RICLog.error("Read loop got disconnected. err: " + JSON.stringify(err));
