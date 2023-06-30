@@ -31,7 +31,6 @@ export default class RICChannelWebSerial implements RICChannel {
   // Is connected
   private _isConnected = false;
 
-  private _reportBuffer: number[] = [];
   private _serialBuffer: number[] = [];
 
   private _escapeSeqCode = 0;
@@ -190,22 +189,27 @@ export default class RICChannelWebSerial implements RICChannel {
     //const decoder = new TextDecoder();
     //RICLog.debug(`RICChannelWebSerial._onMsgRx ${decoder.decode(msg)}`);
 
+    const overasciiBuffer: number[] = [];
     for (let i = 0; i<msg.length; i++){
       if (msg[i] > 127){
         const ch = this._overasciiDecodeByte(msg[i]);
         if (ch != -1){
-          this._reportBuffer.push(ch);
+          overasciiBuffer.push(ch);
         }
       } else {
         this._serialBuffer.push(msg[i]);
       }
     }
     if (this._ricMsgHandler)
-      this._ricMsgHandler.handleNewRxMsg(new Uint8Array(this._reportBuffer));
-    this._reportBuffer.splice(0, this._reportBuffer.length);
-    
-    // TODO - nothing is currently done with non-overASCII comms, e.g. the standard 10s info message
-    // could log this to console output?
+      this._ricMsgHandler.handleNewRxMsg(new Uint8Array(overasciiBuffer));
+
+    // any output over the non overascii channel will be delimited by a new line character
+    // scan for this, and log any lines as they occur before removing them from the buffer
+    if (this._serialBuffer.includes(0x0a)){
+        const decoder = new TextDecoder();
+        RICLog.debug(decoder.decode(new Uint8Array(this._serialBuffer.slice(0,this._serialBuffer.indexOf(0x0a)))));
+        this._serialBuffer.splice(0, this._serialBuffer.indexOf(0x0a)+1);
+    }
   }
 
   // Send a message
@@ -276,7 +280,7 @@ export default class RICChannelWebSerial implements RICChannel {
         try {
           const { value, done } = await this._reader.read();
           if (done) {
-            this._reader!.releaseLock();
+            this._reader.releaseLock();
             break;
           }
           if (!value || value.length === 0) {
@@ -289,7 +293,7 @@ export default class RICChannelWebSerial implements RICChannel {
           retries -= 1;
           if (!retries) break;
           await new Promise(resolve => setTimeout(resolve, 100));
-          this._reader = this._port.readable!.getReader();
+          this._reader = this._port.readable.getReader();
         }
     }
     this._reader.releaseLock();
