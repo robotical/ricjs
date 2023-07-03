@@ -233,7 +233,9 @@ export default class RICChannelWebBLE implements RICChannel {
       // Write to the characteristic
       try {
         if (this._characteristicTx) {
-          if (this._characteristicTx.writeValue) {
+          if (this._characteristicTx.writeValueWithoutResponse) {
+            await this._characteristicTx.writeValueWithoutResponse(msg);
+          } else if (this._characteristicTx.writeValue) {
             await this._characteristicTx.writeValue(msg);
           } else if (this._characteristicTx.writeValueWithResponse) {
             await this._characteristicTx.writeValueWithResponse(msg);

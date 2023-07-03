@@ -533,6 +533,10 @@ export default class RICConnector {
     return this._ricStreamHandler.isStreamStarting();
   }
 
+  setLegacySoktoMode(legacyMode: boolean){
+    return this._ricStreamHandler.setLegacySoktoMode(legacyMode);
+  }
+
   // Mark: Connection performance--------------------------------------------------------------------------
 
   parkmiller_next(seed: number) {
