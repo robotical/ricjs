@@ -167,7 +167,7 @@ export default class RICChannelWebSerial implements RICChannel {
       if (inData[i] <= 0x0f){
         encodedFrame.push(this._OVERASCII_ESCAPE_1);
         encodedFrame.push((inData[i] ^ this._OVERASCII_MOD_CODE) | 0x80);
-      } else if ((inData[i] > 0x10) && (inData[i] <= 0x7f)){
+      } else if ((inData[i] >= 0x10) && (inData[i] <= 0x7f)){
         encodedFrame.push(inData[i] | 0x80);
       } else if ((inData[i] >= 0x80) &&(inData[i] <= 0x8f)){
         encodedFrame.push(this._OVERASCII_ESCAPE_2);
@@ -295,9 +295,9 @@ export default class RICChannelWebSerial implements RICChannel {
           await new Promise(resolve => setTimeout(resolve, 100));
           this._reader = this._port.readable.getReader();
         }
-    }
-    this._reader.releaseLock();
-    this._reader = undefined;
+      }
+      this._reader.releaseLock();
+      this._reader = undefined;
     } catch (err) {
       RICLog.error("Read loop got disconnected. err: " + JSON.stringify(err));
     }

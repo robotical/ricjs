@@ -263,9 +263,9 @@ export default class RICFileHandler {
             this._batchAckReceived = false;
           }
           // Debug
-          // RICLog.debug(
-          //   `_sendFileContents sendblock pos ${sendFromPos} len ${this._fileBlockSize} ackedTo ${this._ackedFilePos} fileLen ${fileContents.length}`,
-          // );
+           RICLog.debug(
+             `_sendFileContents sendblock pos ${sendFromPos} len ${this._fileBlockSize} ackedTo ${this._ackedFilePos} fileLen ${fileContents.length}`,
+           );
           if (!await this._sendFileBlock(fileContents, sendFromPos))
             return false;
           sendFromPos += this._fileBlockSize;

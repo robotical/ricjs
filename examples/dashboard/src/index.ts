@@ -233,6 +233,8 @@ function component() {
     { name: "5V Off", button: "%1", func: sendREST, params: ["pwrctrl/5voff"] },
     { name: "WiFi Scan", button: "Start", func: sendREST, params: ["wifiscan/start"] },
     { name: "WiFi Scan", button: "Results", func: sendREST, params: ["wifiscan/results"] },
+    { name: "Send File", button: "%1", func: sendFile, params: ["unplgivy.mp3"]},
+    { name: "Send File", button: "%1", func: sendFile, params: ["soundtest_44100_192kbps.mp3"]},
   ]
 
   // Add buttonDefs
@@ -252,6 +254,16 @@ function component() {
   setTimeout(updateStatus, 0);
 
   return element;
+}
+
+async function sendFile(params: Array<string>): Promise<void>{
+  const fileName = params[0];
+  const filePath = "./assets/files/" + fileName;
+  const fileData = await fetch(filePath);
+  console.log(fileData);
+  const fileBuffer = await fileData.arrayBuffer();
+  const fileContents = new Uint8Array(fileBuffer);
+  await globalThis.ricConnector.sendFile(fileName, fileContents, (sent, total, progress)=>{console.debug(`fileSend sent ${sent} total ${total} progress ${progress}%`)});
 }
 
 document.body.appendChild(component());

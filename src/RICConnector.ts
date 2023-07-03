@@ -15,7 +15,7 @@ import RICChannelWebSocket from "./RICChannelWebSocket";
 import RICChannelWebSerial from "./RICChannelWebSerial";
 import RICLEDPatternChecker from "./RICLEDPatternChecker";
 import RICCommsStats from "./RICCommsStats";
-import { RICEventFn, RICFileDownloadFn, RICLedLcdColours, RICOKFail, RICStateInfo } from "./RICTypes";
+import { RICEventFn, RICFileDownloadFn, RICLedLcdColours, RICOKFail, RICStateInfo, RICFileSendType } from "./RICTypes";
 import RICAddOnManager from "./RICAddOnManager";
 import RICSystem from "./RICSystem";
 import RICFileHandler from "./RICFileHandler";
@@ -506,6 +506,13 @@ export default class RICConnector {
     } catch (error: unknown) {
       RICLog.warn(`getRICCalibInfo Failed subscribe for updates ${error}`);
     }
+  }
+
+  async sendFile(fileName: string,
+    fileContents: Uint8Array,
+    progressCallback: ((sent: number, total: number, progress: number) => void) | undefined,
+  ): Promise<boolean> {
+    return this._ricFileHandler.fileSend(fileName, RICFileSendType.RIC_NORMAL_FILE, fileContents, progressCallback);
   }
 
   // Mark: Streaming --------------------------------------------------------------------------------
