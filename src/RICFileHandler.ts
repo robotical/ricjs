@@ -76,6 +76,14 @@ export default class RICFileHandler {
     this.onOktoMsg = this.onOktoMsg.bind(this);
   }
 
+  setRequestedFileBlockSize(blockSize: number){
+    this._requestedFileBlockSize = blockSize;
+  }
+
+  setRequestedBatchAckSize(batchAckSize: number){
+    this._requestedBatchAckSize = batchAckSize;
+  }
+
   async fileSend(
     fileName: string,
     fileType: RICFileSendType,

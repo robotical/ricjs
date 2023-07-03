@@ -234,6 +234,7 @@ function component() {
     { name: "WiFi Scan", button: "Start", func: sendREST, params: ["wifiscan/start"] },
     { name: "WiFi Scan", button: "Results", func: sendREST, params: ["wifiscan/results"] },
     { name: "Send File", button: "%1", func: sendFile, params: ["unplgivy.mp3"]},
+    { name: "Send File", button: "%1", func: sendFile, params: ["soundtest_44100_48kbps.mp3"]},
     { name: "Send File", button: "%1", func: sendFile, params: ["soundtest_44100_192kbps.mp3"]},
   ]
 

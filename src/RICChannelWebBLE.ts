@@ -44,6 +44,14 @@ export default class RICChannelWebBLE implements RICChannel {
   // Event listener fn
   private _eventListenerFn: ((event: Event) => void) | null = null;
 
+  // File Handler parameters
+  private _requestedBatchAckSize = 10;
+  private _requestedFileBlockSize = 500;
+
+  fhBatchAckSize(): number { return this._requestedBatchAckSize; }
+  fhFileBlockSize(): number { return this._requestedFileBlockSize; }
+
+
   // Set message handler
   setMsgHandler(ricMsgHandler: RICMsgHandler): void {
     this._ricMsgHandler = ricMsgHandler;

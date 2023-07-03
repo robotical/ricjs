@@ -120,6 +120,11 @@ export default class RICConnector {
     );
   }
 
+  configureFileHandler(fileBlockSize: number, batchAckSize: number){
+    this._ricFileHandler.setRequestedFileBlockSize(fileBlockSize);
+    this._ricFileHandler.setRequestedBatchAckSize(batchAckSize);
+  }
+
   setEventListener(onEventFn: RICEventFn): void {
     this._onEventFn = onEventFn;
   }
@@ -249,6 +254,8 @@ export default class RICConnector {
         }
       }
 
+      // configure file handler
+      this.configureFileHandler(this._ricChannel.fhFileBlockSize(), this._ricChannel.fhBatchAckSize());
     } else {
       this._channelConnMethod = "";
     }

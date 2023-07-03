@@ -42,6 +42,13 @@ export default class RICChannelWebSerial implements RICChannel {
   // Conn event fn
   private _onConnEvent: RICConnEventFn | null = null;
 
+  // File Handler parameters
+  private _requestedBatchAckSize = 1;
+  private _requestedFileBlockSize = 1200;
+
+  fhBatchAckSize(): number { return this._requestedBatchAckSize; }
+  fhFileBlockSize(): number { return this._requestedFileBlockSize; }
+
   // isConnected
   isConnected(): boolean {
     return this._isConnected;
