@@ -196,7 +196,7 @@ export default class RICUpdateManager {
   }
 
   getExpectedVersion(firmwareVersions: any, dtid: number){
-    if (firmwareVersions.hasOwnProperty(dtid)){
+    if (Object.prototype.hasOwnProperty.call(firmwareVersions, dtid)){
       return firmwareVersions[dtid]["version"];
     }
     return null;
@@ -219,7 +219,7 @@ export default class RICUpdateManager {
     const hwElems = hwstatus["hw"];
     // TODO: check if hwstatus is reporting versions as "0.0.0", if so pause and retry as robot is probably still starting up
 
-    for (let elem in hwElems){
+    for (const elem in hwElems){
       // TODO: use RICHWElem type
       const dtid = parseInt(hwElems[elem]["whoAmITypeCode"], 16);
       const expectedVersion = this.getExpectedVersion(firmwareVersionsJson, dtid);
@@ -465,7 +465,7 @@ export default class RICUpdateManager {
     }
 
     // TODO: check this is working
-    let allElemsUpdatedOk = await this.updateElems();
+    const allElemsUpdatedOk = await this.updateElems();
 
     /*
     // Issue requests for hw-elem firmware updates
@@ -518,7 +518,7 @@ export default class RICUpdateManager {
     const progressPerElem = (1 - progress) / elemsToUpdate.length;
 
     const updatedDtids: Array<number> = [];
-    for (let elem in elemsToUpdate){
+    for (const elem in elemsToUpdate){
       const dtid = parseInt(elemsToUpdate[elem]["whoAmITypeCode"], 16);
       const expectedVersion = elemsToUpdate[elem]["expectedVersion"];
       const actualVersion = elemsToUpdate[elem]["versionStr"];
@@ -565,7 +565,7 @@ export default class RICUpdateManager {
     return await this.updateElem(fwInfo, elemName);
   }
 
-  async updateElem(elemFw: RICFWInfo, elemNameOrAll: string = "all") {
+  async updateElem(elemFw: RICFWInfo, elemNameOrAll = "all") {
     // Start hw-elem update
     const updateCmd = `hwfwupd/${elemFw.elemType}/${elemFw.destname}/${elemNameOrAll}`;
     try {

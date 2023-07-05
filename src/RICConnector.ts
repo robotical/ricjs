@@ -179,7 +179,7 @@ export default class RICConnector {
     return this._ricChannel ? this._ricChannel.getConnectedLocator() : null;
   }
 
-  pauseConnection(pause: boolean = true){
+  pauseConnection(pause = true){
     if (this._ricChannel) this._ricChannel.pauseConnection(pause);
   }
 
