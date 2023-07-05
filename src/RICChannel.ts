@@ -24,4 +24,5 @@ export default interface RICChannel
     requiresSubscription(): boolean;
     fhBatchAckSize(): number;
     fhFileBlockSize(): number;
+    pauseConnection(pause: boolean): void;
 }

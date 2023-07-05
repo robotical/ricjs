@@ -190,6 +190,8 @@ export default class RICChannelWebBLE implements RICChannel {
     }
   }
 
+  pauseConnection(pause: boolean): void { RICLog.verbose(`pauseConnection ${pause} - no effect for this channel type`); return; }
+
   // Handle notifications
   _onMsgRx(event: Event): void {
     // Get characteristic

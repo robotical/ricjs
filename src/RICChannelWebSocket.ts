@@ -90,6 +90,8 @@ export default class RICChannelWebSocket implements RICChannel {
     RICLog.debug(`RICChannelWebSocket.disconnect attempting to close websocket`);
   }
 
+  pauseConnection(pause: boolean): void { RICLog.verbose(`pauseConnection ${pause} - no effect for this channel type`); return; }
+
   // Handle notifications
   _onMsgRx(msg: Uint8Array | null): void {
 

@@ -30,6 +30,7 @@ export default class RICChannelWebSerial implements RICChannel {
 
   // Is connected
   private _isConnected = false;
+  private _connPaused = false;
 
   private _serialBuffer: number[] = [];
 
@@ -128,6 +129,10 @@ export default class RICChannelWebSerial implements RICChannel {
 
     RICLog.debug("WebSerial port closed");
     return;
+  }
+
+  pauseConnection(pause: boolean): void {
+    this._connPaused = pause;
   }
 
   private _overasciiDecodeByte(ch: number){
@@ -284,7 +289,16 @@ export default class RICChannelWebSerial implements RICChannel {
       }
       this._reader = this._port.readable.getReader();
       while (this._port.readable && this._isConnected) {
+        if (this._connPaused){
+          if (this._reader) {
+            this._reader.releaseLock();
+            this._reader = undefined;
+          }
+          await new Promise(resolve => setTimeout(resolve, 100));
+          continue;
+        }
         try {
+          if (!this._reader) this._reader = this._port.readable.getReader();
           const { value, done } = await this._reader.read();
           if (done) {
             this._reader.releaseLock();
@@ -303,7 +317,7 @@ export default class RICChannelWebSerial implements RICChannel {
           this._reader = this._port.readable.getReader();
         }
       }
-      this._reader.releaseLock();
+      if (this._reader) this._reader.releaseLock();
       this._reader = undefined;
     } catch (err) {
       RICLog.error("Read loop got disconnected. err: " + JSON.stringify(err));

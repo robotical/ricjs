@@ -173,6 +173,18 @@ export default class RICConnector {
     return this._ricChannel;
   }
 
+  getRICUpdateManager(): RICUpdateManager | null {
+    return this._ricUpdateManager;
+  }
+
+  getConnLocator(): any | null {
+    return this._ricChannel ? this._ricChannel.getConnectedLocator() : null;
+  }
+
+  pauseConnection(pause: boolean = true){
+    if (this._ricChannel) this._ricChannel.pauseConnection(pause);
+  }
+
   /**
    * Connect to a RIC
    *
@@ -207,6 +219,8 @@ export default class RICConnector {
       this._ricChannel = new RICChannelWebSerial();
       connMethod = 'WebSerial';
     }
+
+    RICLog.debug(`connecting with connMethod ${connMethod}`);
 
     // Check channel established
     let connOk = false;
