@@ -105,14 +105,12 @@ export default class RICConnector {
   setupUpdateManager(appVersion: string, appUpdateURL: string, fileDownloader: RICFileDownloadFn): void {
     // Setup update manager
     const firmwareTypeStrForMainFw = 'main';
-    const nonFirmwareElemTypes = ['sound', 'traj'];
     this._ricUpdateManager = new RICUpdateManager(
       this._ricMsgHandler,
       this._ricFileHandler,
       this._ricSystem,
       this._onUpdateEvent.bind(this),
       firmwareTypeStrForMainFw,
-      nonFirmwareElemTypes,
       appVersion,
       fileDownloader,
       appUpdateURL,
