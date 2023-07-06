@@ -102,7 +102,7 @@ export default class RICConnector {
     RICLog.debug('RICConnector starting up');
   }
 
-  setupUpdateManager(appVersion: string, appUpdateURL: string, fileDownloader: RICFileDownloadFn): void {
+  setupUpdateManager(appVersion: string, appUpdateURL: string, firmwareBaseURL: string, fileDownloader: RICFileDownloadFn): void {
     // Setup update manager
     const firmwareTypeStrForMainFw = 'main';
     this._ricUpdateManager = new RICUpdateManager(
@@ -114,6 +114,7 @@ export default class RICConnector {
       appVersion,
       fileDownloader,
       appUpdateURL,
+      firmwareBaseURL,
       this._ricChannel
     );
   }

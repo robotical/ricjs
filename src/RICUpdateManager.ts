@@ -66,6 +66,7 @@ export default class RICUpdateManager {
     private _currentAppVersion: string,
     private _fileDownloader: RICFileDownloadFn,
     private _firmwareUpdateURL: string,
+    private _firmwareBaseURL: string,
     private _ricChannel: RICChannel | null
   ) {}
 
@@ -80,12 +81,16 @@ export default class RICUpdateManager {
     this._latestVersionInfo = null;
     try {
       // handle url modifications
-      //let updateURL = this._firmwareUpdateURL;
+      let updateURL = this._firmwareUpdateURL;
       const ricSystemInfo = this._ricSystem.getCachedSystemInfo();
       if (!ricSystemInfo || ricSystemInfo.RicHwRevNo)
         return RICUpdateEvent.UPDATE_FAILED;
 
-      const updateURL = `${this._firmwareUpdateURL}/martyv2/rev${ricSystemInfo.RicHwRevNo.toString()}/current_version.jon`;
+      updateURL = updateURL.replace(
+        "{HWRevNo}",
+        ricSystemInfo.RicHwRevNo.toString()
+      );
+
       // debug
       RICLog.debug(`Update URL: ${updateURL}`);
       const response = await axios.get(updateURL);
@@ -196,8 +201,8 @@ export default class RICUpdateManager {
   }
 
   getExpectedVersion(firmwareVersions: any, dtid: number){
-    if (Object.prototype.hasOwnProperty.call(firmwareVersions, dtid)){
-      return firmwareVersions[dtid]["version"];
+    if (Object.prototype.hasOwnProperty.call(firmwareVersions["dtid"], dtid)){
+      return firmwareVersions["dtid"][dtid]["version"];
     }
     return null;
   }
@@ -205,7 +210,7 @@ export default class RICUpdateManager {
   async elemUpdatesRequired(): Promise<Array<any> | null> {
     const elemsToUpdate = [];
 
-    const firmwareVersionsUrl = `${this._firmwareUpdateURL}/firmware/firmwareVersions.json`;
+    const firmwareVersionsUrl = `${this._firmwareBaseURL}/firmware/firmwareVersions.json`;
 
     // get elem firmware expected versions
     const firmwareVersionResponse = await fetch(firmwareVersionsUrl);
@@ -517,6 +522,8 @@ export default class RICUpdateManager {
     let progress = this._progressAfterUpload;
     const progressPerElem = (1 - progress) / elemsToUpdate.length;
 
+    let allElemsUpdatedOk = true;
+
     const updatedDtids: Array<number> = [];
     for (const elem in elemsToUpdate){
       const dtid = parseInt(elemsToUpdate[elem]["whoAmITypeCode"], 16);
@@ -528,7 +535,8 @@ export default class RICUpdateManager {
       if (expectedVersion){
         // only need to send each firmware file once
         const sendFile = updatedDtids.includes(dtid) ? false : true;
-        await this.updateHWElem(elemName, dtid, elemType, expectedVersion, sendFile);
+        if (!await this.updateHWElem(elemName, dtid, elemType, expectedVersion, sendFile))
+          allElemsUpdatedOk = false;
         updatedDtids.push(dtid);
 
         progress += progressPerElem;
@@ -540,17 +548,18 @@ export default class RICUpdateManager {
       }
     }
 
-    return true;
+    return allElemsUpdatedOk;
   }
 
   async  updateHWElem(elemName: string, dtid: number, elemType: string, expectedVersion: string, sendFile: boolean){
     const dtidStr = dtid.toString(16).padStart(8, "0");
     if (sendFile){
-      const firmwareUrl = `${this._firmwareUpdateURL}/firmware/${dtidStr}/fw${dtidStr}-${expectedVersion}.rfw`;
+      const firmwareUrl = `${this._firmwareBaseURL}/firmware/${dtidStr}/fw${dtidStr}-${expectedVersion}.rfw`;
       const firmware = await this._fileDownloader(firmwareUrl, (received, total)=>{RICLog.debug(`download received ${received} of total ${total}`)});
       if (!firmware.downloadedOk || !firmware.fileData) return false;
       //await ric.sendFile(`fw${dtidStr}.rfw`, firmware.fileData, (sent, total, progress)=>{console.log(`sent ${sent} total ${total} progress ${progress}`)});
-      await this.fileSend(`fw${dtidStr}.rfw`, RICFileSendType.RIC_NORMAL_FILE, firmware.fileData, (sent, total, progress)=>{console.log(`sent ${sent} total ${total} progress ${progress}`)})
+      if (!await this.fileSend(`fw${dtidStr}.rfw`, RICFileSendType.RIC_NORMAL_FILE, firmware.fileData, (sent, total, progress)=>{console.log(`sent ${sent} total ${total} progress ${progress}`)}))
+        return false;
     }
     const fwInfo: RICFWInfo = {
       elemType: elemType,
