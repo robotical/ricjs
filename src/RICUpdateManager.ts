@@ -553,17 +553,21 @@ export default class RICUpdateManager {
 
   async  updateHWElem(elemName: string, dtid: number, elemType: string, expectedVersion: string, sendFile: boolean){
     const dtidStr = dtid.toString(16).padStart(8, "0");
+    const destFwFilename = `fw${dtidStr}.rfw`;
     if (sendFile){
       const firmwareUrl = `${this._firmwareBaseURL}/firmware/${dtidStr}/fw${dtidStr}-${expectedVersion}.rfw`;
       const firmware = await this._fileDownloader(firmwareUrl, (received, total)=>{RICLog.debug(`download received ${received} of total ${total}`)});
       if (!firmware.downloadedOk || !firmware.fileData) return false;
-      //await ric.sendFile(`fw${dtidStr}.rfw`, firmware.fileData, (sent, total, progress)=>{console.log(`sent ${sent} total ${total} progress ${progress}`)});
-      if (!await this.fileSend(`fw${dtidStr}.rfw`, RICFileSendType.RIC_NORMAL_FILE, firmware.fileData, (sent, total, progress)=>{console.log(`sent ${sent} total ${total} progress ${progress}`)}))
+      if (!await this.fileSend(destFwFilename, RICFileSendType.RIC_NORMAL_FILE, firmware.fileData, (sent, total, progress)=>{console.log(`sent ${sent} total ${total} progress ${progress}`)}))
         return false;
     }
+    // double check file on RIC has the correct version
+    const fwResp = await this._ricMsgHandler.sendRICRESTURL<RICHWFWUpdRslt>(`hwfwupd//${destFwFilename}`);
+    if (fwResp.st.v != expectedVersion) return false;
+
     const fwInfo: RICFWInfo = {
       elemType: elemType,
-      destname: `fw${dtidStr}.rfw`,
+      destname: destFwFilename,
       version: "",
       md5: "",
       releaseNotes: "",
