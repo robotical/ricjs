@@ -87,8 +87,10 @@ export default class RICChannelWebSerial implements RICChannel {
     }
   
     try {
-      const port = await navigator.serial.requestPort();
-      this._port = port;
+      if (!this._port || locator != "reusePort"){
+        const port = await navigator.serial.requestPort();
+        this._port = port;
+      }
       // Connect
       await this._port.open({ baudRate: 115200 });
 
@@ -124,8 +126,12 @@ export default class RICChannelWebSerial implements RICChannel {
     }
 
     // Disconnect webserial
-    if (this._port)
-      await this._port.close();
+    try {
+      if (this._port)
+        await this._port.close();
+    } catch (err){
+      console.debug(`Error closing port ${err}`);
+    }
 
     RICLog.debug("WebSerial port closed");
     return;
