@@ -83,9 +83,12 @@ export default class RICUpdateManager {
       // handle url modifications
       let updateURL = this._firmwareUpdateURL;
       const ricSystemInfo = this._ricSystem.getCachedSystemInfo();
-      if (!ricSystemInfo || ricSystemInfo.RicHwRevNo)
+      if (!ricSystemInfo || !ricSystemInfo.RicHwRevNo){
+        RICLog.debug("checkForUpdate failed to get RIC info, either no channel or no system info");
+        RICLog.debug("ricSystemInfo:" + JSON.stringify(ricSystemInfo));
+        RICLog.debug("ricHwRevNo:" + ricSystemInfo!.RicHwRevNo);
         return RICUpdateEvent.UPDATE_FAILED;
-
+      }
       updateURL = updateURL.replace(
         "{HWRevNo}",
         ricSystemInfo.RicHwRevNo.toString()
