@@ -324,12 +324,12 @@ export default class RICMiniHDLC {
   }
 
   _checkCRC(): boolean {
-    const calcCRC = this._crc16(this.rxBuffer);
+    const calcCRC = RICMiniHDLC.crc16(this.rxBuffer);
     const rxCRC = this.frameCRC[0] * 256 + this.frameCRC[1];
     return calcCRC === rxCRC;
   }
 
-  _crc16(buf: Array<number> | Uint8Array): number {
+  static crc16(buf: Array<number> | Uint8Array): number {
     let crc = 0xffff;
     for (let i = 0; i < buf.length; i++) {
       let byt = buf[i];
@@ -355,7 +355,7 @@ export default class RICMiniHDLC {
     }
 
     // CRC
-    const frameCRC = this._crc16(content);
+    const frameCRC = RICMiniHDLC.crc16(content);
     framePos = this._setData(frameData, (frameCRC >> 8) & 0xff, framePos);
     framePos = this._setData(frameData, frameCRC & 0xff, framePos);
 

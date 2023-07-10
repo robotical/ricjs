@@ -25,7 +25,7 @@ function eventListener(eventType: string, eventEnum: RICConnEvent | RICUpdateEve
         case RICConnEvent.CONN_VERIFYING_CORRECT_RIC:
           {
             checkField.innerHTML = `<div>Check LEDs</div>`;
-            const eventLeds = eventData! as Array<string>;
+            const eventLeds = eventData as Array<string>;
             for (let idx = 0; idx < eventLeds.length; idx++) {
               checkField.innerHTML += pixGetColourStr(idx, eventLeds[idx]);
             }
@@ -165,6 +165,11 @@ function fileRxProgressCB(progress: number, total: number): void {
   setFileRxStatusMsg(`File transfer progress ${progress} / ${total}`);
 }
 
+function i2hex(i: number): string {
+  const hex = i.toString(16);
+  return (hex.length === 1 ? "0" + hex : hex) + " ";
+}
+
 export async function fileRxGetContent(params: string[]): Promise<boolean> {
   const startTime = Date.now();
   let result = null;
@@ -175,7 +180,27 @@ export async function fileRxGetContent(params: string[]): Promise<boolean> {
     return false;
   }
   console.log(`fileRxGetContent resultOk ${result.downloadedOk} length ${result.fileData ? result.fileData.length : 0}`);
-  setFileRxStatusMsg(`Received ${result.downloadedOk ? "OK" : "Failed"} ${result.fileData ? result.fileData.length : 0} bytes in ${((Date.now() - startTime) / 1000).toFixed(1)} seconds rate is ${result.fileData ? (result.fileData.length / ((Date.now() - startTime) / 1000)).toFixed(0) : 0} bytes/sec`);
+  setFileRxStatusMsg(`Received ${result.downloadedOk ? "OK" : "Failed"} ${result.fileData ? result.fileData.length : 0} bytes in ${((Date.now() - startTime) / 1000).toFixed(1)} seconds is ${result.fileData ? (result.fileData.length / ((Date.now() - startTime) / 1000)).toFixed(0) : 0} bytes/sec`);
+
+  // // Display the contents as hex string
+  // const hexContainer = document.getElementById('file-status-container');
+  // if (hexContainer !== null && result.fileData !== null) {
+  //   const hex = document.createElement('div');
+  //   const hexStr = Array.from(result.fileData).map(i2hex).join('');
+  //   hex.innerHTML = `<div>${hexStr}</div>`;
+  //   hex.classList.add('hex');
+  //   hexContainer.appendChild(hex);
+  // }
+
+  // Append an image with the contents
+  const statusContainer = document.getElementById('file-status-container');
+  if (statusContainer !== null && result.fileData !== null) {
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(
+      new Blob([result.fileData], { type: 'image/jpeg' })
+    );
+    statusContainer.appendChild(img);
+  }
   return true;
 }
 
@@ -264,7 +289,7 @@ function component() {
     { name: "WiFi Scan", button: "Start", func: sendREST, params: ["wifiscan/start"] },
     { name: "WiFi Scan", button: "Results", func: sendREST, params: ["wifiscan/results"] },
     { name: "File", button: "Get index.html", func: fileRxGetContent, params: ["index.html", "fs"] },
-    { name: "Camera", button: "Get image", func: fileRxGetContent, params: ["img.jpeg", "bridgeserial1"] },
+    { name: "Camera", button: "Get image", func: fileRxGetContent, params: ["/cam/img.jpeg", "bridgeserial1"] },
   ]
 
   // Add buttonDefs

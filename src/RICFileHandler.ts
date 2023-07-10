@@ -15,7 +15,6 @@ import
 } from './RICMsgHandler';
 import {
   RICBridgeSetupResp,
-  RICFileDownloadResp,
   RICFileDownloadResult,
   RICFileDownloadStartResp,
   RICFileSendType,
@@ -25,6 +24,7 @@ import {
 } from './RICTypes';
 import RICCommsStats from './RICCommsStats';
 import RICUtils from './RICUtils';
+import RICMiniHDLC from './RICMiniHDLC';
 
 class FileBlockTrackInfo {
   isDone = false;
@@ -106,21 +106,15 @@ export default class RICFileHandler {
     this._isTxCancelled = false;
 
     // Send file start message
-    // RICLog.verbose('XXXXXXXXX _sendFileStartMsg start');
     if (!await this._sendFileStartMsg(fileName, fileType, fileContents))
       return false;
-    // RICLog.verbose('XXXXXXXXX _sendFileStartMsg done');
 
     // Send contents
-    // RICLog.verbose('XXXXXXXXX _sendFileContents start');
     if (!await this._sendFileContents(fileContents, progressCallback))
       return false;
-    // RICLog.verbose('XXXXXXXXX _sendFileContents done');
 
     // Send file end
-    // RICLog.verbose('XXXXXXXXX _sendFileEndMsg start');
     await this._sendFileEndMsg(fileName, fileType, fileContents);
-    // RICLog.verbose('XXXXXXXXX _sendFileEndMsg done');
 
     // Clean up
     await this.awaitOutstandingMsgPromises(true);
@@ -472,14 +466,15 @@ export default class RICFileHandler {
 
   async _receiveFileStart(fileName: string, bridgeID: number | undefined) : Promise<boolean> {
 
-    let blockMaxSize = 5000;
-    let batchAckSize = 10;
+    const blockMaxSizeRequested = 250;
+    const batchAckSizeRequested = 10;
     const fileSrc = "fs";
 
     // Request file transfer
     // Frames follow the approach used in the web interface start, block..., end
     const cmdMsg = `{"cmdName":"dfStart","reqStr":"getFile","fileType":"${fileSrc}",` +
-                    `"batchMsgSize":${blockMaxSize},"batchAckSize":${batchAckSize},` +
+                    `"batchMsgSize":${blockMaxSizeRequested},` +
+                    `"batchAckSize":${batchAckSizeRequested},` +
                     `"fileName":"${fileName}"}`
 
     // Send
@@ -527,6 +522,16 @@ export default class RICFileHandler {
           if (progressCallback) {
             progressCallback(this._fileRxBuffer.length, this._fileRxFileLen);
           }
+
+          // Check CRC
+          const crc16 = RICMiniHDLC.crc16(this._fileRxBuffer);
+          if (crc16 !== this._fileRxCrc16) {
+            RICLog.error(`_receiveFileContents - CRC error ${crc16} ${this._fileRxCrc16}`);
+            reject(new Error('fileReceive CRC error'));
+            return;
+          } else {
+            RICLog.info(`_receiveFileContents - CRC OK ${crc16} ${this._fileRxCrc16}`);
+          }
           resolve(new RICFileDownloadResult(this._fileRxBuffer));
           return;
         }
@@ -539,7 +544,7 @@ export default class RICFileHandler {
           // Send cancel message
           this._sendFileRxCancelMsg(bridgeID);
           // abort the upload process
-          reject(new Error('getFile Cancelled'));
+          reject(new Error('fileReceive Cancelled'));
           return;
         }
 
@@ -551,7 +556,7 @@ export default class RICFileHandler {
             (now - this._fileRxLastBlockTime > this.BLOCK_ACK_TIMEOUT_MS)) {
           RICLog.warn(`_receiveFileContents - time-out no new data received`);
           this._fileRxActive = false;
-          reject(new Error('getFile failed'));
+          reject(new Error('fileReceive failed'));
           return;
         }
 
@@ -582,10 +587,11 @@ export default class RICFileHandler {
           this._msgHandler.sendRICRESTNoResp(
             cmdMsg,
             RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
+            bridgeID
           );
 
           // Debug
-          RICLog.verbose(`_receiveFileContents ack generated at ${this._fileRxBuffer.length}`);
+          RICLog.verbose(`_receiveFileContents ack generated at ${this._fileRxBuffer.length} msg ${cmdMsg}`);
         }
 
         // Progress callback
@@ -608,6 +614,7 @@ export default class RICFileHandler {
     this._msgHandler.sendRICRESTNoResp(
       cmdMsg,
       RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
+      bridgeID
     );
 
     // No longer active
@@ -649,5 +656,9 @@ export default class RICFileHandler {
     } else {
       RICLog.warn(`onFileBlock expected streamID ${this._fileRxStreamID} filePos ${filePos} fileBlockData ${RICUtils.bufferToHex(fileBlockData)} out of sequence`);
     }
+  }
+
+  isFileRxActive(): boolean {
+    return this._fileRxActive;
   }
 }

@@ -26,7 +26,6 @@ import {
   RICSERIAL_PROTOCOL_POS,
   RICREST_REST_ELEM_CODE_POS,
   RICREST_HEADER_PAYLOAD_POS,
-  RICREST_FILEBLOCK_CHANNEL_POS,
   RICREST_FILEBLOCK_FILEPOS_POS,
   RICREST_FILEBLOCK_PAYLOAD_POS,
   RICREST_BRIDGE_PAYLOAD_POS,
@@ -359,7 +358,7 @@ export default class RICMsgHandler {
     msgTimeoutMs: number | undefined = undefined,
   ): Promise<T> {
     // Put cmdStr into buffer
-    let cmdStrTerm = new Uint8Array(cmdStr.length + 1);
+    const cmdStrTerm = new Uint8Array(cmdStr.length + 1);
     RICUtils.addStringToBuffer(cmdStrTerm, cmdStr, 0);
     cmdStrTerm[cmdStrTerm.length - 1] = 0;
 
@@ -399,16 +398,17 @@ export default class RICMsgHandler {
       RICCommsMsgTypeCode.MSG_TYPE_COMMAND,
       RICCommsMsgProtocol.MSG_PROTOCOL_RICREST,
       true);
-    if (!framedMsg) {
-      return false;
-    }
 
     // Wrap if bridged
     if (bridgeID !== undefined) {
       framedMsg = this.bridgeCommsMsg(framedMsg, bridgeID);
     } 
     
-    if (!await this._msgSender.sendTxMsg(framedMsg, false)) {
+    // Encode like HDLC
+    const encodedMsg = this._miniHDLC.encode(framedMsg);
+
+    // Send
+    if (!await this._msgSender.sendTxMsg(encodedMsg, false)) {
       RICLog.warn(`sendRICRESTNoResp failed to send message`);
       this._commsStats.recordMsgNoConnection();
     }
@@ -455,9 +455,6 @@ export default class RICMsgHandler {
 
     // Frame the message
     let framedMsg = this.frameCommsMsg(msgPayload, msgDirection, msgProtocol, true);
-    if (!framedMsg) {
-      throw new Error('sendMsgAndWaitForReply failed to frame message');
-    }
 
     // Wrap if bridged
     if (bridgeID !== undefined) {
@@ -467,9 +464,12 @@ export default class RICMsgHandler {
       RICLog.info(`sendMsgAndWaitForReply - not bridged`)
     }
 
+    // Encode like HDLC
+    const encodedMsg = this._miniHDLC.encode(framedMsg);
+
     // Debug
     RICLog.info(
-      `sendMsgAndWaitForReply ${RICUtils.bufferToHex(framedMsg)}`,
+      `sendMsgAndWaitForReply ${RICUtils.bufferToHex(encodedMsg)}`,
     );
 
     // Return a promise that will be resolved when a reply is received or timeout occurs
@@ -477,7 +477,7 @@ export default class RICMsgHandler {
 
       // Update message tracking
       this.msgTrackingTxCmdMsg<T>(
-        framedMsg,
+        encodedMsg,
         withResponse,
         bridgeID,
         msgTimeoutMs,
@@ -506,8 +506,8 @@ export default class RICMsgHandler {
     // Payload
     msgBuf.set(msgPayload, RICSERIAL_PAYLOAD_POS);
 
-    // Wrap into HDLC
-    return this._miniHDLC.encode(msgBuf);
+    // Return framed message
+    return msgBuf;
   }
 
   bridgeCommsMsg(

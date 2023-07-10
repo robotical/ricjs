@@ -21,7 +21,7 @@ import RICFileHandler from "./RICFileHandler";
 import RICStreamHandler from "./RICStreamHandler";
 import { ROSSerialAddOnStatusList, ROSSerialIMU, ROSSerialPowerStatus, ROSSerialRobotStatus, ROSSerialSmartServos } from "./RICROSSerial";
 import RICUtils from "./RICUtils";
-import RICLog from "./RICLog";
+import RICLog, { RICLogLevel } from "./RICLog";
 import { RICConnEvent, RICConnEventNames } from "./RICConnEvents";
 import RICUpdateManager from "./RICUpdateManager";
 import { RICUpdateEvent, RICUpdateEventNames } from "./RICUpdateEvents";
@@ -93,6 +93,10 @@ export default class RICConnector {
   private _onEventFn: RICEventFn | null = null;
 
   constructor() {
+
+    // Setup log level
+    RICLog.setLogLevel(RICLogLevel.VERBOSE);
+
     // Debug
     RICLog.debug('RICConnector starting up');
   }
