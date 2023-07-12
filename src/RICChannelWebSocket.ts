@@ -32,6 +32,14 @@ export default class RICChannelWebSocket implements RICChannel {
 
   // Conn event fn
   private _onConnEvent: RICConnEventFn | null = null;
+
+  // File Handler parameters
+  private _requestedBatchAckSize = 10;
+  private _requestedFileBlockSize = 500;
+
+  fhBatchAckSize(): number { return this._requestedBatchAckSize; }
+  fhFileBlockSize(): number { return this._requestedFileBlockSize; }
+
   
   // isConnected
   isConnected(): boolean {
@@ -81,6 +89,8 @@ export default class RICChannelWebSocket implements RICChannel {
     // Debug
     RICLog.debug(`RICChannelWebSocket.disconnect attempting to close websocket`);
   }
+
+  pauseConnection(pause: boolean): void { RICLog.verbose(`pauseConnection ${pause} - no effect for this channel type`); return; }
 
   // Handle notifications
   _onMsgRx(msg: Uint8Array | null): void {

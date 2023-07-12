@@ -1,6 +1,6 @@
 {
     "name": "@robotical/ricjs",
-    "version": "1.15.2",
+    "version": "1.15.3",
     "description": "Javascript/TS library for Robotical RIC",
     "author": "Rob Dobson <rob@dobson.com>",
     "repository": {
@@ -43,6 +43,7 @@
         "typescript": "^4.5.5"
     },
     "dependencies": {
+        "@types/w3c-web-serial": "^1.0.3",
         "axios": "^0.26.0",
         "buffer": "^6.0.3",
         "isomorphic-ws": "^4.0.1",

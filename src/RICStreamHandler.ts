@@ -192,6 +192,15 @@ export default class RICStreamHandler {
     return true;
   }
 
+  get maxBlockSize () {
+    return this._maxBlockSize;
+  }
+
+  set maxBlockSize (maxBlockSize: number) {
+    this._maxBlockSize = maxBlockSize;
+    this.DEFAULT_MAX_BLOCK_SIZE = maxBlockSize;
+  }
+
   private async _sendStreamEndMsg(
     streamID: number | null,
   ): Promise<boolean> {

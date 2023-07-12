@@ -22,4 +22,7 @@ export default interface RICChannel
     sendTxMsg(msg: Uint8Array, sendWithResponse: boolean): Promise<boolean>;
     sendTxMsgNoAwait(msg: Uint8Array, sendWithResponse: boolean): Promise<boolean>;
     requiresSubscription(): boolean;
+    fhBatchAckSize(): number;
+    fhFileBlockSize(): number;
+    pauseConnection(pause: boolean): void;
 }
