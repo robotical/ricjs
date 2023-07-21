@@ -104,12 +104,44 @@ export default class RICUtils {
   }
 
   /**
+   * Extract a big-endian uint64 from a uint8array
    *
-   * Extract a big-endian uint16 from a uint8array
-   *
-   * @param buf - Uint8Array containing uint16
+   * @param buf - Uint8Array containing uint64
    * @param pos - position (offset in buf) to get from
-   * @returns int16
+   * @returns uint64
+   */
+
+  static getBEUint64FromBuf(buf: Uint8Array, bufPos: number): number {
+    if (RICUtils.isLittleEndian())
+      return (
+        (buf[bufPos] << 56) +
+        (buf[bufPos + 1] << 48) +
+        (buf[bufPos + 2] << 40) +
+        (buf[bufPos + 3] << 32) +
+        (buf[bufPos + 4] << 24) +
+        (buf[bufPos + 5] << 16) +
+        (buf[bufPos + 6] << 8) +
+        buf[bufPos + 7]
+      );
+    return (
+      (buf[bufPos + 7] << 56) +
+      (buf[bufPos + 6] << 48) +
+      (buf[bufPos + 5] << 40) +
+      (buf[bufPos + 4] << 32) +
+      (buf[bufPos + 3] << 24) +
+      (buf[bufPos + 2] << 16) +
+      (buf[bufPos + 1] << 8) +
+      buf[bufPos]
+    );
+  }
+
+  /**
+   *
+   * Extract a big-endian uint32 from a uint8array
+   *
+   * @param buf - Uint8Array containing uint32
+   * @param pos - position (offset in buf) to get from
+   * @returns uint32
    */
   static getBEUint32FromBuf(buf: Uint8Array, bufPos: number): number {
     if (RICUtils.isLittleEndian())

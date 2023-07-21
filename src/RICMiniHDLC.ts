@@ -8,6 +8,8 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+import RICLog from "./RICLog";
+
 /*eslint no-bitwise: ["error", { "allow": ["&", "<<", ">>", "^"] }] */
 
 enum RICMiniHDLCState {
@@ -277,18 +279,19 @@ const CRC_LUT = [
 export default class RICMiniHDLC {
   private rxState: RICMiniHDLCState;
   private rxBuffer: Array<number> = [];
-  private onRxFrame: ((rxFrame: Uint8Array) => void) | null;
+  private onRxFrame: ((rxFrame: Uint8Array, frameTimeMs: number) => void) | null;
   private frameCRC: Array<number> = [];
   private readonly FRAME_BOUNDARY_OCTET = 0xe7;
   private readonly CONTROL_ESCAPE_OCTET = 0xd7;
   private readonly INVERT_OCTET = 0x20;
+  private frameStartTimeMs = 0;
 
   constructor() {
     this.rxState = RICMiniHDLCState.STATE_READ;
     this.onRxFrame = null;
   }
 
-  setOnRxFrame(onRxFrame: (rxFrame: Uint8Array) => void) {
+  setOnRxFrame(onRxFrame: (rxFrame: Uint8Array, frameTimeMs: number) => void) {
     this.onRxFrame = onRxFrame;
   }
   
@@ -298,13 +301,20 @@ export default class RICMiniHDLC {
         this.frameCRC = this.rxBuffer.slice(-2);
         this.rxBuffer = this.rxBuffer.slice(0, -2);
         if (this._checkCRC()) {
+          const frameElapsedMs = Date.now() - this.frameStartTimeMs;
+          if (frameElapsedMs > 0) {
+            RICLog.debug('RICMiniHDLC::frameRx ' + this.rxBuffer.length + 
+                  'bytes, elapsed ' + frameElapsedMs + 
+                  'ms, rate ' + (this.rxBuffer.length * 1000 / frameElapsedMs).toFixed(0) + ' bytes/sec');
+          }
           if (this.onRxFrame) {
             const rxFrame = new Uint8Array(this.rxBuffer);
-            this.onRxFrame(rxFrame);
+            this.onRxFrame(rxFrame, frameElapsedMs);
           }
         }
       }
       this.rxBuffer = [];
+      this.frameStartTimeMs = Date.now();
     } else {
       if (rxByte === this.CONTROL_ESCAPE_OCTET) {
         this.rxState = RICMiniHDLCState.STATE_ESCAPE;

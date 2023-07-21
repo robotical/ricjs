@@ -9,9 +9,10 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 import RICUtils from "./RICUtils";
-import { RICMessageResult } from "./RICMsgHandler";
 import RICCommsStats from "./RICCommsStats";
 import RICAddOnManager from "./RICAddOnManager";
+import { RICStateInfo } from "./RICStateInfo";
+import RICLog from "./RICLog";
 
 export class ROSSerialSmartServos {
   smartServos: {
@@ -117,6 +118,28 @@ export class ROSSerialRobotStatus {
   };
 }
 
+export class ROSCameraData {
+  cameraData: {
+    unixTimeMs: number;
+    sinceStartMs: number;
+    imageData: Uint8Array;
+    imageWidth: number,
+    imageHeight: number,
+    imageFormat: number,
+    imageQuality: number,
+    frameTimeMs: number
+  } = {
+    unixTimeMs: 0,
+    sinceStartMs: 0,
+    imageData: new Uint8Array(0),
+    imageWidth: 0,
+    imageHeight: 0,
+    imageFormat: 0,
+    imageQuality: 0,
+    frameTimeMs: 0
+  };
+}
+
 export type ROSSerialMsg =
   | ROSSerialSmartServos
   | ROSSerialIMU
@@ -124,36 +147,44 @@ export type ROSSerialMsg =
   | ROSSerialAddOnStatusList
   | ROSSerialRobotStatus;
 
+// ROSSerial ROSTopics
+export const ROSTOPIC_V2_SMART_SERVOS = 120;
+export const ROSTOPIC_V2_ACCEL = 121;
+export const ROSTOPIC_V2_POWER_STATUS = 122;
+export const ROSTOPIC_V2_ADDONS = 123;
+export const ROSTOPIC_V2_ROBOT_STATUS = 124;
+export const ROSTOPIC_V2_CAMERA = 200;
+  
 export class RICROSSerial {
+
   static decode(
     rosSerialMsg: Uint8Array,
     startPos: number,
-    RICMessageResult: RICMessageResult | null,
     commsStats: RICCommsStats,
-    addOnManager: RICAddOnManager
-  ): void {
+    addOnManager: RICAddOnManager,
+    ricStateInfo: RICStateInfo,
+    frameTimeMs: number
+  ): Array<number> {    
+
+    // ROSSerial message format
+    const RS_MSG_MIN_LENGTH = 8;
+    const RS_MSG_LEN_LOW_POS = 2;
+    const RS_MSG_LEN_HIGH_POS = 3;
+    const RS_MSG_TOPIC_ID_LOW_POS = 5;
+    const RS_MSG_TOPIC_ID_HIGH_POS = 6;
+    const RS_MSG_PAYLOAD_POS = 7;
+
+    // Max payload length
+    const MAX_VALID_PAYLOAD_LEN = 200000;
+
+    // Update stats
+    commsStats.updateROSSerialRxRate(rosSerialMsg.length, frameTimeMs);
+
     // Payload may contain multiple ROSSerial messages
     let msgPos = startPos;
+    const topicIDs = new Array<number>();
     for (;;) {
       const remainingMsgLen = rosSerialMsg.length - msgPos;
-
-      // ROSSerial ROSTopics
-      const ROSTOPIC_V2_SMART_SERVOS = 120;
-      const ROSTOPIC_V2_ACCEL = 121;
-      const ROSTOPIC_V2_POWER_STATUS = 122;
-      const ROSTOPIC_V2_ADDONS = 123;
-      const ROSTOPIC_V2_ROBOT_STATUS = 124;
-
-      // ROSSerial message format
-      const RS_MSG_MIN_LENGTH = 8;
-      const RS_MSG_LEN_LOW_POS = 2;
-      const RS_MSG_LEN_HIGH_POS = 3;
-      const RS_MSG_TOPIC_ID_LOW_POS = 5;
-      const RS_MSG_TOPIC_ID_HIGH_POS = 6;
-      const RS_MSG_PAYLOAD_POS = 7;
-
-      // Max payload length
-      const MAX_VALID_PAYLOAD_LEN = 1000;
 
       // RICLog.debug('ROSSerial Decode ' + remainingMsgLen);
 
@@ -182,59 +213,72 @@ export class RICROSSerial {
       );
       // RICLog.debug('ROSSerial ' + RICUtils.bufferToHex(payload));
 
-      // Handle ROSSerial messages
-      if (RICMessageResult !== null) {
-        // we need to register the static addons here in case
-        // marty only has static addons (and so the rostopic_v2_addons case
-        // never runs)
-        let allAdons: ROSSerialAddOnStatusList = {addons: []};
-        const staticAddons = addOnManager.getProcessedStaticAddons();
-        for (const staticAddon of staticAddons) {
-          allAdons.addons.push(staticAddon);
-        }
-        if (commsStats._msgAddOnPub === 0) {
-          // we set the static addons only if we don't have any other addons
-          // the _msgAddOnPub is incremented in the rostopic_v2_addons case
-          // (when we get addons from marty)
-          // otherwise, the static addons will be set along with the regular addons (below)
-          RICMessageResult.onRxAddOnPub(allAdons);
-        }
-        switch (topicID) {
+      // we need to register the static addons here in case
+      // marty only has static addons (and so the rostopic_v2_addons case
+      // never runs)
+      let allAdons: ROSSerialAddOnStatusList = {addons: []};
+      const staticAddons = addOnManager.getProcessedStaticAddons();
+      for (const staticAddon of staticAddons) {
+        allAdons.addons.push(staticAddon);
+      }
+      if (commsStats._msgAddOnPub === 0) {
+        // we set the static addons only if we don't have any other addons
+        // the _msgAddOnPub is incremented in the rostopic_v2_addons case
+        // (when we get addons from marty)
+        // otherwise, the static addons will be set along with the regular addons (below)
+        ricStateInfo.addOnInfo = allAdons;
+        ricStateInfo.addOnInfoValidMs = Date.now();
+      }
+
+      // Record topic ID
+      topicIDs.push(topicID);
+
+      // Update state info
+      switch (topicID) {
           case ROSTOPIC_V2_SMART_SERVOS:
             // Smart Servos
-            RICMessageResult.onRxSmartServo(this.extractSmartServos(payload));
+            ricStateInfo.smartServos = this.extractSmartServos(payload);
+            ricStateInfo.smartServosValidMs = Date.now();
             commsStats.recordSmartServos();
             break;
           case ROSTOPIC_V2_ACCEL:
             // Accelerometer
-            RICMessageResult.onRxIMU(this.extractAccel(payload));
+            ricStateInfo.imuData = this.extractAccel(payload);
+            ricStateInfo.imuDataValidMs = Date.now();
             commsStats.recordIMU();
             break;
           case ROSTOPIC_V2_POWER_STATUS:
             // Power Status
-            RICMessageResult.onRxPowerStatus(this.extractPowerStatus(payload));
+            ricStateInfo.power = this.extractPowerStatus(payload);
+            ricStateInfo.powerValidMs = Date.now();
             commsStats.recordPowerStatus();
             break;
           case ROSTOPIC_V2_ADDONS:
             // Addons
-            allAdons = this.extractAddOnStatus(payload, addOnManager);
+            ricStateInfo.addOnInfo = this.extractAddOnStatus(payload, addOnManager);
+            ricStateInfo.addOnInfoValidMs = Date.now();
             for (const staticAddon of staticAddons) {
               allAdons.addons.push(staticAddon);
             }
-            RICMessageResult.onRxAddOnPub(allAdons);
             commsStats.recordAddOnPub();
             break;
           case ROSTOPIC_V2_ROBOT_STATUS:
             // Robot Status
-            RICMessageResult.onRobotStatus(this.extractRobotStatus(payload));
+            ricStateInfo.robotStatus = this.extractRobotStatus(payload);
+            ricStateInfo.robotStatusValidMs = Date.now();
             commsStats.recordRobotStatus();
+            break;
+          case ROSTOPIC_V2_CAMERA:
+            // Camera
+            // RICLog.debug('Camera ' + payloadLength);
+            ricStateInfo.cameraData = this.extractCameraData(payload, frameTimeMs);
+            ricStateInfo.cameraDataValidMs = Date.now();
+            commsStats.recordOtherTopic();
             break;
           default:
             // Unknown topic
-            RICMessageResult.onRxOtherROSSerialMsg(topicID, payload);
             commsStats.recordOtherTopic();
             break;
-        }
       }
 
       // Move msgPos on
@@ -242,9 +286,9 @@ export class RICROSSerial {
 
       // RICLog.debug('MsgPos ' + msgPos);
     }
+
+    return topicIDs;
   }
-
-
 
   static extractSmartServos(buf: Uint8Array): ROSSerialSmartServos {
     // Each group of attributes for a servo is a fixed size
@@ -390,4 +434,27 @@ export class RICROSSerial {
       },
     };
   }
+
+  static extractCameraData(buf: Uint8Array, frameTimeMs: number): ROSCameraData {
+    RICLog.debug(`CameraData ${buf.length} ${RICUtils.bufferToHex(buf.slice(0,30))}`);
+    const unixTime = RICUtils.getBEUint64FromBuf(buf, 0);
+    const sinceStartMs = RICUtils.getBEUint32FromBuf(buf, 8);
+    const imageWidth = RICUtils.getBEUint16FromBuf(buf, 12);
+    const imageHeight = RICUtils.getBEUint16FromBuf(buf, 14);
+    const imageFormat = RICUtils.getBEUint8FromBuf(buf, 16);
+    const imageQuality = RICUtils.getBEUint8FromBuf(buf, 17);
+    const imageData = buf.slice(18);
+    return { cameraData: 
+      { 
+        unixTimeMs: unixTime, 
+        sinceStartMs: sinceStartMs, 
+        imageWidth: imageWidth,
+        imageHeight: imageHeight,
+        imageFormat: imageFormat,
+        imageQuality: imageQuality,
+        imageData: imageData,
+        frameTimeMs: frameTimeMs
+      } 
+    };
+  }  
 }

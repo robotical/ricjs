@@ -18,6 +18,14 @@ import {
 } from './RICROSSerial';
 import { RICUpdateEvent } from './RICUpdateEvents';
 
+export enum RICPublishEvent {
+  PUBLISH_EVENT_DATA,
+}
+
+export const RICPublishEventNames = {
+  [RICPublishEvent.PUBLISH_EVENT_DATA]: 'PUBLISH_EVENT_DATA'
+};
+
 export enum RICIFType {
   RIC_INTERFACE_BLE,
   RIC_INTERFACE_WIFI,
@@ -34,7 +42,7 @@ export enum RICStreamType {
 
 export type RICEventFn = (
   eventType: string,
-  eventEnum: RICConnEvent | RICUpdateEvent,
+  eventEnum: RICConnEvent | RICUpdateEvent | RICPublishEvent,
   eventName: string,
   data?: object | string | null,
 ) => void;
@@ -146,19 +154,6 @@ export type RICBridgeSetupResp = {
   rslt: string;
   bridgeID: number;
 };
-
-export class RICStateInfo {
-  smartServos: ROSSerialSmartServos = new ROSSerialSmartServos();
-  smartServosValidMs = 0;
-  imuData: ROSSerialIMU = new ROSSerialIMU();
-  imuDataValidMs = 0;
-  power: ROSSerialPowerStatus = new ROSSerialPowerStatus();
-  powerValidMs = 0;
-  addOnInfo: ROSSerialAddOnStatusList = new ROSSerialAddOnStatusList();
-  addOnInfoValidMs = 0;
-  robotStatus: ROSSerialRobotStatus = new ROSSerialRobotStatus();
-  robotStatusValidMs = 0;
-}
 
 export type RICFile = {
   name: string;

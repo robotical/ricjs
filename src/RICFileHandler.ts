@@ -466,7 +466,7 @@ export default class RICFileHandler {
 
   async _receiveFileStart(fileName: string, bridgeID: number | undefined) : Promise<boolean> {
 
-    const blockMaxSizeRequested = 250;
+    const blockMaxSizeRequested = 5000;
     const batchAckSizeRequested = 10;
     const fileSrc = "fs";
 

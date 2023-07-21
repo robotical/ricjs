@@ -77,12 +77,7 @@ export interface RICMessageResult {
     filePos: number,
     fileBlockData: Uint8Array
   ): void;
-  onRxSmartServo(smartServos: ROSSerialSmartServos): void;
-  onRxIMU(imuData: ROSSerialIMU): void;
-  onRxPowerStatus(powerStatus: ROSSerialPowerStatus): void;
-  onRxAddOnPub(addOnInfo: ROSSerialAddOnStatusList): void;
-  onRobotStatus(robotStatus: ROSSerialRobotStatus): void;
-  onRxOtherROSSerialMsg(topicID: number, payload: Uint8Array): void;
+  onRxROSSerialMsg(payload: Uint8Array, frameTimeMs: number): void;
 }
 
 export interface RICMessageSender {
@@ -166,7 +161,7 @@ export default class RICMsgHandler {
     this._reportMsgCallbacks.delete(callbackName);
   }
 
-  _onHDLCFrameDecode(rxMsg: Uint8Array): void {
+  _onHDLCFrameDecode(rxMsg: Uint8Array, frameTimeMs: number): void {
     // Add to stats
     this._commsStats.msgRx();
 
@@ -255,13 +250,8 @@ export default class RICMsgHandler {
     // ROSSERIAL
     } else if (rxProtocol == RICCommsMsgProtocol.MSG_PROTOCOL_ROSSERIAL) {
       // Extract ROSSerial messages - decoded messages returned via _msgResultHandler
-      RICROSSerial.decode(
-        rxMsg,
-        RICSERIAL_PAYLOAD_POS,
-        this._msgResultHandler,
-        this._commsStats,
-        this._addOnManager,
-      );
+      // Send to RICROSSerial handler
+      this._msgResultHandler?.onRxROSSerialMsg(rxMsg, frameTimeMs);
     } else {
       RICLog.warn(`_onHDLCFrameDecode unsupported protocol ${rxProtocol}`);
     }

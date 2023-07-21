@@ -14,17 +14,16 @@ import RICMsgHandler, { RICMsgResultCode } from "./RICMsgHandler";
 import RICChannelWebSocket from "./RICChannelWebSocket";
 import RICLEDPatternChecker from "./RICLEDPatternChecker";
 import RICCommsStats from "./RICCommsStats";
-import { RICEventFn, RICFileDownloadFn, RICLedLcdColours, RICOKFail, RICStateInfo, RICFileDownloadResult, RICProgressCBType } from "./RICTypes";
+import { RICEventFn, RICFileDownloadFn, RICLedLcdColours, RICOKFail, RICFileDownloadResult, RICProgressCBType, RICPublishEvent, RICPublishEventNames } from "./RICTypes";
 import RICAddOnManager from "./RICAddOnManager";
 import RICSystem from "./RICSystem";
 import RICFileHandler from "./RICFileHandler";
 import RICStreamHandler from "./RICStreamHandler";
-import { ROSSerialAddOnStatusList, ROSSerialIMU, ROSSerialPowerStatus, ROSSerialRobotStatus, ROSSerialSmartServos } from "./RICROSSerial";
-import RICUtils from "./RICUtils";
 import RICLog, { RICLogLevel } from "./RICLog";
 import { RICConnEvent, RICConnEventNames } from "./RICConnEvents";
 import RICUpdateManager from "./RICUpdateManager";
 import { RICUpdateEvent, RICUpdateEventNames } from "./RICUpdateEvents";
+import { RICStateInfo } from "./RICStateInfo";
 
 export default class RICConnector {
 
@@ -326,38 +325,20 @@ export default class RICConnector {
 
   // Mark: Published data handling -----------------------------------------------------------------------------------------
 
-  onRxOtherROSSerialMsg(topicID: number, payload: Uint8Array): void {
-    RICLog.debug(`onRxOtherROSSerialMsg topicID ${topicID} payload ${RICUtils.bufferToHex(payload)}`);
-  }
+  onRxROSSerialMsg(payload: Uint8Array, frameTimeMs: number): void {
+    // RICLog.debug(`onRxROSSerialMsg payload ${RICUtils.bufferToHex(payload)}`);
+    RICLog.verbose(`onRxROSSerialMsg payloadLen ${payload.length}`);
+    const topicIDs = this._ricStateInfo.updateFromROSSerialMsg(payload, this._commsStats, this._addOnManager, frameTimeMs);
 
-  onRxSmartServo(smartServos: ROSSerialSmartServos): void {
-    // RICLog.verbose(`onRxSmartServo ${JSON.stringify(smartServos)}`);
-    this._ricStateInfo.smartServos = smartServos;
-    this._ricStateInfo.smartServosValidMs = Date.now();
-  }
-
-  onRxIMU(imuData: ROSSerialIMU): void {
-    // RICLog.verbose(`onRxIMU ${JSON.stringify(imuData)}`);
-    this._ricStateInfo.imuData = imuData;
-    this._ricStateInfo.imuDataValidMs = Date.now();
-  }
-
-  onRxPowerStatus(powerStatus: ROSSerialPowerStatus): void {
-    // RICLog.verbose(`onRxPowerStatus ${JSON.stringify(powerStatus)}`);
-    this._ricStateInfo.power = powerStatus;
-    this._ricStateInfo.powerValidMs = Date.now();
-  }
-
-  onRxAddOnPub(addOnInfo: ROSSerialAddOnStatusList): void {
-    // RICLog.verbose(`onRxAddOnPub ${JSON.stringify(addOnInfo)}`);
-    this._ricStateInfo.addOnInfo = addOnInfo;
-    this._ricStateInfo.addOnInfoValidMs = Date.now();
-  }
-
-  onRobotStatus(robotStatus: ROSSerialRobotStatus): void {
-    // RICLog.verbose(`onRobotStatus ${JSON.stringify(robotStatus)}`);
-    this._ricStateInfo.robotStatus = robotStatus;
-    this._ricStateInfo.robotStatusValidMs = Date.now();
+    // Call event handler if registered
+    if (this._onEventFn) {
+      this._onEventFn("pub", RICPublishEvent.PUBLISH_EVENT_DATA, RICPublishEventNames[RICPublishEvent.PUBLISH_EVENT_DATA], 
+          {
+            topicIDs: topicIDs,
+            payload: payload,
+            frameTimeMs: frameTimeMs
+          });
+    }
   }
 
   getRICStateInfo(): RICStateInfo {
@@ -549,8 +530,9 @@ export default class RICConnector {
 
   async checkConnPerformance(): Promise<number | undefined> {
 
-    // Send random blocks of data - these will be ignored by RIC - but will still be counted for performance
-    // evaluation
+    // Sends a magic sequence of bytes followed by blocks of random data 
+    // these will be ignored by RIC (as it recognises magic sequence)
+    // and is used performance evaluation
     let prbsState = 1;
     const testData = new Uint8Array(this._testConnPerfBlockSize);
     for (let i = 0; i < this._testConnPerfNumBlocks; i++) {
@@ -570,7 +552,7 @@ export default class RICConnector {
     // Get performance
     const blePerf = await this._ricSystem.getSysModInfoBLEMan();
     if (blePerf) {
-      console.log(`startConnPerformanceCheck timer rate = ${blePerf.tBPS}BytesPS`);
+      console.log(`checkConnPerformance result rate = ${blePerf.tBPS}BytesPS`);
       return blePerf.tBPS;
     } else {
       throw new Error('checkConnPerformance: failed to get BLE performance');
