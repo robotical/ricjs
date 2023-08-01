@@ -33,8 +33,8 @@ export default class RICChannelWebBLE implements RICChannel {
 
   // Last message tx time
   private _msgTxTimeLast = Date.now();
-  private _msgTxMinTimeBetweenMs = 50;
-  private readonly maxRetries = 5;
+  private _msgTxMinTimeBetweenMs = 1;
+  private readonly maxRetries = 1;
 
   // Connected flag and retries
   private _isConnected = false;
@@ -224,7 +224,9 @@ export default class RICChannelWebBLE implements RICChannel {
       // Write to the characteristic
       try {
         if (this._characteristicTx) {
-          if (this._characteristicTx.writeValue) {
+          if (this._characteristicTx.writeValueWithoutResponse) {
+            await this._characteristicTx.writeValueWithoutResponse(msg);
+          } else if (this._characteristicTx.writeValue) {
             await this._characteristicTx.writeValue(msg);
           } else if (this._characteristicTx.writeValueWithResponse) {
             await this._characteristicTx.writeValueWithResponse(msg);
@@ -233,7 +235,7 @@ export default class RICChannelWebBLE implements RICChannel {
         break;
       } catch (error) {
         if (retryIdx === this.maxRetries - 1) {
-          RICLog.debug(`RICChannelWebBLE.sendTxMsg ${error} retried ${retryIdx} times`);
+          RICLog.info(`RICChannelWebBLE.sendTxMsg ${error} retried ${retryIdx} times`);
         }
       }
     }

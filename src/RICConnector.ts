@@ -62,7 +62,7 @@ export default class RICConnector {
 
   // Connection performance checker
   private readonly _testConnPerfBlockSize = 500;
-  private readonly _testConnPerfNumBlocks = 7;
+  private readonly _testConnPerfNumBlocks = 50;
   private readonly _connPerfRsltDelayMs = 4000;
 
   // Retry connection if lost
