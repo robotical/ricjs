@@ -13,23 +13,15 @@ import { RICMsgTrackInfo } from './RICMsgTrackInfo';
 import RICLog from './RICLog';
 import RICUtils from './RICUtils';
 import {
-  RICROSSerial,
-  ROSSerialIMU,
-  ROSSerialSmartServos,
-  ROSSerialPowerStatus,
-  ROSSerialAddOnStatusList,
-  ROSSerialRobotStatus,
-} from './RICROSSerial';
-import {
   RICSERIAL_MSG_NUM_POS,
   RICSERIAL_PAYLOAD_POS,
   RICSERIAL_PROTOCOL_POS,
   RICREST_REST_ELEM_CODE_POS,
   RICREST_HEADER_PAYLOAD_POS,
-  RICREST_FILEBLOCK_FILEPOS_POS,
-  RICREST_FILEBLOCK_PAYLOAD_POS,
   RICREST_BRIDGE_PAYLOAD_POS,
   RICREST_BRIDGE_ID_POS,
+  RICREST_FILEBLOCK_FILEPOS_POS,
+  RICREST_FILEBLOCK_PAYLOAD_POS,
 } from './RICProtocolDefs';
 import RICMiniHDLC from './RICMiniHDLC';
 import RICAddOnManager from './RICAddOnManager';
@@ -138,6 +130,10 @@ export default class RICMsgHandler {
     // HDLC used to encode/decode the RICREST protocol
     this._miniHDLC = new RICMiniHDLC();
     this._miniHDLC.setOnRxFrame(this._onHDLCFrameDecode.bind(this));
+  }
+
+  getAddonManager(): RICAddOnManager {
+    return this._addOnManager;
   }
 
   registerForResults(msgResultHandler: RICMessageResult) {
@@ -256,6 +252,7 @@ export default class RICMsgHandler {
       RICLog.warn(`_onHDLCFrameDecode unsupported protocol ${rxProtocol}`);
     }
   }
+
 
   _handleResponseMessages(restStr: string, rxMsgNum: number): void {
     try {

@@ -8,22 +8,27 @@
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-import { RICConnEvent } from './RICConnEvents';
+import RICAddOnManager from "./RICAddOnManager";
+import RICCommsStats from "./RICCommsStats";
+import { RICConnEvent } from "./RICConnEvents";
+import { RICSERIAL_PAYLOAD_POS } from "./RICProtocolDefs";
 import {
   ROSSerialSmartServos,
   ROSSerialIMU,
   ROSSerialPowerStatus,
   ROSSerialAddOnStatusList,
   ROSSerialRobotStatus,
-} from './RICROSSerial';
-import { RICUpdateEvent } from './RICUpdateEvents';
+  RICROSSerial,
+  ROSCameraData,
+} from "./RICROSSerial";
+import { RICUpdateEvent } from "./RICUpdateEvents";
 
 export enum RICPublishEvent {
   PUBLISH_EVENT_DATA,
 }
 
 export const RICPublishEventNames = {
-  [RICPublishEvent.PUBLISH_EVENT_DATA]: 'PUBLISH_EVENT_DATA'
+  [RICPublishEvent.PUBLISH_EVENT_DATA]: "PUBLISH_EVENT_DATA",
 };
 
 export enum RICIFType {
@@ -44,7 +49,7 @@ export type RICEventFn = (
   eventType: string,
   eventEnum: RICConnEvent | RICUpdateEvent | RICPublishEvent,
   eventName: string,
-  data?: object | string | null,
+  data?: object | string | null
 ) => void;
 
 export interface RICSubscription {
@@ -52,39 +57,39 @@ export interface RICSubscription {
 }
 
 export class RICFriendlyName {
-  friendlyName = '';
-  friendlyNameIsSet?= false;
-  req?= '';
-  rslt?= 'commsFail';
-  validMs?= 0;
+  friendlyName = "";
+  friendlyNameIsSet? = false;
+  req? = "";
+  rslt? = "commsFail";
+  validMs? = 0;
 }
 
 export class RICSystemInfo {
-  rslt = '';
-  SystemName = 'Unknown';
-  SystemVersion = '0.0.0';
+  rslt = "";
+  SystemName = "Unknown";
+  SystemVersion = "0.0.0";
   RicHwRevNo = 0;
-  MAC?= "";
-  SerialNo?= "";
-  validMs?= 0;
+  MAC? = "";
+  SerialNo? = "";
+  validMs? = 0;
 }
 
 export class RICCalibInfo {
-  rslt = '';
+  rslt = "";
   calDone = 0;
-  validMs?= 0;
+  validMs? = 0;
 }
 
 export class RICOKFail {
-  RIC_OK = 'ok';
+  RIC_OK = "ok";
   set(rsltFlag: boolean) {
     if (rsltFlag) {
       this.rslt = this.RIC_OK;
     } else {
-      this.rslt = 'fail';
+      this.rslt = "fail";
     }
   }
-  rslt = 'commsFail';
+  rslt = "commsFail";
   isOk() {
     return this.rslt === this.RIC_OK;
   }
@@ -92,7 +97,7 @@ export class RICOKFail {
 
 export class RICReportMsg {
   msgType?: string;
-  rslt = '';
+  rslt = "";
   timeReceived?: number;
   hexRd?: string;
   elemName?: string;
@@ -103,17 +108,17 @@ export class RICReportMsg {
 }
 
 export class RICHWFWStat {
-  s = '';
-  m = '';
-  v = '';
-  n = '';
+  s = "";
+  m = "";
+  v = "";
+  n = "";
   p = 0;
   i = 0;
 }
 
 export class RICHWFWUpdRslt {
-  req = '';
-  rslt = 'commsFail';
+  req = "";
+  rslt = "commsFail";
   st: RICHWFWStat = new RICHWFWStat();
 }
 
@@ -144,6 +149,37 @@ export type RICFileStartResp = {
   batchAckSize: number;
 };
 
+export class RICStateInfo {
+  smartServos: ROSSerialSmartServos = new ROSSerialSmartServos();
+  smartServosValidMs = 0;
+  imuData: ROSSerialIMU = new ROSSerialIMU();
+  imuDataValidMs = 0;
+  power: ROSSerialPowerStatus = new ROSSerialPowerStatus();
+  powerValidMs = 0;
+  addOnInfo: ROSSerialAddOnStatusList = new ROSSerialAddOnStatusList();
+  addOnInfoValidMs = 0;
+  robotStatus: ROSSerialRobotStatus = new ROSSerialRobotStatus();
+  robotStatusValidMs = 0;
+  cameraData: ROSCameraData = new ROSCameraData();
+  cameraDataValidMs = 0;
+
+  updateFromROSSerialMsg(
+    rxMsg: Uint8Array,
+    commsStats: RICCommsStats,
+    addOnManager: RICAddOnManager,
+    frameTimeMs: number
+  ): Array<number> {
+    return RICROSSerial.decode(
+      rxMsg,
+      RICSERIAL_PAYLOAD_POS,
+      commsStats,
+      addOnManager,
+      this,
+      frameTimeMs
+    );
+  }
+}
+
 export type RICStreamStartResp = {
   rslt: string;
   streamID: number;
@@ -161,22 +197,22 @@ export type RICFile = {
 };
 
 export class RICFileList {
-  req = '';
-  rslt = 'ok';
-  fsName = 'spiffs';
-  fsBase = '/spiffs';
+  req = "";
+  rslt = "ok";
+  fsName = "spiffs";
+  fsBase = "/spiffs";
   diskSize = 0;
   diskUsed = 0;
-  folder = '/spiffs/';
+  folder = "/spiffs/";
   files: Array<RICFile> = [];
 }
 
 /**
  * RICHWElem
- * 
+ *
  * @description
  * Information about a hardware element
- * 
+ *
  * @field name: string - element name
  * @field type: string - element type
  * @field busName: string - name of bus (e.g. I2C) attached to
@@ -204,8 +240,8 @@ export type RICHWElem = {
 };
 
 export class RICHWElemList {
-  req = '';
-  rslt = 'ok';
+  req = "";
+  rslt = "ok";
   hw: Array<RICHWElem> = [];
 }
 
@@ -223,8 +259,8 @@ export type RICHWElem_Min = {
 
 export class RICHWElemList_Min {
   // Members
-  req = '';
-  rslt = 'ok';
+  req = "";
+  rslt = "ok";
   hw: Array<RICHWElem_Min> = [];
 
   // Method to convert to RICHWElemList
@@ -234,8 +270,8 @@ export class RICHWElemList_Min {
       hwList.hw.push({
         name: hwElem.n,
         type: hwElem.t,
-        busName: '',
-        addr: '',
+        busName: "",
+        addr: "",
         addrValid: 0,
         IDNo: hwElem.I,
         whoAmI: hwElem.w,
@@ -261,8 +297,8 @@ export type RICHWElemList_Name = {
 
 // RICHWElemList containing coded strings for each HWElem field
 export class RICHWElemList_Str {
-  req = '';
-  rslt = 'ok';
+  req = "";
+  rslt = "ok";
   hw: Array<RICHWElem_Str> = [];
 
   // Method to convert to RICHWElemList
@@ -270,7 +306,7 @@ export class RICHWElemList_Str {
     const hwList = new RICHWElemList();
     for (const hwElem of hwStr.hw) {
       if (hwElem.a) {
-        const hwElemStr = hwElem.a.split('|');
+        const hwElemStr = hwElem.a.split("|");
         hwList.hw.push({
           name: RICHWElemList_Str.unesc(hwElemStr[0]),
           type: RICHWElemList_Str.unesc(hwElemStr[1]),
@@ -291,16 +327,16 @@ export class RICHWElemList_Str {
 
   // Method to unescape a pipe character
   static unesc(s: string): string {
-    return s.replace(/\/x7c/g, '|');
+    return s.replace(/\/x7c/g, "|");
   }
 }
 
 /**
  * RICAddOn
- * 
+ *
  * @description
  * Information about an add-on
- * 
+ *
  * @field name: string - Name of add-on
  * @field SN: string - Serial number
  * @field poll: string - polling type ("status")
@@ -316,18 +352,18 @@ export type RICAddOn = {
 };
 
 export class RICConfiguredAddOns {
-  req = '';
-  rslt = 'ok';
+  req = "";
+  rslt = "ok";
   addons: Array<RICAddOn> = [];
 }
 
 /**
  * AddOnElemAndConfig
- * 
+ *
  * @description
  * Carrier of information about an add-on combining
  * the add-on element and the add-on configuration
- * 
+ *
  * @field addOnConfig: RICAddOn - Add-on configuration
  * @field hwElemRec: RICHWElem - Add-on element
  * @field elemIdx: number - Index of the add-on element
@@ -336,7 +372,7 @@ export class AddOnElemAndConfig {
   constructor(
     addOnConfig: RICAddOn | null,
     hwElemRec: RICHWElem | null,
-    elemIdx: number,
+    elemIdx: number
   ) {
     this.isConfigured = addOnConfig !== null;
     this.isConnected = hwElemRec !== null;
@@ -357,19 +393,19 @@ export class AddOnElemAndConfig {
   // Fields from HWElem (from hwstatus command)
   hwElemRec: RICHWElem | null = null;
   // Fields allocated when combining records
-  name = '';
-  SN = '';
-  id = '0';
+  name = "";
+  SN = "";
+  id = "0";
   isConnected = false;
   isConfigured = false;
 }
 
 export class RICSysModInfoBLEMan {
-  req?= '';
-  rslt = 'ok';
+  req? = "";
+  rslt = "ok";
   isConn = false;
   isAdv = false;
-  advName?= "";
+  advName? = "";
   BLEMAC = "";
   rssi = -200;
   rxM = 0;
@@ -380,17 +416,16 @@ export class RICSysModInfoBLEMan {
   txBPS = 0.0;
   txErr = 0;
   txErrPS = 0;
-  tM?= 0;
-  tB?= 0;
-  tBPS?= 0.0;
-  tSeqErrs?= 0;
-  tDatErrs?= 0;
+  tM? = 0;
+  tB? = 0;
+  tBPS? = 0.0;
+  tSeqErrs? = 0;
+  tDatErrs? = 0;
 }
 
 export type RICProgressCBType = (received: number, total: number) => void;
 
-export class RICFileDownloadResult
-{
+export class RICFileDownloadResult {
   fileData: Uint8Array | null = null;
   downloadedOk = false;
   constructor(buffer: Uint8Array | undefined = undefined) {
@@ -402,20 +437,22 @@ export class RICFileDownloadResult
       this.downloadedOk = false;
     }
   }
-
 }
 
-export type RICFileDownloadFn = (downloadUrl: string, progressCB: RICProgressCBType) => Promise<RICFileDownloadResult>;
+export type RICFileDownloadFn = (
+  downloadUrl: string,
+  progressCB: RICProgressCBType
+) => Promise<RICFileDownloadResult>;
 
 export type RICLEDPatternCheckerColour = {
   led: string;
   lcd: string;
-}
+};
 
 export type RICFileDownloadResp = {
   req: string;
   rslt: string;
-}
+};
 
 export type RICFileDownloadStartResp = {
   req: string;
@@ -425,7 +462,7 @@ export type RICFileDownloadStartResp = {
   streamID: number;
   fileLen: number;
   crc16: string;
-}
+};
 
 export type RICLedLcdColours = Array<RICLEDPatternCheckerColour>;
 
@@ -456,10 +493,9 @@ export type PystatusMsgType = {
   rslt: string;
 };
 
-
 export type RICServoFaultFlags = {
-  intermittentConnection: boolean,
-  noConnection: boolean,
-  faultyConnection: boolean,
-  servoHornPositionError: boolean
+  intermittentConnection: boolean;
+  noConnection: boolean;
+  faultyConnection: boolean;
+  servoHornPositionError: boolean;
 };
