@@ -5,16 +5,24 @@ import { RICConnEvent } from '../../../src/RICConnEvents';
 import { RICUpdateEvent } from '../../../src/RICUpdateEvents';
 import RICConnector from '../../../src/RICConnector';
 import { fileDownloader, otaUpdateCancel, otaUpdateCheck, otaUpdateStart } from './update';
+import RICLog, { RICLogLevel } from '../../../src/RICLog';
+import { RICPublishEvent } from '../../../src/RICTypes';
+import { ROSCameraData, ROSTOPIC_V2_CAMERA } from '../../../src/RICROSSerial';
+import { stat } from 'fs';
 
 let startTime = Date.now();
-function eventListener(eventType: string, eventEnum: RICConnEvent | RICUpdateEvent, eventName: string, eventData?: object | string | null) {
-  const eventField = document.getElementById("event-field") as HTMLElement;
-  if (eventField) {
-    if (eventField.innerHTML.length === 0) {
-      eventField.innerHTML = "<div>Events</div>";
+function eventListener(eventType: string, eventEnum: RICConnEvent | RICUpdateEvent | RICPublishEvent, 
+          eventName: string, eventData?: object | string | null) {
+
+  if (eventType !== 'pub') {
+    const eventField = document.getElementById("event-field") as HTMLElement;
+    if (eventField) {
+      if (eventField.innerHTML.length === 0) {
+        eventField.innerHTML = "<div>Events</div>";
+      }
+      const timeStr = ((Date.now() - startTime) / 1000).toFixed(1);
+      eventField.innerHTML += `<div><span class="event-time-info">${timeStr}</span><span class="event-info">${eventName}</span><span class="event-info">${eventData?JSON.stringify(eventData):""}</span></div>`;
     }
-    const timeStr = ((Date.now() - startTime) / 1000).toFixed(1);
-    eventField.innerHTML += `<div><span class="event-time-info">${timeStr}</span><span class="event-info">${eventName}</span><span class="event-info">${eventData?JSON.stringify(eventData):""}</span></div>`;
   }
 
   // Handle specific events
@@ -25,7 +33,7 @@ function eventListener(eventType: string, eventEnum: RICConnEvent | RICUpdateEve
         case RICConnEvent.CONN_VERIFYING_CORRECT_RIC:
           {
             checkField.innerHTML = `<div>Check LEDs</div>`;
-            const eventLeds = eventData! as Array<string>;
+            const eventLeds = eventData as Array<string>;
             for (let idx = 0; idx < eventLeds.length; idx++) {
               checkField.innerHTML += pixGetColourStr(idx, eventLeds[idx]);
             }
@@ -42,8 +50,48 @@ function eventListener(eventType: string, eventEnum: RICConnEvent | RICUpdateEve
             break;
           }
       }
+    } else if (eventType === 'pub') {
+      switch (eventEnum) {
+        case RICPublishEvent.PUBLISH_EVENT_DATA:
+          {
+            // Debug
+            const eventDataObj = eventData as { [key: string]: any };
+            RICLog.debug(`PUBLISH_EVENT_DATA ${eventDataObj['topicIDs']}`);
+
+            // Check topic
+            if (eventDataObj['topicIDs'].includes(ROSTOPIC_V2_CAMERA)) {
+
+              // Show latest camera image
+              const cameraData = ricConnector.getRICStateInfo().cameraData as ROSCameraData;
+              const statusContainer = document.getElementById('camera-image-container');
+              if (statusContainer !== null) {
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(
+                  new Blob([cameraData.cameraData.imageData], { type: 'image/jpeg' })
+                );
+                statusContainer.replaceChildren(img);
+                // Timestamp, etc
+                const imageWidth = cameraData.cameraData.imageWidth;
+                const imageHeight = cameraData.cameraData.imageHeight;
+                const imageFormat = cameraData.cameraData.imageFormat;
+                const imageQuality = cameraData.cameraData.imageQuality;
+                const timeStr = new Date(cameraData.cameraData.unixTimeMs).toUTCString() + " " + 
+                      (cameraData.cameraData.unixTimeMs % 1000).toString();
+                const frameTimeMs = cameraData.cameraData.frameTimeMs == 0 ? 1000 : cameraData.cameraData.frameTimeMs;
+                const imageLen = cameraData.cameraData.imageData.length;
+                const frameRatePS = (imageLen / (frameTimeMs / 1000)).toFixed(0);
+                statusContainer.innerHTML += `<div>UTC ${timeStr} Width ${imageWidth} Height ${imageHeight} Format ${imageFormat} Quality ${imageQuality} Size ${imageLen} Rate ${frameRatePS}Bytes/s</div>`;
+              }
+            }
+            break;
+          }
+      }
     }
   }
+}
+
+function logMsgFn(logLevel: RICLogLevel, msg: string): void {
+  console.log('[' + new Date().toISOString().substring(11,23) + '] -', msg);
 }
 
 globalThis.ricConnector = new RICConnector();
@@ -54,6 +102,7 @@ if (globalThis.ricConnector) {
   globalThis.ricConnector.setEventListener(eventListener);
 }
 globalThis.ricPrevData = {};
+RICLog.setLogListener(logMsgFn);
 
 function formatStatus(name: string, status: any, validMs:number | undefined | null, formatFn: any, elId: string) {
   if (!globalThis.ricConnector.isConnected() || !status) {
@@ -116,13 +165,23 @@ function addButtons(defs: Array<{ name: string, button: string, func: any, param
     const buttonDiv = document.createElement('div');
     buttonDiv.classList.add('button-row');
     let buttonText = def.button;
-    if (buttonText === "%1") {
-      buttonText = def.params[0] as string;
+    if (buttonText.includes("|")) {
+      const buttonParts = buttonText.split("|");
+      const buttonTags = (def.params[1] as string).split("|");
+      buttonDiv.innerHTML = `<div class = "button-container"><span class="example-name">${def.name}</span>
+          <select class="list-select" id="${def.params[0]}">
+            <option value="${buttonParts[0]}" data-tag="${buttonTags[0]}">${buttonParts[0]}</option>
+            <option value="${buttonParts[1]}" data-tag="${buttonTags[1]}">${buttonParts[1]}</option>
+          </select></div>`;
+    } else {
+      if (buttonText === "%1") {
+        buttonText = def.params[0] as string;
+      }
+      buttonDiv.innerHTML = `<div class = "button-container"><span class="example-name">${def.name}</span><button class="list-button">${buttonText}</button></div>`;
+      buttonDiv.addEventListener('click', () => {
+        def.func(def.params);
+      });
     }
-    buttonDiv.innerHTML = `<div class = "button-container"><span class="example-name">${def.name}</span><button class="list-button">${buttonText}</button></div>`;
-    buttonDiv.addEventListener('click', () => {
-      def.func(def.params);
-    });
     container.appendChild(buttonDiv);
   });
 }
@@ -148,6 +207,84 @@ function genStatusBlock(id: string, elclass: string | Array<string>, parent: Ele
   statusBlock.id = id;
   parent.appendChild(statusBlock);
   return statusBlock;
+}
+
+function setFileRxStatusMsg(msg: string): void {
+  const statusContainer = document.getElementById('file-status-container');
+  if (statusContainer !== null) {
+    statusContainer.innerHTML = "";
+    const status = document.createElement('div');
+    status.innerHTML = `<div>${msg}</div>`;
+    status.classList.add('status');
+    statusContainer.appendChild(status);
+  }
+}
+
+function fileRxProgressCB(progress: number, total: number): void {
+  setFileRxStatusMsg(`File transfer progress ${progress} / ${total}`);
+}
+
+function i2hex(i: number): string {
+  const hex = i.toString(16);
+  return (hex.length === 1 ? "0" + hex : hex) + " ";
+}
+
+export async function fileRxGetContent(params: string[]): Promise<boolean> {
+  const startTime = Date.now();
+  let result = null;
+  let source = params[1];
+  if (source.includes("#")) {
+    const selectElem = document.getElementById(params[1].substring(1)) as HTMLSelectElement;
+    if (selectElem)
+      source = selectElem.options[selectElem.selectedIndex].getAttribute("data-tag");
+  }
+  try {
+    result = await globalThis.ricConnector.fsGetContents(params[0], source, fileRxProgressCB);
+  } catch (err) {
+    setFileRxStatusMsg(`fileRxGetContent error ${err}`);
+    return false;
+  }
+  console.log(`fileRxGetContent resultOk ${result.downloadedOk} length ${result.fileData ? result.fileData.length : 0}`);
+  setFileRxStatusMsg(`Received ${result.downloadedOk ? "OK" : "Failed"} ${result.fileData ? result.fileData.length : 0} bytes in ${((Date.now() - startTime) / 1000).toFixed(1)} seconds is ${result.fileData ? (result.fileData.length / ((Date.now() - startTime) / 1000)).toFixed(0) : 0} bytes/sec`);
+
+  // // Display the contents as hex string
+  // const hexContainer = document.getElementById('file-status-container');
+  // if (hexContainer !== null && result.fileData !== null) {
+  //   const hex = document.createElement('div');
+  //   const hexStr = Array.from(result.fileData).map(i2hex).join('');
+  //   hex.innerHTML = `<div>${hexStr}</div>`;
+  //   hex.classList.add('hex');
+  //   hexContainer.appendChild(hex);
+  // }
+
+  // Append an image with the contents
+  const statusContainer = document.getElementById('camera-image-container');
+  if (statusContainer !== null && result.fileData !== null) {
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(
+      new Blob([result.fileData], { type: 'image/jpeg' })
+    );
+    statusContainer.appendChild(img);
+  }
+  return true;
+}
+
+function selectButton(params: string[]): void {
+}
+
+function sendRESTMaybeBridged(params: Array<string>): void {
+
+  // TODO - establish bridge and send via bridge if selected
+  
+  // let source = params[1];
+  // if (source.includes("#")) {
+  //   const selectElem = document.getElementById(params[1].substring(1)) as HTMLSelectElement;
+  //   if (selectElem)
+  //     source = selectElem.options[selectElem.selectedIndex].getAttribute("data-tag");
+  // }
+
+
+  sendREST(params)
 }
 
 function component() {
@@ -183,6 +320,16 @@ function component() {
   genStatusBlock('wifi-status-container', 'info-status-container', statusContainer);
   genStatusBlock('comms-stats-container', 'info-status-container', statusContainer);
   genStatusBlock('response-field', ['info-status-container', 'info-status-scroll'], statusContainer);
+
+  const fileStatusContainer = document.createElement('div');
+  fileStatusContainer.classList.add('file-status-container');
+  fileStatusContainer.id = 'file-status-container';
+  statusContainer.appendChild(fileStatusContainer);
+
+  const cameraImageContainer = document.createElement('div');
+  fileStatusContainer.classList.add('camera-image-container');
+  fileStatusContainer.id = 'camera-image-container';
+  statusContainer.appendChild(cameraImageContainer);
 
   const buttonsContainer = document.createElement('div');
   buttonsContainer.classList.add('buttons-container');
@@ -233,10 +380,19 @@ function component() {
     { name: "5V Off", button: "%1", func: sendREST, params: ["pwrctrl/5voff"] },
     { name: "WiFi Scan", button: "Start", func: sendREST, params: ["wifiscan/start"] },
     { name: "WiFi Scan", button: "Results", func: sendREST, params: ["wifiscan/results"] },
+
+    { name: "File", button: "Get index.html", func: fileRxGetContent, params: ["index.html", "fs"] },
+    { name: "Camera", button: "Bridged|Direct", func: selectButton, params: ["select-camera", "bridgeserial1|fs"] },
+    { name: "Camera", button: "Set res 160x120", func: sendRESTMaybeBridged, params: ["camera/0/set?size=160x120&quality=10", "#select-camera"] },
+    { name: "Camera", button: "Set res 320x240", func: sendRESTMaybeBridged, params: ["camera/0/set?size=320x240&quality=10", "#select-camera"] },
+    { name: "Camera", button: "Set res 640x480", func: sendRESTMaybeBridged, params: ["camera/0/set?size=640x480&quality=10", "#select-camera"] },
+    { name: "Camera", button: "Set res 1280x720", func: sendRESTMaybeBridged, params: ["camera/0/set?size=1280x720&quality=10", "#select-camera"] },
+    { name: "Camera", button: "Get image", func: fileRxGetContent, params: ["/cam/img.jpeg", "#select-camera"] },
+    { name: "Camera", button: "Subscribe 1fps", func: sendRESTMaybeBridged, params: ["subscription?action=update&name=Camera&rateHz=1.0", "#select-camera"] },
+
     { name: "Send File", button: "%1", func: sendFile, params: ["unplgivy.mp3"]},
     { name: "Send File", button: "%1", func: sendFile, params: ["soundtest_44100_48kbps.mp3"]},
     { name: "Send File", button: "%1", func: sendFile, params: ["soundtest_44100_192kbps.mp3"]},
-  ]
 
   // Add buttonDefs
   addButtons(webserialConnDefs, buttonsContainer);

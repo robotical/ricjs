@@ -277,6 +277,7 @@ export function commsStatusFormat(name:string, commsStats:RICCommsStats): string
     "RobotStatusRate": commsStats._msgRobotStatusPS.toFixed(2),
     "OtherTopic": commsStats._msgOtherTopic,
     "StreamBytes": commsStats._streamBytes,
+    "ROSBytesPS": commsStats.getROSSerialRate().toFixed(0),
   };
 
   return tableFormat(name, rxTxStats) + tableFormat("", pubStats);

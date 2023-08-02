@@ -18,6 +18,14 @@ import {
 } from './RICROSSerial';
 import { RICUpdateEvent } from './RICUpdateEvents';
 
+export enum RICPublishEvent {
+  PUBLISH_EVENT_DATA,
+}
+
+export const RICPublishEventNames = {
+  [RICPublishEvent.PUBLISH_EVENT_DATA]: 'PUBLISH_EVENT_DATA'
+};
+
 export enum RICIFType {
   RIC_INTERFACE_BLE,
   RIC_INTERFACE_WIFI,
@@ -34,7 +42,7 @@ export enum RICStreamType {
 
 export type RICEventFn = (
   eventType: string,
-  eventEnum: RICConnEvent | RICUpdateEvent,
+  eventEnum: RICConnEvent | RICUpdateEvent | RICPublishEvent,
   eventName: string,
   data?: object | string | null,
 ) => void;
@@ -142,18 +150,10 @@ export type RICStreamStartResp = {
   maxBlockSize?: number;
 };
 
-export class RICStateInfo {
-  smartServos: ROSSerialSmartServos = new ROSSerialSmartServos();
-  smartServosValidMs = 0;
-  imuData: ROSSerialIMU = new ROSSerialIMU();
-  imuDataValidMs = 0;
-  power: ROSSerialPowerStatus = new ROSSerialPowerStatus();
-  powerValidMs = 0;
-  addOnInfo: ROSSerialAddOnStatusList = new ROSSerialAddOnStatusList();
-  addOnInfoValidMs = 0;
-  robotStatus: ROSSerialRobotStatus = new ROSSerialRobotStatus();
-  robotStatusValidMs = 0;
-}
+export type RICBridgeSetupResp = {
+  rslt: string;
+  bridgeID: number;
+};
 
 export type RICFile = {
   name: string;
@@ -389,9 +389,20 @@ export class RICSysModInfoBLEMan {
 
 export type RICProgressCBType = (received: number, total: number) => void;
 
-export class RICFileDownloadResult {
+export class RICFileDownloadResult
+{
   fileData: Uint8Array | null = null;
   downloadedOk = false;
+  constructor(buffer: Uint8Array | undefined = undefined) {
+    if (buffer !== undefined) {
+      this.fileData = buffer;
+      this.downloadedOk = true;
+    } else {
+      this.fileData = null;
+      this.downloadedOk = false;
+    }
+  }
+
 }
 
 export type RICFileDownloadFn = (downloadUrl: string, progressCB: RICProgressCBType) => Promise<RICFileDownloadResult>;
@@ -399,6 +410,21 @@ export type RICFileDownloadFn = (downloadUrl: string, progressCB: RICProgressCBT
 export type RICLEDPatternCheckerColour = {
   led: string;
   lcd: string;
+}
+
+export type RICFileDownloadResp = {
+  req: string;
+  rslt: string;
+}
+
+export type RICFileDownloadStartResp = {
+  req: string;
+  rslt: string;
+  batchMsgSize: number;
+  batchAckSize: number;
+  streamID: number;
+  fileLen: number;
+  crc16: string;
 }
 
 export type RICLedLcdColours = Array<RICLEDPatternCheckerColour>;

@@ -189,6 +189,8 @@ export default class RICUpdateManager {
     return this._updateESPRequired || this._updateElemsRequired;
   }
 
+
+  // Mark: Firmware update ------------------------------------------------------------------------------------------------
   elemUpdateRequired(expectedVersion: string, actualVersion: string, dtid: number, addr: number, elemType: string){
     if (elemType != "SmartServo" && elemType != "RSAddOn") return false;
     const outdated = RICUtils.isVersionGreater(expectedVersion, actualVersion);
@@ -245,7 +247,6 @@ export default class RICUpdateManager {
     return elemsToUpdate;
   }
 
-  // Mark: Firmware udpate ------------------------------------------------------------------------------------------------
 
   async firmwareUpdate(): Promise<RICUpdateEvent> {
     // Check valid
@@ -282,7 +283,7 @@ export default class RICUpdateManager {
     const firmwareList: Array<RICFWInfo> = [];
     let mainFwInfo: RICFWInfo | null = null;
     this._latestVersionInfo.files.forEach((fileInfo) => {
-      if (fileInfo.updaters.includes("ota")) {
+      if (fileInfo.updaters.indexOf("ota") != -1) {
         fileInfo.downloadUrl = fileInfo.firmware || fileInfo.downloadUrl;
         if (fileInfo.elemType === this._firmwareTypeStrForMainFw) {
           mainFwInfo = fileInfo;
@@ -403,6 +404,7 @@ export default class RICUpdateManager {
             RICLog.debug(`Beginning file system update. Reformatting FS.`);
             await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(
               "reformatfs",
+              undefined,
               15000
             );
             // trigger and wait for reboot

@@ -21,12 +21,15 @@ import {
   ROSSerialRobotStatus,
 } from './RICROSSerial';
 import {
-  PROTOCOL_RICREST,
   RICSERIAL_MSG_NUM_POS,
   RICSERIAL_PAYLOAD_POS,
   RICSERIAL_PROTOCOL_POS,
   RICREST_REST_ELEM_CODE_POS,
   RICREST_HEADER_PAYLOAD_POS,
+  RICREST_FILEBLOCK_FILEPOS_POS,
+  RICREST_FILEBLOCK_PAYLOAD_POS,
+  RICREST_BRIDGE_PAYLOAD_POS,
+  RICREST_BRIDGE_ID_POS,
 } from './RICProtocolDefs';
 import RICMiniHDLC from './RICMiniHDLC';
 import RICAddOnManager from './RICAddOnManager';
@@ -49,9 +52,10 @@ export enum RICCommsMsgTypeCode {
 }
 
 export enum RICCommsMsgProtocol {
-  MSG_PROTOCOL_ROSSERIAL,
-  MSG_PROTOCOL_RESERVED_1,
-  MSG_PROTOCOL_RICREST,
+  MSG_PROTOCOL_ROSSERIAL = 0,
+  MSG_PROTOCOL_RESERVED_1 = 1,
+  MSG_PROTOCOL_RICREST = 2,
+  MSG_PROTOCOL_BRIDGE_RICREST = 3,
 }
 
 // Message results
@@ -69,12 +73,11 @@ export interface RICMessageResult {
     msgRsltJsonObj: object | null,
   ): void;
   onRxUnnumberedMsg(msgRsltJsonObj: object): void;
-  onRxSmartServo(smartServos: ROSSerialSmartServos): void;
-  onRxIMU(imuData: ROSSerialIMU): void;
-  onRxPowerStatus(powerStatus: ROSSerialPowerStatus): void;
-  onRxAddOnPub(addOnInfo: ROSSerialAddOnStatusList): void;
-  onRobotStatus(robotStatus: ROSSerialRobotStatus): void;
-  onRxOtherROSSerialMsg(topicID: number, payload: Uint8Array): void;
+  onRxFileBlock(
+    filePos: number,
+    fileBlockData: Uint8Array
+  ): void;
+  onRxROSSerialMsg(payload: Uint8Array, frameTimeMs: number): void;
 }
 
 export interface RICMessageSender {
@@ -158,7 +161,7 @@ export default class RICMsgHandler {
     this._reportMsgCallbacks.delete(callbackName);
   }
 
-  _onHDLCFrameDecode(rxMsg: Uint8Array): void {
+  _onHDLCFrameDecode(rxMsg: Uint8Array, frameTimeMs: number): void {
     // Add to stats
     this._commsStats.msgRx();
 
@@ -171,12 +174,30 @@ export default class RICMsgHandler {
     // RICLog.verbose(`_onHDLCFrameDecode len ${rxMsg.length}`);
 
     // Decode the RICFrame header
-    const rxMsgNum = rxMsg[RICSERIAL_MSG_NUM_POS] & 0xff;
-    const rxProtocol = rxMsg[RICSERIAL_PROTOCOL_POS] & 0x3f;
-    const rxMsgType = (rxMsg[RICSERIAL_PROTOCOL_POS] >> 6) & 0x03;
+    let rxMsgNum = rxMsg[RICSERIAL_MSG_NUM_POS] & 0xff;
+    let rxProtocol = rxMsg[RICSERIAL_PROTOCOL_POS] & 0x3f;
+    let rxMsgType = (rxMsg[RICSERIAL_PROTOCOL_POS] >> 6) & 0x03;
 
-    // Decode payload
-    if (rxProtocol == PROTOCOL_RICREST) {
+    // Check for RICREST bridging protocol
+    if (rxProtocol == RICCommsMsgProtocol.MSG_PROTOCOL_BRIDGE_RICREST) {
+
+      // Debug
+      const bridgeID = rxMsg.length > RICREST_BRIDGE_ID_POS ? rxMsg[RICREST_BRIDGE_ID_POS] : 0;
+      RICLog.info(
+        `_onHDLCFrameDecode RICREST bridge rx bridgeID ${bridgeID} len ${rxMsg.length}`
+      ); 
+
+      // Simply remove the wrapper
+      rxMsg = rxMsg.slice(RICREST_BRIDGE_PAYLOAD_POS);
+
+      // Get the message info from the unwrapped message
+      rxMsgNum = rxMsg[RICSERIAL_MSG_NUM_POS] & 0xff;
+      rxProtocol = rxMsg[RICSERIAL_PROTOCOL_POS] & 0x3f;
+      rxMsgType = (rxMsg[RICSERIAL_PROTOCOL_POS] >> 6) & 0x03;
+    }
+
+    // Check for RICREST protocol
+    if (rxProtocol == RICCommsMsgProtocol.MSG_PROTOCOL_RICREST) {
       RICLog.verbose(
         `_onHDLCFrameDecode RICREST rx msgNum ${rxMsgNum} msgDirn ${rxMsgType} ${RICUtils.bufferToHex(
           rxMsg,
@@ -215,19 +236,22 @@ export default class RICMsgHandler {
 
       } else {
         const binMsgLen = rxMsg.length - RICSERIAL_PAYLOAD_POS - RICREST_HEADER_PAYLOAD_POS;
-        RICLog.debug(
-          `_onHDLCFrameDecode RICREST rx binary message elemCode ${ricRestElemCode} len ${binMsgLen}`,
+        RICLog.verbose(
+          `_onHDLCFrameDecode RICREST rx binary message elemCode ${ricRestElemCode} len ${binMsgLen} data ${RICUtils.bufferToHex(rxMsg)}`,
         );
+        if (ricRestElemCode == RICRESTElemCode.RICREST_ELEM_CODE_FILEBLOCK) {
+          const filePos = RICUtils.getBEUint32FromBuf(rxMsg, RICSERIAL_PAYLOAD_POS + RICREST_HEADER_PAYLOAD_POS + RICREST_FILEBLOCK_FILEPOS_POS);
+          this._msgResultHandler?.onRxFileBlock(
+                filePos, 
+                rxMsg.slice(RICSERIAL_PAYLOAD_POS + RICREST_HEADER_PAYLOAD_POS + RICREST_FILEBLOCK_PAYLOAD_POS, rxMsg.length));
+        }
       }
+
+    // ROSSERIAL
     } else if (rxProtocol == RICCommsMsgProtocol.MSG_PROTOCOL_ROSSERIAL) {
       // Extract ROSSerial messages - decoded messages returned via _msgResultHandler
-      RICROSSerial.decode(
-        rxMsg,
-        RICSERIAL_PAYLOAD_POS,
-        this._msgResultHandler,
-        this._commsStats,
-        this._addOnManager,
-      );
+      // Send to RICROSSerial handler
+      this._msgResultHandler?.onRxROSSerialMsg(rxMsg, frameTimeMs);
     } else {
       RICLog.warn(`_onHDLCFrameDecode unsupported protocol ${rxProtocol}`);
     }
@@ -291,24 +315,28 @@ export default class RICMsgHandler {
 
   async sendRICRESTURL<T>(
     cmdStr: string,
+    bridgeID: number | undefined = undefined,
     msgTimeoutMs: number | undefined = undefined,
   ): Promise<T> {
     // Send
     return this.sendRICREST(
       cmdStr,
       RICRESTElemCode.RICREST_ELEM_CODE_URL,
+      bridgeID,
       msgTimeoutMs,
     );
   }
 
   async sendRICRESTCmdFrame<T>(
     cmdStr: string,
+    bridgeID: number | undefined = undefined,
     msgTimeoutMs: number | undefined = undefined,
   ): Promise<T> {
     // Send
     return this.sendRICREST(
       cmdStr,
       RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
+      bridgeID,
       msgTimeoutMs,
     );
   }
@@ -316,6 +344,7 @@ export default class RICMsgHandler {
   async sendRICREST<T>(
     cmdStr: string,
     ricRESTElemCode: RICRESTElemCode,
+    bridgeID: number | undefined = undefined,
     msgTimeoutMs: number | undefined = undefined,
   ): Promise<T> {
     // Put cmdStr into buffer
@@ -328,14 +357,60 @@ export default class RICMsgHandler {
       cmdStrTerm,
       ricRESTElemCode,
       true,
+      bridgeID,
       msgTimeoutMs,
     );
+  }
+
+  async sendRICRESTNoResp(
+    cmdStr: string,
+    ricRESTElemCode: RICRESTElemCode,
+    bridgeID: number | undefined = undefined,
+  ): Promise<boolean> {
+
+    // Check there is a sender
+    if (!this._msgSender) {
+      return false;
+    }
+
+    // Put cmdStr into buffer
+    const cmdBytes = new Uint8Array(cmdStr.length + 1);
+    RICUtils.addStringToBuffer(cmdBytes, cmdStr, 0);
+    cmdBytes[cmdBytes.length - 1] = 0;
+
+    // Form message
+    const cmdMsg = new Uint8Array(cmdBytes.length + RICREST_HEADER_PAYLOAD_POS);
+    cmdMsg[RICREST_REST_ELEM_CODE_POS] = ricRESTElemCode;
+    cmdMsg.set(cmdBytes, RICREST_HEADER_PAYLOAD_POS);
+
+    // Frame the message
+    let framedMsg = this.frameCommsMsg(cmdMsg, 
+      RICCommsMsgTypeCode.MSG_TYPE_COMMAND,
+      RICCommsMsgProtocol.MSG_PROTOCOL_RICREST,
+      true);
+
+    // Wrap if bridged
+    if (bridgeID !== undefined) {
+      framedMsg = this.bridgeCommsMsg(framedMsg, bridgeID);
+    } 
+    
+    // Encode like HDLC
+    const encodedMsg = this._miniHDLC.encode(framedMsg);
+
+    // Send
+    if (!await this._msgSender.sendTxMsg(encodedMsg, false)) {
+      RICLog.warn(`sendRICRESTNoResp failed to send message`);
+      this._commsStats.recordMsgNoConnection();
+    }
+
+    return true;
   }
 
   async sendRICRESTBytes<T>(
     cmdBytes: Uint8Array,
     ricRESTElemCode: RICRESTElemCode,
     withResponse: boolean,
+    bridgeID: number | undefined = undefined,
     msgTimeoutMs: number | undefined = undefined,
   ): Promise<T> {
     // Form message
@@ -349,6 +424,7 @@ export default class RICMsgHandler {
       RICCommsMsgTypeCode.MSG_TYPE_COMMAND,
       RICCommsMsgProtocol.MSG_PROTOCOL_RICREST,
       withResponse,
+      bridgeID,
       msgTimeoutMs,
     );
   }
@@ -358,6 +434,7 @@ export default class RICMsgHandler {
     msgDirection: RICCommsMsgTypeCode,
     msgProtocol: RICCommsMsgProtocol,
     withResponse: boolean,
+    bridgeID: number | undefined = undefined,
     msgTimeoutMs: number | undefined,
   ): Promise<T> {
 
@@ -367,23 +444,32 @@ export default class RICMsgHandler {
     }
 
     // Frame the message
-    const framedMsg = this.frameCommsMsg(msgPayload, msgDirection, msgProtocol, true);
-    if (!framedMsg) {
-      throw new Error('sendMsgAndWaitForReply failed to frame message');
+    let framedMsg = this.frameCommsMsg(msgPayload, msgDirection, msgProtocol, true);
+
+    // Wrap if bridged
+    if (bridgeID !== undefined) {
+      framedMsg = this.bridgeCommsMsg(framedMsg, bridgeID);
+      RICLog.info(`sendMsgAndWaitForReply - bridged idx ${bridgeID}`)
+    } else {
+      RICLog.info(`sendMsgAndWaitForReply - not bridged`)
     }
 
+    // Encode like HDLC
+    const encodedMsg = this._miniHDLC.encode(framedMsg);
+
     // Debug
-    // RICLog.verbose(
-    //   `sendMsgAndWaitForReply ${RICUtils.bufferToHex(framedMsg)}`,
-    // );
+    RICLog.info(
+      `sendMsgAndWaitForReply ${RICUtils.bufferToHex(encodedMsg)}`,
+    );
 
     // Return a promise that will be resolved when a reply is received or timeout occurs
     const promise = new Promise<T>((resolve, reject) => {
 
       // Update message tracking
       this.msgTrackingTxCmdMsg<T>(
-        framedMsg,
+        encodedMsg,
         withResponse,
+        bridgeID,
         msgTimeoutMs,
         resolve,
         reject,
@@ -404,19 +490,35 @@ export default class RICMsgHandler {
     const msgBuf = new Uint8Array(
       msgPayload.length + RICSERIAL_PAYLOAD_POS,
     );
-    msgBuf[0] = isNumbered ? this._currentMsgNumber & 0xff : 0;
-    msgBuf[1] = (msgDirection << 6) + msgProtocol;
+    msgBuf[RICSERIAL_MSG_NUM_POS] = isNumbered ? this._currentMsgNumber & 0xff : 0;
+    msgBuf[RICSERIAL_PROTOCOL_POS] = (msgDirection << 6) + msgProtocol;
 
     // Payload
     msgBuf.set(msgPayload, RICSERIAL_PAYLOAD_POS);
 
-    // Wrap into HDLC
-    return this._miniHDLC.encode(msgBuf);
+    // Return framed message
+    return msgBuf;
+  }
+
+  bridgeCommsMsg(
+    msgBuf: Uint8Array,
+    bridgeID: number
+  ) {
+    // 
+    const bridgedMsg = new Uint8Array(msgBuf.length + RICREST_BRIDGE_PAYLOAD_POS);
+
+    // Bridged messages are unnumbered (msgNum == 0)
+    bridgedMsg[RICSERIAL_MSG_NUM_POS] = 0;
+    bridgedMsg[RICSERIAL_PROTOCOL_POS] = (RICCommsMsgTypeCode.MSG_TYPE_COMMAND << 6) + RICCommsMsgProtocol.MSG_PROTOCOL_BRIDGE_RICREST;
+    bridgedMsg[RICREST_BRIDGE_ID_POS] = bridgeID;
+    bridgedMsg.set(msgBuf, RICREST_BRIDGE_PAYLOAD_POS);
+    return bridgedMsg;
   }
 
   msgTrackingTxCmdMsg<T>(
     msgFrame: Uint8Array,
     withResponse: boolean,
+    bridgeID: number | undefined = undefined,
     msgTimeoutMs: number | undefined,
     resolve: (arg: T) => void,
     reject: (reason: Error) => void,
@@ -430,6 +532,7 @@ export default class RICMsgHandler {
       true,
       msgFrame,
       withResponse,
+      bridgeID,
       this._currentMsgHandle,
       msgTimeoutMs,
       resolve,

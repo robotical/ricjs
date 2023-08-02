@@ -55,6 +55,10 @@ export default class RICCommsStats {
   _streamBytes = 0;
   _fileBytes = 0;
 
+  _rosSerialRxRate = 0;
+  _rosSerialRxTotalBytes = 0;
+  _rosSerialRxTotalTimeMs = 0;
+
   clear() {
     this._msgRxCount = 0;
     this._msgRxCountInWindow = 0;
@@ -96,6 +100,9 @@ export default class RICCommsStats {
     this._msgNoConnection = 0;
     this._streamBytes = 0;
     this._fileBytes = 0;
+    this._rosSerialRxRate = 0;
+    this._rosSerialRxTotalBytes = 0;
+    this._rosSerialRxTotalTimeMs = 0;
   }
 
   msgRx(): void {
@@ -189,6 +196,15 @@ export default class RICCommsStats {
     return this._msgRobotStatusPS;
   }
 
+  getROSSerialRate(): number {
+    if (this._rosSerialRxTotalTimeMs > 0) {
+      return (
+        (1000.0 * this._rosSerialRxTotalBytes) / this._rosSerialRxTotalTimeMs
+      );
+    }
+    return 0;
+  }
+
   getRTWorstMs(): number {
     return this._msgRoundtripWorstMs;
   }
@@ -274,5 +290,13 @@ export default class RICCommsStats {
 
   recordFileBytes(bytes: number): void {
     this._fileBytes += bytes;
+  }
+
+  updateROSSerialRxRate(frameLen: number, timeMs: number): void {
+    if ((frameLen != 0) && (timeMs != 0)) {
+      this._rosSerialRxRate = (1000*frameLen) / timeMs;
+      this._rosSerialRxTotalTimeMs += timeMs;
+      this._rosSerialRxTotalBytes += frameLen;
+    }
   }
 }

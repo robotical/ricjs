@@ -14,11 +14,17 @@ import
   RICRESTElemCode,
 } from './RICMsgHandler';
 import {
+  RICBridgeSetupResp,
+  RICFileDownloadResult,
+  RICFileDownloadStartResp,
   RICFileSendType,
   RICFileStartResp,
   RICOKFail,
+  RICProgressCBType,
 } from './RICTypes';
 import RICCommsStats from './RICCommsStats';
+import RICUtils from './RICUtils';
+import RICMiniHDLC from './RICMiniHDLC';
 
 class FileBlockTrackInfo {
   isDone = false;
@@ -60,7 +66,22 @@ export default class RICFileHandler {
   private _sendWithoutBatchAcks = false;
   private _ackedFilePos = 0;
   private _batchAckReceived = false;
-  private _isCancelled = false;
+  private _isTxCancelled = false;
+
+  // File receive info
+  private _isRxCancelled = false;
+  private _fileRxActive = false;
+  private _fileRxBatchMsgSize = 0;
+  private _fileRxBatchAckSize = 0;
+  private _fileRxStreamID = 0;
+  private _fileRxFileLen = 0;
+  private _fileRxCrc16 = 0;
+  private _fileRxBuffer = new Uint8Array(0);
+  private _fileRxLastAckTime = 0;
+  private _fileRxLastBlockTime = 0;
+  private _fileRxLastAckPos = 0;
+  private OVERALL_FILE_TRANSFER_TIMEOUT_MS = 100000;
+  private FILE_RX_ACK_RESEND_TIMEOUT_MS = 1000;
 
   // RICCommsStats
   private _commsStats: RICCommsStats;
@@ -90,24 +111,18 @@ export default class RICFileHandler {
     fileContents: Uint8Array,
     progressCallback: ((sent: number, total: number, progress: number) => void) | undefined,
   ): Promise<boolean> {
-    this._isCancelled = false;
+    this._isTxCancelled = false;
 
     // Send file start message
-    // RICLog.verbose('XXXXXXXXX _sendFileStartMsg start');
     if (!await this._sendFileStartMsg(fileName, fileType, fileContents))
       return false;
-    // RICLog.verbose('XXXXXXXXX _sendFileStartMsg done');
 
     // Send contents
-    // RICLog.verbose('XXXXXXXXX _sendFileContents start');
     if (!await this._sendFileContents(fileContents, progressCallback))
       return false;
-    // RICLog.verbose('XXXXXXXXX _sendFileContents done');
 
     // Send file end
-    // RICLog.verbose('XXXXXXXXX _sendFileEndMsg start');
     await this._sendFileEndMsg(fileName, fileType, fileContents);
-    // RICLog.verbose('XXXXXXXXX _sendFileEndMsg done');
 
     // Clean up
     await this.awaitOutstandingMsgPromises(true);
@@ -119,7 +134,7 @@ export default class RICFileHandler {
   async fileSendCancel(): Promise<void> {
     // Await outstanding promises
     await this.awaitOutstandingMsgPromises(true);
-    this._isCancelled = true;
+    this._isTxCancelled = true;
   }
 
   // Send the start message
@@ -312,9 +327,9 @@ export default class RICFileHandler {
     return new Promise((resolve, reject) => {
       const startTime = Date.now();
       const checkForAck = async () => {
-        if (this._isCancelled) {
+        if (this._isTxCancelled) {
           RICLog.debug('checkForAck - cancelling file upload');
-          this._isCancelled = false;
+          this._isTxCancelled = false;
           // Send cancel
           await this._sendFileCancelMsg();
           // abort the upload process
@@ -406,5 +421,252 @@ export default class RICFileHandler {
         }
       }
     }
+  }
+
+  async fileReceive(
+    fileName: string,
+    fileSource: string,
+    progressCallback: RICProgressCBType | undefined,
+  ): Promise<RICFileDownloadResult> {
+    this._isRxCancelled = false;
+
+    // Check for bridgeserial1..N as fileSource - in this case use the RICREST bridging protocol
+    // as attached devices using CommandSerial require bridging
+    let bridgeID: number | undefined = undefined;
+    const bridgeSerialPrefix = 'bridgeserial';
+    if (fileSource.startsWith(bridgeSerialPrefix)) {
+
+      // Establish a bridge
+      const martycamSerialPort = "Serial" + fileSource.slice(bridgeSerialPrefix.length);
+      const cmdResp = await this._msgHandler.sendRICRESTURL<RICBridgeSetupResp>(
+        `commandserial/bridge/setup?port=${martycamSerialPort}&name=fileSource`,
+      )
+      if (cmdResp.rslt != "ok") {
+        RICLog.error(`fileReceive - failed to setup bridge ${cmdResp.rslt}`);
+        return new RICFileDownloadResult();
+      }
+      bridgeID = cmdResp.bridgeID;
+
+      // Debug
+      RICLog.info(`fileReceive - bridge setup ${bridgeID}`);
+    }
+
+    // Send file start message
+    if (!await this._receiveFileStart(fileName, bridgeID))
+      return new RICFileDownloadResult();
+
+    // Send contents
+    const fileContents = await this._receiveFileContents(progressCallback, bridgeID);
+
+    // Send file end
+    await this._receiveFileEnd(fileName, bridgeID);
+
+    // Clean up
+    await this.awaitOutstandingMsgPromises(true);
+
+    // Complete
+    return fileContents;
+  }
+
+  async fileReceiveCancel(): Promise<void> {
+    this._isRxCancelled = true;
+  }
+
+  async _receiveFileStart(fileName: string, bridgeID: number | undefined) : Promise<boolean> {
+
+    const blockMaxSizeRequested = 5000;
+    const batchAckSizeRequested = 10;
+    const fileSrc = "fs";
+
+    // Request file transfer
+    // Frames follow the approach used in the web interface start, block..., end
+    const cmdMsg = `{"cmdName":"dfStart","reqStr":"getFile","fileType":"${fileSrc}",` +
+                    `"batchMsgSize":${blockMaxSizeRequested},` +
+                    `"batchAckSize":${batchAckSizeRequested},` +
+                    `"fileName":"${fileName}"}`
+
+    // Send
+    let cmdResp = null;
+    try {
+      cmdResp = await this._msgHandler.sendRICREST<RICFileDownloadStartResp>(
+        cmdMsg,
+        RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
+        bridgeID,
+      );
+    } catch (err) {
+      RICLog.error(`_receiveFileStartMsg error ${err}`);
+      return false;
+    }
+    RICLog.info(`_receiveFileStartMsg rslt ${JSON.stringify(cmdResp)}`);
+    if (cmdResp.rslt === 'ok') {
+      this._fileRxBatchMsgSize = cmdResp.batchMsgSize;
+      this._fileRxBatchAckSize = cmdResp.batchAckSize;
+      this._fileRxStreamID = cmdResp.streamID;
+      this._fileRxFileLen = cmdResp.fileLen;
+      this._fileRxCrc16 = parseInt(cmdResp.crc16, 16);
+      this._fileRxBuffer = new Uint8Array(0);
+      this._fileRxLastAckTime = 0;
+      this._fileRxLastAckPos = 0;
+      this._fileRxLastBlockTime = Date.now();
+      this._fileRxActive = true;
+    }
+    return cmdResp.rslt === 'ok';
+  }
+
+  async _receiveFileContents(
+        progressCallback: RICProgressCBType | undefined,
+        bridgeID: number | undefined
+  ): Promise<RICFileDownloadResult> {
+
+    // Wait for file to be received
+    return new Promise<RICFileDownloadResult>((resolve, reject) => {
+      const startTime = Date.now();
+      const checkForComplete = async () => {
+
+        // Check if we've received the whole file
+        if (this._fileRxFileLen === this._fileRxBuffer.length) {
+          this._fileRxActive = false;
+          // Progress callback
+          if (progressCallback) {
+            progressCallback(this._fileRxBuffer.length, this._fileRxFileLen);
+          }
+
+          // Check CRC
+          const crc16 = RICMiniHDLC.crc16(this._fileRxBuffer);
+          if (crc16 !== this._fileRxCrc16) {
+            RICLog.error(`_receiveFileContents - CRC error ${crc16} ${this._fileRxCrc16}`);
+            reject(new Error('fileReceive CRC error'));
+            return;
+          } else {
+            RICLog.info(`_receiveFileContents - CRC OK ${crc16} ${this._fileRxCrc16}`);
+          }
+          resolve(new RICFileDownloadResult(this._fileRxBuffer));
+          return;
+        }
+
+        // Check if file transfer cancelled
+        if (this._isRxCancelled) {
+          RICLog.info('_receiveFileContents - cancelling file upload');
+          this._isRxCancelled = false;
+          this._fileRxActive = false;
+          // Send cancel message
+          this._sendFileRxCancelMsg(bridgeID);
+          // abort the upload process
+          reject(new Error('fileReceive Cancelled'));
+          return;
+        }
+
+        // Check for timeouts
+        const now = Date.now();
+
+        // Check for overall timeouts
+        if ((now - startTime > this.OVERALL_FILE_TRANSFER_TIMEOUT_MS) || 
+            (now - this._fileRxLastBlockTime > this.BLOCK_ACK_TIMEOUT_MS)) {
+          RICLog.warn(`_receiveFileContents - time-out no new data received`);
+          this._fileRxActive = false;
+          reject(new Error('fileReceive failed'));
+          return;
+        }
+
+        // Check if time to send ack
+        let ackRequired = false;
+        if (Date.now() - this._fileRxLastAckTime > this.FILE_RX_ACK_RESEND_TIMEOUT_MS) {
+          ackRequired = true;
+        }
+
+        // Check if position to send ack
+        if (this._fileRxBuffer.length - this._fileRxLastAckPos >= this._fileRxBatchAckSize * this._fileRxBatchMsgSize) {
+          ackRequired = true;
+        }
+        // RICLog.info(`_receiveFileContents ${ackRequired ? "ACK_REQUIRED" : "ACK_NOTREQUIRED"}  ${this._fileRxBuffer.length} ${this._fileRxLastAckPos} ${this._fileRxBatchAckSize} ${this._fileRxBatchMsgSize}`); 
+
+        // Check if ack required
+        if (ackRequired) {
+
+          // Ack timing
+          this._fileRxLastAckTime = Date.now();
+          this._fileRxLastAckPos = this._fileRxBuffer.length;
+    
+          // Okto message
+          const cmdMsg = `{"cmdName":"dfAck","okto":${this._fileRxBuffer.length},` +
+                        `"streamID":${this._fileRxStreamID},"rslt":"ok"}`;
+
+          // Send without waiting for response
+          this._msgHandler.sendRICRESTNoResp(
+            cmdMsg,
+            RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
+            bridgeID
+          );
+
+          // Debug
+          RICLog.verbose(`_receiveFileContents ack generated at ${this._fileRxBuffer.length} msg ${cmdMsg}`);
+        }
+
+        // Progress callback
+        if (progressCallback) {
+          progressCallback(this._fileRxBuffer.length, this._fileRxFileLen);
+        }
+
+        // Set timeout for next check
+        setTimeout(checkForComplete, 50);
+      };
+      checkForComplete();
+    });
+  }
+
+  async _receiveFileEnd(fileName: string, bridgeID: number | undefined): Promise<boolean> {
+
+    // Send file end message
+    const cmdMsg = `{"cmdName":"dfAck","reqStr":"getFile","okto":${this._fileRxBuffer.length},` +
+          `"fileName":"${fileName}","streamID":${this._fileRxStreamID},"rslt":"ok"}`
+    this._msgHandler.sendRICRESTNoResp(
+      cmdMsg,
+      RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
+      bridgeID
+    );
+
+    // No longer active
+    this._fileRxActive = false;
+    return false;
+  }
+
+  async _sendFileRxCancelMsg(bridgeID: number | undefined): Promise<void> {
+    // Send file end message
+    const cmdMsg = `{"cmdName":"dfCancel","reqStr":"getFile","streamID":${this._fileRxStreamID}}`
+    this._msgHandler.sendRICRESTNoResp(
+      cmdMsg,
+      RICRESTElemCode.RICREST_ELEM_CODE_COMMAND_FRAME,
+      bridgeID
+    );
+  }
+
+  onFileBlock(
+    filePos: number,
+    fileBlockData: Uint8Array
+  ): void {
+    // RICLog.info(`onFileBlock filePos ${filePos} fileBlockData ${RICUtils.bufferToHex(fileBlockData)}`);
+
+    // Check if this is the next block we are expecting
+    if (filePos === this._fileRxBuffer.length) {
+
+      // Add to buffer
+      const tmpArray = new Uint8Array(this._fileRxBuffer.length + fileBlockData.length);
+      tmpArray.set(this._fileRxBuffer, 0);
+      tmpArray.set(fileBlockData, this._fileRxBuffer.length);
+      this._fileRxBuffer = tmpArray;
+
+      // Update last block time
+      this._fileRxLastBlockTime = Date.now();
+
+      // Debug
+      // RICLog.info(`onFileBlock filePos ${filePos} fileBlockData ${RICUtils.bufferToHex(fileBlockData)} added to buffer`);
+
+    } else {
+      RICLog.warn(`onFileBlock expected streamID ${this._fileRxStreamID} filePos ${filePos} fileBlockData ${RICUtils.bufferToHex(fileBlockData)} out of sequence`);
+    }
+  }
+
+  isFileRxActive(): boolean {
+    return this._fileRxActive;
   }
 }

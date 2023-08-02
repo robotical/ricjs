@@ -1,15 +1,13 @@
 body {
-    padding-top: 1rem;
     font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
 }
 
 .main-container {
-    font-size: 1rem;
+    font-size: 0.9rem;
 }
 
 .title {
     font-size: 1.2rem;
-    padding: 0.5rem 0.5rem;
     text-align: center;
 }
 
@@ -30,8 +28,8 @@ body {
 }
 
 .button-row {
-    margin: 0.5rem 0;
-    padding: 0.1rem;
+    margin: 0.1rem 0;
+    padding: 0.05rem;
     flex-direction: column;
     display: flex;
     background-color: #efefef;
@@ -163,10 +161,11 @@ td {
 
 .field-name {
     display: inline;
+    width: 20rem;
 }
 
 .progress-line {
-    display: block;
+    display: flex;
 }
 
 .event-time-info {
