@@ -63,10 +63,10 @@ export default class RICUpdateManager {
     private _ricSystem: RICSystem,
     private _eventListener: RICUpdateEventFn,
     private _firmwareTypeStrForMainFw: string,
-    private _nonFirmwareElemTypes: string[],
     private _currentAppVersion: string,
     private _fileDownloader: RICFileDownloadFn,
     private _firmwareUpdateURL: string,
+    private _firmwareBaseURL: string,
     private _ricChannel: RICChannel | null
   ) {}
 
@@ -83,12 +83,17 @@ export default class RICUpdateManager {
       // handle url modifications
       let updateURL = this._firmwareUpdateURL;
       const ricSystemInfo = this._ricSystem.getCachedSystemInfo();
-      if (ricSystemInfo && ricSystemInfo.RicHwRevNo) {
-        updateURL = updateURL.replace(
-          "{HWRevNo}",
-          ricSystemInfo.RicHwRevNo.toString()
-        );
+      if (!ricSystemInfo || !ricSystemInfo.RicHwRevNo){
+        RICLog.debug("checkForUpdate failed to get RIC info, either no channel or no system info");
+        RICLog.debug("ricSystemInfo:" + JSON.stringify(ricSystemInfo));
+        RICLog.debug("ricHwRevNo:" + ricSystemInfo!.RicHwRevNo);
+        return RICUpdateEvent.UPDATE_FAILED;
       }
+      updateURL = updateURL.replace(
+        "{HWRevNo}",
+        ricSystemInfo.RicHwRevNo.toString()
+      );
+
       // debug
       RICLog.debug(`Update URL: ${updateURL}`);
       const response = await axios.get(updateURL);
@@ -150,6 +155,8 @@ export default class RICUpdateManager {
       this._updateESPRequired = true;
     }
 
+    // TODO: check if elem updates are required using elemsUpdatesRequired()
+
     // Check if a previous hw-elem update didn't complete - but no point if we would update anyway
     if (!this._updateESPRequired) {
       try {
@@ -182,7 +189,64 @@ export default class RICUpdateManager {
     return this._updateESPRequired || this._updateElemsRequired;
   }
 
+
   // Mark: Firmware update ------------------------------------------------------------------------------------------------
+  elemUpdateRequired(expectedVersion: string, actualVersion: string, dtid: number, addr: number, elemType: string){
+    if (elemType != "SmartServo" && elemType != "RSAddOn") return false;
+    const outdated = RICUtils.isVersionGreater(expectedVersion, actualVersion);
+    if (!outdated) return false;
+    // if stm32, we only want to update the base elems
+    const stm32_dtid_mask = 0xFFFFFF00
+    const stm32_dtid_id   = 0x00000100
+    const stm32_base_elems = [0x10, 0x13, 0x16];
+    if ((dtid & stm32_dtid_mask) == stm32_dtid_id){
+      return stm32_base_elems.includes(addr);
+    }
+    return true;
+  }
+
+  getExpectedVersion(firmwareVersions: any, dtid: number){
+    if (Object.prototype.hasOwnProperty.call(firmwareVersions["dtid"], dtid)){
+      return firmwareVersions["dtid"][dtid]["version"];
+    }
+    return null;
+  }
+
+  async elemUpdatesRequired(): Promise<Array<any> | null> {
+    const elemsToUpdate = [];
+
+    const firmwareVersionsUrl = `${this._firmwareBaseURL}/firmware/firmwareVersions.json`;
+
+    // get elem firmware expected versions
+    const firmwareVersionResponse = await fetch(firmwareVersionsUrl);
+    if (!firmwareVersionResponse.ok) return null;
+    const firmwareVersionsJson = await firmwareVersionResponse.json();
+    RICLog.debug(`firmwareVersions response ${JSON.stringify(firmwareVersionsJson)}`);
+
+    // get connected elements
+    const hwstatus: any = await this._ricMsgHandler.sendRICRESTURL("hwstatus");
+    RICLog.debug(`hwstatus response: ${JSON.stringify(hwstatus)}`);
+    const hwElems = hwstatus["hw"];
+    // TODO: check if hwstatus is reporting versions as "0.0.0", if so pause and retry as robot is probably still starting up
+
+    for (const elem in hwElems){
+      // TODO: use RICHWElem type
+      const dtid = parseInt(hwElems[elem]["whoAmITypeCode"], 16);
+      const expectedVersion = this.getExpectedVersion(firmwareVersionsJson, dtid);
+      const actualVersion = hwElems[elem]["versionStr"];
+      const addr = parseInt(hwElems[elem]["addr"], 16);
+      const elemType = hwElems[elem]["type"];
+      const elemName = hwElems[elem]["name"];
+      RICLog.debug(`hwElem ${elemName} dtid ${dtid} addr ${addr} type ${elemType} expectedVersion ${expectedVersion} actual version ${actualVersion}`);
+      if (expectedVersion){
+        hwElems[elem]["expectedVersion"] = expectedVersion;
+        if (this.elemUpdateRequired(expectedVersion, actualVersion, dtid, addr, elemType))
+          elemsToUpdate.push(hwElems[elem]);
+      }
+    }
+    return elemsToUpdate;
+  }
+
 
   async firmwareUpdate(): Promise<RICUpdateEvent> {
     // Check valid
@@ -410,6 +474,10 @@ export default class RICUpdateManager {
       return RICUpdateEvent.UPDATE_FAILED;
     }
 
+    // TODO: check this is working
+    const allElemsUpdatedOk = await this.updateElems();
+
+    /*
     // Issue requests for hw-elem firmware updates
     let elemFwIdx = 0;
     let allElemsUpdatedOk = true;
@@ -431,51 +499,9 @@ export default class RICUpdateManager {
       // Non-firmware elemTypes
       if (this._nonFirmwareElemTypes.includes(elemFw.elemType)) continue;
 
-      // Start hw-elem update
-      const updateCmd = `hwfwupd/${elemFw.elemType}/${elemFw.destname}/all`;
-      try {
-        await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(updateCmd);
-      } catch (error) {
-        RICLog.debug(
-          `fwUpdate failed to start hw-elem firmware update cmd ${updateCmd}`
-        );
-
-        // Continue with other firmwares
-        continue;
-      }
-
-      // Check the status
-      for (
-        let updateCheckLoop = 0;
-        updateCheckLoop < this.ELEM_FW_CHECK_LOOPS;
-        updateCheckLoop++
-      ) {
-        try {
-          // Wait for process to start on ESP32
-          await new Promise((resolve) => setTimeout(resolve, 5000));
-
-          // Get result (or status)
-          const elUpdRslt =
-            await this._ricMsgHandler.sendRICRESTURL<RICHWFWUpdRslt>("hwfwupd");
-
-          // Check result
-          if (
-            elUpdRslt.rslt === "ok" &&
-            (elUpdRslt.st.s === "idle" || elUpdRslt.st.s === "done")
-          ) {
-            RICLog.debug(
-              `fwUpdate hw-elem firmware updated ok - status ${elUpdRslt.st.s} rsltmsg ${elUpdRslt.st.m}`
-            );
-
-            // Check if any update outstanding (incomplete === 0)
-            allElemsUpdatedOk = elUpdRslt.st.i === 0;
-            break;
-          }
-        } catch (error) {
-          RICLog.debug(`failed to get hw-elem firmware update status`);
-        }
-      }
+      await this.updateElem(elemFw);
     }
+    */
 
     // Done update
     this._eventListener(RICUpdateEvent.UPDATE_PROGRESS, {
@@ -491,6 +517,117 @@ export default class RICUpdateManager {
       this._eventListener(updateResult, this._ricSystem.getCachedSystemInfo());
     }
     return updateResult;
+  }
+
+  async updateElems(elemsToUpdate: Array<any> | null = null): Promise<boolean>{
+    if (elemsToUpdate === null)
+     elemsToUpdate = await this.elemUpdatesRequired();
+    if (elemsToUpdate === null) return false;
+
+    let progress = this._progressAfterUpload;
+    const progressPerElem = (1 - progress) / elemsToUpdate.length;
+
+    let allElemsUpdatedOk = true;
+
+    const updatedDtids: Array<number> = [];
+    for (const elem in elemsToUpdate){
+      const dtid = parseInt(elemsToUpdate[elem]["whoAmITypeCode"], 16);
+      const expectedVersion = elemsToUpdate[elem]["expectedVersion"];
+      const actualVersion = elemsToUpdate[elem]["versionStr"];
+      const elemType = elemsToUpdate[elem]["type"];
+      const elemName = elemsToUpdate[elem]["name"];
+      RICLog.debug(`hwElem ${elemsToUpdate[elem]["name"]} dtid ${dtid} type ${elemType} expectedVersion ${expectedVersion} actual version ${actualVersion}`);
+      if (expectedVersion){
+        // only need to send each firmware file once
+        const sendFile = updatedDtids.includes(dtid) ? false : true;
+        if (!await this.updateHWElem(elemName, dtid, elemType, expectedVersion, sendFile))
+          allElemsUpdatedOk = false;
+        updatedDtids.push(dtid);
+
+        progress += progressPerElem;
+        this._eventListener(RICUpdateEvent.UPDATE_PROGRESS, {
+          stage: "Updating elements",
+          progress: progress,
+          updatingFilesystem: true,
+        });
+      }
+    }
+
+    return allElemsUpdatedOk;
+  }
+
+  async  updateHWElem(elemName: string, dtid: number, elemType: string, expectedVersion: string, sendFile: boolean){
+    const dtidStr = dtid.toString(16).padStart(8, "0");
+    const destFwFilename = `fw${dtidStr}.rfw`;
+    if (sendFile){
+      const firmwareUrl = `${this._firmwareBaseURL}/firmware/${dtidStr}/fw${dtidStr}-${expectedVersion}.rfw`;
+      const firmware = await this._fileDownloader(firmwareUrl, (received, total)=>{RICLog.debug(`download received ${received} of total ${total}`)});
+      if (!firmware.downloadedOk || !firmware.fileData) return false;
+      if (!await this.fileSend(destFwFilename, RICFileSendType.RIC_NORMAL_FILE, firmware.fileData, (sent, total, progress)=>{console.log(`sent ${sent} total ${total} progress ${progress}`)}))
+        return false;
+    }
+    // double check file on RIC has the correct version
+    const fwResp = await this._ricMsgHandler.sendRICRESTURL<RICHWFWUpdRslt>(`hwfwupd//${destFwFilename}`);
+    if (fwResp.st.v != expectedVersion) return false;
+
+    const fwInfo: RICFWInfo = {
+      elemType: elemType,
+      destname: destFwFilename,
+      version: "",
+      md5: "",
+      releaseNotes: "",
+      comments: "",
+      updaters: [],
+      downloadUrl: ""
+    };
+    return await this.updateElem(fwInfo, elemName);
+  }
+
+  async updateElem(elemFw: RICFWInfo, elemNameOrAll = "all") {
+    // Start hw-elem update
+    const updateCmd = `hwfwupd/${elemFw.elemType}/${elemFw.destname}/${elemNameOrAll}`;
+    try {
+      await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(updateCmd);
+    } catch (error) {
+      RICLog.debug(
+        `fwUpdate failed to start hw-elem firmware update cmd ${updateCmd}`
+      );
+      return false;
+    }
+
+    let allElemsUpdatedOk = false;
+    // Check the status
+    for (
+      let updateCheckLoop = 0;
+      updateCheckLoop < this.ELEM_FW_CHECK_LOOPS;
+      updateCheckLoop++
+    ) {
+      try {
+        // Wait for process to start on ESP32
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+
+        // Get result (or status)
+        const elUpdRslt =
+          await this._ricMsgHandler.sendRICRESTURL<RICHWFWUpdRslt>("hwfwupd");
+
+        // Check result
+        if (
+          elUpdRslt.rslt === "ok" &&
+          (elUpdRslt.st.s === "idle" || elUpdRslt.st.s === "done")
+        ) {
+          RICLog.debug(
+            `fwUpdate hw-elem firmware updated ok - status ${elUpdRslt.st.s} rsltmsg ${elUpdRslt.st.m}`
+          );
+
+          // Check if any update outstanding (incomplete === 0)
+          allElemsUpdatedOk = elUpdRslt.st.i === 0;
+          break;
+        }
+      } catch (error) {
+        RICLog.debug(`failed to get hw-elem firmware update status`);
+      }
+    }
+    return allElemsUpdatedOk;
   }
 
   async manualReconnect() {

@@ -53,10 +53,10 @@ export interface RICSubscription {
 
 export class RICFriendlyName {
   friendlyName = '';
-  friendlyNameIsSet? = false;
-  req? = '';
-  rslt? = 'commsFail';
-  validMs? = 0;
+  friendlyNameIsSet?= false;
+  req?= '';
+  rslt?= 'commsFail';
+  validMs?= 0;
 }
 
 export class RICSystemInfo {
@@ -64,15 +64,15 @@ export class RICSystemInfo {
   SystemName = 'Unknown';
   SystemVersion = '0.0.0';
   RicHwRevNo = 0;
-  MAC? = "";
-  SerialNo? = "";
-  validMs? = 0;
+  MAC?= "";
+  SerialNo?= "";
+  validMs?= 0;
 }
 
 export class RICCalibInfo {
   rslt = '';
   calDone = 0;
-  validMs? = 0;
+  validMs?= 0;
 }
 
 export class RICOKFail {
@@ -254,6 +254,11 @@ export type RICHWElem_Str = {
   a: string;
 };
 
+export type RICHWElemList_Name = {
+  rslt: string;
+  hw: Array<string>;
+};
+
 // RICHWElemList containing coded strings for each HWElem field
 export class RICHWElemList_Str {
   req = '';
@@ -360,11 +365,11 @@ export class AddOnElemAndConfig {
 }
 
 export class RICSysModInfoBLEMan {
-  req? = '';
+  req?= '';
   rslt = 'ok';
   isConn = false;
   isAdv = false;
-  advName? = "";
+  advName?= "";
   BLEMAC = "";
   rssi = -200;
   rxM = 0;
@@ -375,11 +380,11 @@ export class RICSysModInfoBLEMan {
   txBPS = 0.0;
   txErr = 0;
   txErrPS = 0;
-  tM? = 0;
-  tB? = 0;
-  tBPS? = 0.0;
-  tSeqErrs? = 0;
-  tDatErrs? = 0;
+  tM?= 0;
+  tB?= 0;
+  tBPS?= 0.0;
+  tSeqErrs?= 0;
+  tDatErrs?= 0;
 }
 
 export type RICProgressCBType = (received: number, total: number) => void;
@@ -397,9 +402,10 @@ export class RICFileDownloadResult
       this.downloadedOk = false;
     }
   }
+
 }
 
-export type RICFileDownloadFn = (downloadUrl: string, progressCB:RICProgressCBType) => Promise<RICFileDownloadResult>;
+export type RICFileDownloadFn = (downloadUrl: string, progressCB: RICProgressCBType) => Promise<RICFileDownloadResult>;
 
 export type RICLEDPatternCheckerColour = {
   led: string;
@@ -451,3 +457,9 @@ export type PystatusMsgType = {
 };
 
 
+export type RICServoFaultFlags = {
+  intermittentConnection: boolean,
+  noConnection: boolean,
+  faultyConnection: boolean,
+  servoHornPositionError: boolean
+};

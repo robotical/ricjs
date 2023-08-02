@@ -12,9 +12,11 @@ import RICChannel from "./RICChannel";
 import RICChannelWebBLE from "./RICChannelWebBLE";
 import RICMsgHandler, { RICMsgResultCode } from "./RICMsgHandler";
 import RICChannelWebSocket from "./RICChannelWebSocket";
+import RICChannelWebSerial from "./RICChannelWebSerial";
 import RICLEDPatternChecker from "./RICLEDPatternChecker";
 import RICCommsStats from "./RICCommsStats";
-import { RICEventFn, RICFileDownloadFn, RICLedLcdColours, RICOKFail, RICFileDownloadResult, RICProgressCBType, RICPublishEvent, RICPublishEventNames } from "./RICTypes";
+import { RICEventFn, RICFileDownloadFn, RICLedLcdColours, RICOKFail, RICStateInfo, RICFileSendType, RICFileDownloadResult, RICProgressCBType, RICPublishEvent, RICPublishEventNames } from "./RICTypes";
+
 import RICAddOnManager from "./RICAddOnManager";
 import RICSystem from "./RICSystem";
 import RICFileHandler from "./RICFileHandler";
@@ -23,7 +25,8 @@ import RICLog, { RICLogLevel } from "./RICLog";
 import { RICConnEvent, RICConnEventNames } from "./RICConnEvents";
 import RICUpdateManager from "./RICUpdateManager";
 import { RICUpdateEvent, RICUpdateEventNames } from "./RICUpdateEvents";
-import { RICStateInfo } from "./RICStateInfo";
+
+import RICServoFaultDetector from "./RICServoFaultDetector";
 
 export default class RICConnector {
 
@@ -91,6 +94,9 @@ export default class RICConnector {
   // Event listener
   private _onEventFn: RICEventFn | null = null;
 
+  // RICServoFaultDetector for detecting servo faults
+  public ricServoFaultDetector: RICServoFaultDetector = new RICServoFaultDetector(this._ricMsgHandler, this._ricStateInfo);
+  
   constructor() {
 
     // Setup log level
@@ -100,22 +106,26 @@ export default class RICConnector {
     RICLog.debug('RICConnector starting up');
   }
 
-  setupUpdateManager(appVersion: string, appUpdateURL: string, fileDownloader: RICFileDownloadFn): void {
+  setupUpdateManager(appVersion: string, appUpdateURL: string, firmwareBaseURL: string, fileDownloader: RICFileDownloadFn): void {
     // Setup update manager
     const firmwareTypeStrForMainFw = 'main';
-    const nonFirmwareElemTypes = ['sound', 'traj'];
     this._ricUpdateManager = new RICUpdateManager(
       this._ricMsgHandler,
       this._ricFileHandler,
       this._ricSystem,
       this._onUpdateEvent.bind(this),
       firmwareTypeStrForMainFw,
-      nonFirmwareElemTypes,
       appVersion,
       fileDownloader,
       appUpdateURL,
+      firmwareBaseURL,
       this._ricChannel
     );
+  }
+
+  configureFileHandler(fileBlockSize: number, batchAckSize: number){
+    this._ricFileHandler.setRequestedFileBlockSize(fileBlockSize);
+    this._ricFileHandler.setRequestedBatchAckSize(batchAckSize);
   }
 
   setEventListener(onEventFn: RICEventFn): void {
@@ -166,6 +176,18 @@ export default class RICConnector {
     return this._ricChannel;
   }
 
+  getRICUpdateManager(): RICUpdateManager | null {
+    return this._ricUpdateManager;
+  }
+
+  getConnLocator(): any | null {
+    return this._ricChannel ? this._ricChannel.getConnectedLocator() : null;
+  }
+
+  pauseConnection(pause = true){
+    if (this._ricChannel) this._ricChannel.pauseConnection(pause);
+  }
+
   /**
    * Connect to a RIC
    *
@@ -196,7 +218,12 @@ export default class RICConnector {
       // Create channel
       this._ricChannel = new RICChannelWebSocket();
       connMethod = 'WebSocket';
-    } 
+    } else if (((method === 'WebSerial'))) {
+      this._ricChannel = new RICChannelWebSerial();
+      connMethod = 'WebSerial';
+    }
+
+    RICLog.debug(`connecting with connMethod ${connMethod}`);
 
     // Check channel established
     let connOk = false;
@@ -244,6 +271,8 @@ export default class RICConnector {
         }
       }
 
+      // configure file handler
+      this.configureFileHandler(this._ricChannel.fhFileBlockSize(), this._ricChannel.fhBatchAckSize());
     } else {
       this._channelConnMethod = "";
     }
@@ -495,6 +524,13 @@ export default class RICConnector {
     }
   }
 
+  async sendFile(fileName: string,
+    fileContents: Uint8Array,
+    progressCallback: ((sent: number, total: number, progress: number) => void) | undefined,
+  ): Promise<boolean> {
+    return this._ricFileHandler.fileSend(fileName, RICFileSendType.RIC_NORMAL_FILE, fileContents, progressCallback);
+  }
+
   // Mark: Streaming --------------------------------------------------------------------------------
   streamAudio(streamContents: Uint8Array, clearExisting: boolean, duration: number): void {
     if (this._ricStreamHandler && this.isConnected()) {
@@ -506,6 +542,7 @@ export default class RICConnector {
     return this._ricStreamHandler.isStreamStarting();
   }
 
+
   // Mark: File system --------------------------------------------------------------------------------
   // @param fileName - name of file to get
   // @param fileSource - source of file to get (e.g. "fs" or "bridgeserial1", if omitted defaults to "fs")
@@ -514,6 +551,10 @@ export default class RICConnector {
           fileSource: string,
           progressCallback: RICProgressCBType | undefined): Promise<RICFileDownloadResult> {
     return this._ricFileHandler.fileReceive(fileName, fileSource, progressCallback);
+}
+
+  setLegacySoktoMode(legacyMode: boolean){
+    return this._ricStreamHandler.setLegacySoktoMode(legacyMode);
   }
 
   // Mark: Connection performance--------------------------------------------------------------------------

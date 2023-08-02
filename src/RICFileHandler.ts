@@ -97,6 +97,14 @@ export default class RICFileHandler {
     this.onOktoMsg = this.onOktoMsg.bind(this);
   }
 
+  setRequestedFileBlockSize(blockSize: number){
+    this._requestedFileBlockSize = blockSize;
+  }
+
+  setRequestedBatchAckSize(batchAckSize: number){
+    this._requestedBatchAckSize = batchAckSize;
+  }
+
   async fileSend(
     fileName: string,
     fileType: RICFileSendType,
@@ -278,9 +286,9 @@ export default class RICFileHandler {
             this._batchAckReceived = false;
           }
           // Debug
-          // RICLog.debug(
-          //   `_sendFileContents sendblock pos ${sendFromPos} len ${this._fileBlockSize} ackedTo ${this._ackedFilePos} fileLen ${fileContents.length}`,
-          // );
+           RICLog.debug(
+             `_sendFileContents sendblock pos ${sendFromPos} len ${this._fileBlockSize} ackedTo ${this._ackedFilePos} fileLen ${fileContents.length}`,
+           );
           if (!await this._sendFileBlock(fileContents, sendFromPos))
             return false;
           sendFromPos += this._fileBlockSize;

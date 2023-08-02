@@ -1,4 +1,4 @@
-import { acceptCheckCorrectRIC, connectBLE, connectWiFi, disconnect, rejectCheckCorrectRIC, startCheckCorrectRIC } from './connect';
+import { acceptCheckCorrectRIC, connectBLE, connectWiFi, connectWebSerial, disconnect, rejectCheckCorrectRIC, startCheckCorrectRIC } from './connect';
 import { sendREST, streamSoundFile } from './stream';
 import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest, setReconnect, pixGetColourStr, commsStatusFormat, powerStatusFormat, addonValListFormat } from './system';
 import { RICConnEvent } from '../../../src/RICConnEvents';
@@ -352,6 +352,10 @@ function component() {
     { name: "Connect WiFi", button: "Connect", func: connectWiFi, params: [] as Array<string> },
   ]
 
+  const webserialConnDefs = [
+    { name: "Connect WebSerial", button: "Connect", func: connectWebSerial, params: [] as Array<string>},
+  ]
+
   const buttonDefs = [
     { name: "BLE Perf", button: "Perf Test BLE", func: connPerfTest, params: [] },
     { name: "Enable reconnect", button: "Reconnect 10s", func: setReconnect, params: [true, 10] },
@@ -376,6 +380,7 @@ function component() {
     { name: "5V Off", button: "%1", func: sendREST, params: ["pwrctrl/5voff"] },
     { name: "WiFi Scan", button: "Start", func: sendREST, params: ["wifiscan/start"] },
     { name: "WiFi Scan", button: "Results", func: sendREST, params: ["wifiscan/results"] },
+
     { name: "File", button: "Get index.html", func: fileRxGetContent, params: ["index.html", "fs"] },
     { name: "Camera", button: "Bridged|Direct", func: selectButton, params: ["select-camera", "bridgeserial1|fs"] },
     { name: "Camera", button: "Set res 160x120", func: sendRESTMaybeBridged, params: ["camera/0/set?size=160x120&quality=10", "#select-camera"] },
@@ -384,9 +389,13 @@ function component() {
     { name: "Camera", button: "Set res 1280x720", func: sendRESTMaybeBridged, params: ["camera/0/set?size=1280x720&quality=10", "#select-camera"] },
     { name: "Camera", button: "Get image", func: fileRxGetContent, params: ["/cam/img.jpeg", "#select-camera"] },
     { name: "Camera", button: "Subscribe 1fps", func: sendRESTMaybeBridged, params: ["subscription?action=update&name=Camera&rateHz=1.0", "#select-camera"] },
-  ]
+
+    { name: "Send File", button: "%1", func: sendFile, params: ["unplgivy.mp3"]},
+    { name: "Send File", button: "%1", func: sendFile, params: ["soundtest_44100_48kbps.mp3"]},
+    { name: "Send File", button: "%1", func: sendFile, params: ["soundtest_44100_192kbps.mp3"]},
 
   // Add buttonDefs
+  addButtons(webserialConnDefs, buttonsContainer);
   addButtons(bleConnDefs, buttonsContainer);
   addFields(wifiIPDefs, buttonsContainer);
   addButtons(wifiConnDefs, buttonsContainer);
@@ -402,6 +411,16 @@ function component() {
   setTimeout(updateStatus, 0);
 
   return element;
+}
+
+async function sendFile(params: Array<string>): Promise<void>{
+  const fileName = params[0];
+  const filePath = "./assets/files/" + fileName;
+  const fileData = await fetch(filePath);
+  console.log(fileData);
+  const fileBuffer = await fileData.arrayBuffer();
+  const fileContents = new Uint8Array(fileBuffer);
+  await globalThis.ricConnector.sendFile(fileName, fileContents, (sent, total, progress)=>{console.debug(`fileSend sent ${sent} total ${total} progress ${progress}%`)});
 }
 
 document.body.appendChild(component());

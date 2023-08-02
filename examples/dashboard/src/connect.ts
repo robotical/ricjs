@@ -45,6 +45,10 @@ export async function connectWiFi(params: Array<string>): Promise<void> {
   globalThis.ricConnector.connect("wifi", wifiIPAddr);
 }
 
+export async function connectWebSerial(params: Array<string>): Promise<void> {
+  globalThis.ricConnector.connect("WebSerial", "");
+}
+
 export async function startCheckCorrectRIC(params: Array<string>): Promise<void> {
   const availableColours = [
     { led: "#202000", lcd: "#FFFF00" },
