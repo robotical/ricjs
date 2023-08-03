@@ -255,11 +255,12 @@ export class RICROSSerial {
             break;
           case ROSTOPIC_V2_ADDONS:
             // Addons
-            ricStateInfo.addOnInfo = this.extractAddOnStatus(payload, addOnManager);
-            ricStateInfo.addOnInfoValidMs = Date.now();
+            allAdons = this.extractAddOnStatus(payload, addOnManager);
             for (const staticAddon of staticAddons) {
               allAdons.addons.push(staticAddon);
             }
+            ricStateInfo.addOnInfo = allAdons;
+            ricStateInfo.addOnInfoValidMs = Date.now();
             commsStats.recordAddOnPub();
             break;
           case ROSTOPIC_V2_ROBOT_STATUS:
