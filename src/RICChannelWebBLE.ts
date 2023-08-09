@@ -15,11 +15,10 @@ import RICMsgHandler from "./RICMsgHandler";
 import RICUtils from "./RICUtils";
 
 export default class RICChannelWebBLE implements RICChannel {
-
   // BLE UUIDS
-  public static RICServiceUUID = 'aa76677e-9cfd-4626-a510-0d305be57c8d';
-  public static RICCmdUUID = 'aa76677e-9cfd-4626-a510-0d305be57c8e';
-  public static RICRespUUID = 'aa76677e-9cfd-4626-a510-0d305be57c8f';
+  public static RICServiceUUID = "aa76677e-9cfd-4626-a510-0d305be57c8d";
+  public static RICCmdUUID = "aa76677e-9cfd-4626-a510-0d305be57c8e";
+  public static RICRespUUID = "aa76677e-9cfd-4626-a510-0d305be57c8f";
 
   // Device and characteristics
   private _bleDevice: BluetoothDevice | null = null;
@@ -34,8 +33,8 @@ export default class RICChannelWebBLE implements RICChannel {
 
   // Last message tx time
   private _msgTxTimeLast = Date.now();
-  private _msgTxMinTimeBetweenMs = 50;
-  private readonly maxRetries = 5;
+  private _msgTxMinTimeBetweenMs = 1;
+  private readonly maxRetries = 1;
 
   // Connected flag and retries
   private _isConnected = false;
@@ -48,9 +47,12 @@ export default class RICChannelWebBLE implements RICChannel {
   private _requestedBatchAckSize = 10;
   private _requestedFileBlockSize = 500;
 
-  fhBatchAckSize(): number { return this._requestedBatchAckSize; }
-  fhFileBlockSize(): number { return this._requestedFileBlockSize; }
-
+  fhBatchAckSize(): number {
+    return this._requestedBatchAckSize;
+  }
+  fhFileBlockSize(): number {
+    return this._requestedFileBlockSize;
+  }
 
   // Set message handler
   setMsgHandler(ricMsgHandler: RICMsgHandler): void {
@@ -68,15 +70,17 @@ export default class RICChannelWebBLE implements RICChannel {
       RICLog.error("Web Bluetooth is supported in your browser.");
       return true;
     } else {
-      window.alert('Web Bluetooth API is not available.\n' +
-        'Please make sure the "Experimental Web Platform features" flag is enabled.');
+      window.alert(
+        "Web Bluetooth API is not available.\n" +
+          'Please make sure the "Experimental Web Platform features" flag is enabled.'
+      );
       return false;
     }
   }
 
   // isConnected
   isConnected(): boolean {
-    return (this._bleDevice !== null) && this._isConnected;
+    return this._bleDevice !== null && this._isConnected;
   }
 
   // Set onConnEvent handler
@@ -89,7 +93,10 @@ export default class RICChannelWebBLE implements RICChannel {
     const device = event.target as BluetoothDevice;
     RICLog.debug(`RICChannelWebBLE.onDisconnected ${device.name}`);
     if (this._bleDevice) {
-      this._bleDevice.removeEventListener('gattserverdisconnected', this._eventListenerFn);
+      this._bleDevice.removeEventListener(
+        "gattserverdisconnected",
+        this._eventListenerFn
+      );
     }
     this._isConnected = false;
     if (this._onConnEvent) {
@@ -104,39 +111,58 @@ export default class RICChannelWebBLE implements RICChannel {
 
   // Connect to a device
   async connect(locator: string | object): Promise<boolean> {
-
     // RICLog.debug(`Selected device: ${deviceID}`);
     this._bleDevice = locator as BluetoothDevice;
     if (this._bleDevice && this._bleDevice.gatt) {
       try {
-
         // Connect
         for (let connRetry = 0; connRetry < this._maxConnRetries; connRetry++) {
-
           // Connect
           await RICUtils.withTimeout(2000, this._bleDevice.gatt.connect());
-          RICLog.debug(`RICChannelWebBLE.connect - ${this._bleDevice.gatt.connected ? "OK" : "FAILED"} connection to device ${this._bleDevice.name}`);
+          RICLog.debug(
+            `RICChannelWebBLE.connect - ${
+              this._bleDevice.gatt.connected ? "OK" : "FAILED"
+            } connection to device ${this._bleDevice.name}`
+          );
 
           // Get service
           try {
-
-            const service = await this._bleDevice.gatt.getPrimaryService(RICChannelWebBLE.RICServiceUUID);
-            RICLog.debug(`RICChannelWebBLE.connect - found service: ${service.uuid}`);
+            const service = await this._bleDevice.gatt.getPrimaryService(
+              RICChannelWebBLE.RICServiceUUID
+            );
+            RICLog.debug(
+              `RICChannelWebBLE.connect - found service: ${service.uuid}`
+            );
 
             try {
               // Get Tx and Rx characteristics
-              this._characteristicTx = await service.getCharacteristic(RICChannelWebBLE.RICCmdUUID);
-              RICLog.debug(`RICChannelWebBLE.connect - found char ${this._characteristicTx.uuid}`);
-              this._characteristicRx = await service.getCharacteristic(RICChannelWebBLE.RICRespUUID);
-              RICLog.debug(`RICChannelWebBLE.connect - found char ${this._characteristicRx.uuid}`);
+              this._characteristicTx = await service.getCharacteristic(
+                RICChannelWebBLE.RICCmdUUID
+              );
+              RICLog.debug(
+                `RICChannelWebBLE.connect - found char ${this._characteristicTx.uuid}`
+              );
+              this._characteristicRx = await service.getCharacteristic(
+                RICChannelWebBLE.RICRespUUID
+              );
+              RICLog.debug(
+                `RICChannelWebBLE.connect - found char ${this._characteristicRx.uuid}`
+              );
 
               // Notifications of received messages
               try {
                 await this._characteristicRx.startNotifications();
-                RICLog.debug('RICChannelWebBLE.connect - notifications started');
-                this._characteristicRx.addEventListener('characteristicvaluechanged', this._onMsgRx.bind(this));
+                RICLog.debug(
+                  "RICChannelWebBLE.connect - notifications started"
+                );
+                this._characteristicRx.addEventListener(
+                  "characteristicvaluechanged",
+                  this._onMsgRx.bind(this)
+                );
               } catch (error) {
-                RICLog.debug('RICChannelWebBLE.connnect - addEventListener failed ' + error);
+                RICLog.debug(
+                  "RICChannelWebBLE.connnect - addEventListener failed " + error
+                );
               }
 
               // Connected ok
@@ -144,20 +170,28 @@ export default class RICChannelWebBLE implements RICChannel {
 
               // Add disconnect listener
               this._eventListenerFn = this.onDisconnected.bind(this);
-              this._bleDevice.addEventListener('gattserverdisconnected', this._eventListenerFn);
+              this._bleDevice.addEventListener(
+                "gattserverdisconnected",
+                this._eventListenerFn
+              );
 
               // Connected
               this._isConnected = true;
               return true;
-
             } catch (error) {
-              RICLog.error(`RICChannelWebBLE.connect - cannot find characteristic: ${error}`);
+              RICLog.error(
+                `RICChannelWebBLE.connect - cannot find characteristic: ${error}`
+              );
             }
           } catch (error) {
             if (connRetry === this._maxConnRetries - 1) {
-              RICLog.error(`RICChannelWebBLE.connect - cannot get service ${error}`);
+              RICLog.error(
+                `RICChannelWebBLE.connect - cannot get service ${error}`
+              );
             } else {
-              RICLog.debug(`RICChannelWebBLE.connect - cannot get service - retryIdx ${connRetry} ${error}`);
+              RICLog.debug(
+                `RICChannelWebBLE.connect - cannot get service - retryIdx ${connRetry} ${error}`
+              );
             }
           }
         }
@@ -166,7 +200,11 @@ export default class RICChannelWebBLE implements RICChannel {
       }
 
       // Disconnect
-      if (this._bleDevice && this._bleDevice.gatt && this._bleDevice.gatt.connected) {
+      if (
+        this._bleDevice &&
+        this._bleDevice.gatt &&
+        this._bleDevice.gatt.connected
+      ) {
         try {
           await this._bleDevice.gatt.disconnect();
         } catch (error) {
@@ -190,7 +228,12 @@ export default class RICChannelWebBLE implements RICChannel {
     }
   }
 
-  pauseConnection(pause: boolean): void { RICLog.verbose(`pauseConnection ${pause} - no effect for this channel type`); return; }
+  pauseConnection(pause: boolean): void {
+    RICLog.verbose(
+      `pauseConnection ${pause} - no effect for this channel type`
+    );
+    return;
+  }
 
   // Handle notifications
   _onMsgRx(event: Event): void {
@@ -215,8 +258,8 @@ export default class RICChannelWebBLE implements RICChannel {
 
   // Send a message
   async sendTxMsg(
-    msg: Uint8Array,
-//    _sendWithResponse: boolean
+    msg: Uint8Array
+    //    _sendWithResponse: boolean
   ): Promise<boolean> {
     // Check valid
     if (this._bleDevice === null) {
@@ -225,10 +268,9 @@ export default class RICChannelWebBLE implements RICChannel {
 
     // Retry upto maxRetries
     for (let retryIdx = 0; retryIdx < this.maxRetries; retryIdx++) {
-
       // Check for min time between messages
       while (Date.now() - this._msgTxTimeLast < this._msgTxMinTimeBetweenMs) {
-        await new Promise(resolve => setTimeout(resolve, 5));
+        await new Promise((resolve) => setTimeout(resolve, 5));
       }
       this._msgTxTimeLast = Date.now();
 
@@ -246,7 +288,9 @@ export default class RICChannelWebBLE implements RICChannel {
         break;
       } catch (error) {
         if (retryIdx === this.maxRetries - 1) {
-          RICLog.debug(`RICChannelWebBLE.sendTxMsg ${error} retried ${retryIdx} times`);
+          RICLog.info(
+            `RICChannelWebBLE.sendTxMsg ${error} retried ${retryIdx} times`
+          );
         }
       }
     }
@@ -255,10 +299,9 @@ export default class RICChannelWebBLE implements RICChannel {
 
   // Send message without awaiting response
   async sendTxMsgNoAwait(
-    msg: Uint8Array,
-//    _sendWithResponse: boolean
+    msg: Uint8Array
+    //    _sendWithResponse: boolean
   ): Promise<boolean> {
-
     // Check valid
     if (this._bleDevice === null) {
       return false;
@@ -266,13 +309,15 @@ export default class RICChannelWebBLE implements RICChannel {
 
     // Check for min time between messages
     while (Date.now() - this._msgTxTimeLast < this._msgTxMinTimeBetweenMs) {
-      await new Promise(resolve => setTimeout(resolve, 5));
+      await new Promise((resolve) => setTimeout(resolve, 5));
     }
     this._msgTxTimeLast = Date.now();
 
     // Write to the characteristic
     if (this._characteristicTx) {
-      if (this._characteristicTx.writeValue) {
+      if (this._characteristicTx.writeValueWithoutResponse) {
+        this._characteristicTx.writeValueWithoutResponse(msg);
+      } else if (this._characteristicTx.writeValue) {
         this._characteristicTx.writeValue(msg);
       } else if (this._characteristicTx.writeValueWithResponse) {
         this._characteristicTx.writeValueWithResponse(msg);
