@@ -15,8 +15,7 @@ import RICChannelWebSocket from "./RICChannelWebSocket";
 import RICChannelWebSerial from "./RICChannelWebSerial";
 import RICLEDPatternChecker from "./RICLEDPatternChecker";
 import RICCommsStats from "./RICCommsStats";
-import { RICEventFn, RICFileDownloadFn, RICLedLcdColours, RICOKFail, RICStateInfo, RICFileSendType, RICFileDownloadResult, RICProgressCBType, RICPublishEvent, RICPublishEventNames } from "./RICTypes";
-
+import { RICEventFn, RICFileDownloadFn, RICLedLcdColours, RICOKFail, RICFileSendType, RICFileDownloadResult, RICProgressCBType, RICPublishEvent, RICPublishEventNames, RICBridgeSetupResp } from "./RICTypes";
 import RICAddOnManager from "./RICAddOnManager";
 import RICSystem from "./RICSystem";
 import RICFileHandler from "./RICFileHandler";
@@ -25,8 +24,8 @@ import RICLog, { RICLogLevel } from "./RICLog";
 import { RICConnEvent, RICConnEventNames } from "./RICConnEvents";
 import RICUpdateManager from "./RICUpdateManager";
 import { RICUpdateEvent, RICUpdateEventNames } from "./RICUpdateEvents";
-
 import RICServoFaultDetector from "./RICServoFaultDetector";
+import { RICStateInfo } from "./RICStateInfo";
 
 export default class RICConnector {
 
@@ -299,7 +298,8 @@ export default class RICConnector {
    * @returns Promise<RICOKFail>
    *
    */
-  async sendRICRESTMsg(commandName: string, params: object): Promise<RICOKFail> {
+  async sendRICRESTMsg(commandName: string, params: object, 
+              bridgeID: number | undefined = undefined): Promise<RICOKFail> {
     try {
       // Format the paramList as query string
       const paramEntries = Object.entries(params);
@@ -310,7 +310,7 @@ export default class RICConnector {
       }
       // Format the url to send
       if (paramQueryStr.length > 0) commandName += '?' + paramQueryStr;
-      return await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(commandName);
+      return await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(commandName, bridgeID);
     } catch (error) {
       RICLog.warn(`runCommand failed ${error}`);
       return new RICOKFail();
@@ -547,14 +547,21 @@ export default class RICConnector {
   // @param fileName - name of file to get
   // @param fileSource - source of file to get (e.g. "fs" or "bridgeserial1", if omitted defaults to "fs")
   // @param progressCallback - callback to receive progress updates
-  fsGetContents(fileName: string, 
+  async fsGetContents(fileName: string, 
           fileSource: string,
           progressCallback: RICProgressCBType | undefined): Promise<RICFileDownloadResult> {
-    return this._ricFileHandler.fileReceive(fileName, fileSource, progressCallback);
+    return await this._ricFileHandler.fileReceive(fileName, fileSource, progressCallback);
 }
 
   setLegacySoktoMode(legacyMode: boolean){
     return this._ricStreamHandler.setLegacySoktoMode(legacyMode);
+  }
+
+  // Mark: Bridge serial --------------------------------------------------------------------------------
+  // @param source of bridge
+  // @param idle close time seconds
+  async createCommsBridge(bridgeSource: string, bridgeName: string, idleCloseSecs = 0): Promise<RICBridgeSetupResp> {
+    return await this._ricMsgHandler.createCommsBridge(bridgeSource, bridgeName, idleCloseSecs);
   }
 
   // Mark: Connection performance--------------------------------------------------------------------------

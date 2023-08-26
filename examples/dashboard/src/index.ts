@@ -8,9 +8,10 @@ import { fileDownloader, otaUpdateCancel, otaUpdateCheck, otaUpdateStart } from 
 import RICLog, { RICLogLevel } from '../../../src/RICLog';
 import { RICPublishEvent } from '../../../src/RICTypes';
 import { ROSCameraData, ROSTOPIC_V2_CAMERA } from '../../../src/RICROSSerial';
-import { stat } from 'fs';
 
 let startTime = Date.now();
+let lastCameraImageNum = -1;
+let cameraImageMissingCount = 0;
 function eventListener(eventType: string, eventEnum: RICConnEvent | RICUpdateEvent | RICPublishEvent, 
           eventName: string, eventData?: object | string | null) {
 
@@ -65,12 +66,43 @@ function eventListener(eventType: string, eventEnum: RICConnEvent | RICUpdateEve
               const cameraData = ricConnector.getRICStateInfo().cameraData as ROSCameraData;
               const statusContainer = document.getElementById('camera-image-container');
               if (statusContainer !== null) {
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(
-                  new Blob([cameraData.cameraData.imageData], { type: 'image/jpeg' })
-                );
-                statusContainer.replaceChildren(img);
+                // Get camera image element
+                const camImgEl = document.getElementById('camera-image') as HTMLImageElement;
+                if (camImgEl !== null) {
+                  // Update image
+                  camImgEl.src = URL.createObjectURL(
+                    new Blob([cameraData.cameraData.imageData], { type: 'image/jpeg' })
+                  );
+                } else {
+                  // Create image
+                  const img = document.createElement('img');
+                  img.classList.add('camera-image');
+                  img.id = 'camera-image';
+                  img.src = URL.createObjectURL(
+                    new Blob([cameraData.cameraData.imageData], { type: 'image/jpeg' })
+                  );
+                  statusContainer.replaceChildren(img);
+                }
+
                 // Timestamp, etc
+                let imageInfoEl = document.getElementById('camera-image-info') as HTMLElement;
+                if (imageInfoEl === null) {
+                  imageInfoEl = document.createElement('div');
+                  imageInfoEl.classList.add('camera-image-info');
+                  imageInfoEl.id = 'camera-image-info';
+                  statusContainer.appendChild(imageInfoEl);
+                }
+
+                // Check image number
+                if ((lastCameraImageNum === -1) || (cameraData.cameraData.imageCount < lastCameraImageNum)) {
+                  cameraImageMissingCount = 0;
+                } else if (cameraData.cameraData.imageCount !== lastCameraImageNum + 1) {
+                  cameraImageMissingCount += cameraData.cameraData.imageCount - lastCameraImageNum - 1;
+                }
+                lastCameraImageNum = cameraData.cameraData.imageCount;
+                const camImageCount = cameraData.cameraData.imageCount === 0 ? 1 : cameraData.cameraData.imageCount;
+                const errorRatePC = (cameraImageMissingCount / camImageCount * 100).toFixed(2);
+
                 const imageWidth = cameraData.cameraData.imageWidth;
                 const imageHeight = cameraData.cameraData.imageHeight;
                 const imageFormat = cameraData.cameraData.imageFormat;
@@ -80,7 +112,11 @@ function eventListener(eventType: string, eventEnum: RICConnEvent | RICUpdateEve
                 const frameTimeMs = cameraData.cameraData.frameTimeMs == 0 ? 1000 : cameraData.cameraData.frameTimeMs;
                 const imageLen = cameraData.cameraData.imageData.length;
                 const frameRatePS = (imageLen / (frameTimeMs / 1000)).toFixed(0);
-                statusContainer.innerHTML += `<div>UTC ${timeStr} Width ${imageWidth} Height ${imageHeight} Format ${imageFormat} Quality ${imageQuality} Size ${imageLen} Rate ${frameRatePS}Bytes/s</div>`;
+                let htmlStr = "<div>";
+                htmlStr += `Missing ${cameraImageMissingCount} of ${cameraData.cameraData.imageCount} dropped (${errorRatePC}%) `;
+                htmlStr += `UTC ${timeStr} Width ${imageWidth} Height ${imageHeight} Format ${imageFormat} Quality ${imageQuality} Size ${imageLen} Rate ${frameRatePS}Bytes/s`;
+                htmlStr += "</div>";
+                imageInfoEl.innerHTML = htmlStr;
               }
             }
             break;
@@ -98,11 +134,13 @@ globalThis.ricConnector = new RICConnector();
 if (globalThis.ricConnector) {
   globalThis.ricConnector.setupUpdateManager("2.0.0", 
               `https://updates.robotical.io/live/martyv2/rev{HWRevNo}/current_version.json`, 
+              '',
               fileDownloader);
   globalThis.ricConnector.setEventListener(eventListener);
 }
 globalThis.ricPrevData = {};
 RICLog.setLogListener(logMsgFn);
+globalThis.currentBridgeID = null;
 
 function formatStatus(name: string, status: any, validMs:number | undefined | null, formatFn: any, elId: string) {
   if (!globalThis.ricConnector.isConnected() || !status) {
@@ -224,20 +262,21 @@ function fileRxProgressCB(progress: number, total: number): void {
   setFileRxStatusMsg(`File transfer progress ${progress} / ${total}`);
 }
 
-function i2hex(i: number): string {
-  const hex = i.toString(16);
-  return (hex.length === 1 ? "0" + hex : hex) + " ";
-}
-
-export async function fileRxGetContent(params: string[]): Promise<boolean> {
-  const startTime = Date.now();
-  let result = null;
+function getBridgeOrDirect(params: string[]): string {
   let source = params[1];
   if (source.includes("#")) {
     const selectElem = document.getElementById(params[1].substring(1)) as HTMLSelectElement;
     if (selectElem)
       source = selectElem.options[selectElem.selectedIndex].getAttribute("data-tag");
   }
+  return source;
+}
+
+export async function fileRxGetContent(params: string[]): Promise<boolean> {
+  const startTime = Date.now();
+  const bridgeOrDirect = getBridgeOrDirect(params);
+  const source = bridgeOrDirect === "direct" ? "fs" : "bridgeserial1";
+  let result = null;
   try {
     result = await globalThis.ricConnector.fsGetContents(params[0], source, fileRxProgressCB);
   } catch (err) {
@@ -270,26 +309,36 @@ export async function fileRxGetContent(params: string[]): Promise<boolean> {
 }
 
 function selectButton(params: string[]): void {
+  console.log(`selectButton ${params[0]} ${params[1]}`);
+}
+
+async function makeLongLivedBridge(params: Array<string>): Promise<void> {
+  console.log(`makeLongLivedBridge ${params[0]} ${params[1]}`);
+  const bridgeSource = params[0];
+  const bridgeName = params[1];
+  const idleCloseSecs = parseInt(params[2]);
+  const rslt = await globalThis.ricConnector.createCommsBridge(bridgeSource, bridgeName, idleCloseSecs);
+  console.log(`makeLongLivedBridge result ${rslt}`);
+  globalThis.currentBridgeID = rslt.bridgeID;
 }
 
 function sendRESTMaybeBridged(params: Array<string>): void {
 
-  // TODO - establish bridge and send via bridge if selected
-  
-  // let source = params[1];
-  // if (source.includes("#")) {
-  //   const selectElem = document.getElementById(params[1].substring(1)) as HTMLSelectElement;
-  //   if (selectElem)
-  //     source = selectElem.options[selectElem.selectedIndex].getAttribute("data-tag");
-  // }
-
-
-  sendREST(params)
+  // Check if bridge required
+  const bridgeOrDirect = getBridgeOrDirect(params);
+  const bridgeID = bridgeOrDirect === "direct" ? null : globalThis.currentBridgeID;
+  sendREST(params, bridgeID);
 }
 
 function component() {
   const element = document.createElement('div');
   element.classList.add('main-container');
+
+  const filePicker = document.createElement('input');
+  filePicker.type = 'file';
+  filePicker.id = 'file-picker';
+  filePicker.style.display = 'none';
+  element.appendChild(filePicker);
 
   const titleEl = document.createElement('h1');
   titleEl.innerHTML = "RICJS Example";
@@ -344,9 +393,9 @@ function component() {
     { name: "Wifi IP", elId: "wifi-ip" },
   ]
 
-  const wifiPWDefs = [
-    { name: "Wifi PW", elId: "wifi-pw" },
-  ]
+  // const wifiPWDefs = [
+  //   { name: "Wifi PW", elId: "wifi-pw" },
+  // ]
 
   const wifiConnDefs = [
     { name: "Connect WiFi", button: "Connect", func: connectWiFi, params: [] as Array<string> },
@@ -367,9 +416,8 @@ function component() {
     { name: "Update", button: "Check", func: otaUpdateCheck, params: [] },
     { name: "Update", button: "Perform", func: otaUpdateStart, params: [] },
     { name: "Update", button: "Cancel", func: otaUpdateCancel, params: [] },
-    { name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["test440ToneQuietShort.mp3"] },
-    { name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["completed_tone_low_br.mp3"] },
     { name: "Stream MP3", button: "%1", func: streamSoundFile, params: ["unplgivy.mp3"] },
+    { name: "Stream MP3", button: "Pick file (<10s long)", func: streamSoundFile, params: [""] },
     { name: "Circle", button: "%1", func: sendREST, params: ["traj/circle"] },
     { name: "Kick", button: "%1", func: sendREST, params: ["traj/kick"] },
     { name: "Walk", button: "%1", func: sendREST, params: ["traj/dance"] },
@@ -378,28 +426,31 @@ function component() {
     { name: "Eyes Normal", button: "%1", func: sendREST, params: ["traj/eyesNormal"] },
     { name: "5V On", button: "%1", func: sendREST, params: ["pwrctrl/5von"] },
     { name: "5V Off", button: "%1", func: sendREST, params: ["pwrctrl/5voff"] },
+    { name: "EXT On", button: "%1", func: sendREST, params: ["pwrctrl/setExtPower/1"] },
+    { name: "EXT Off", button: "%1", func: sendREST, params: ["pwrctrl/setExtPower/0"] },
     { name: "WiFi Scan", button: "Start", func: sendREST, params: ["wifiscan/start"] },
     { name: "WiFi Scan", button: "Results", func: sendREST, params: ["wifiscan/results"] },
-
     { name: "File", button: "Get index.html", func: fileRxGetContent, params: ["index.html", "fs"] },
-    { name: "Camera", button: "Bridged|Direct", func: selectButton, params: ["select-camera", "bridgeserial1|fs"] },
+    { name: "MakeBridge", button: "Make Bridge", func: makeLongLivedBridge, params: ["Serial1", "bridge1", 60] },
+    { name: "Camera", button: "Bridged|Direct", func: selectButton, params: ["select-camera", "bridge|direct"] },
     { name: "Camera", button: "Set res 160x120", func: sendRESTMaybeBridged, params: ["camera/0/set?size=160x120&quality=10", "#select-camera"] },
     { name: "Camera", button: "Set res 320x240", func: sendRESTMaybeBridged, params: ["camera/0/set?size=320x240&quality=10", "#select-camera"] },
     { name: "Camera", button: "Set res 640x480", func: sendRESTMaybeBridged, params: ["camera/0/set?size=640x480&quality=10", "#select-camera"] },
     { name: "Camera", button: "Set res 1280x720", func: sendRESTMaybeBridged, params: ["camera/0/set?size=1280x720&quality=10", "#select-camera"] },
     { name: "Camera", button: "Get image", func: fileRxGetContent, params: ["/cam/img.jpeg", "#select-camera"] },
     { name: "Camera", button: "Subscribe 1fps", func: sendRESTMaybeBridged, params: ["subscription?action=update&name=Camera&rateHz=1.0", "#select-camera"] },
-
+    { name: "Camera", button: "Subscribe 5fps", func: sendRESTMaybeBridged, params: ["subscription?action=update&name=Camera&rateHz=5.0", "#select-camera"] },
     { name: "Send File", button: "%1", func: sendFile, params: ["unplgivy.mp3"]},
     { name: "Send File", button: "%1", func: sendFile, params: ["soundtest_44100_48kbps.mp3"]},
     { name: "Send File", button: "%1", func: sendFile, params: ["soundtest_44100_192kbps.mp3"]},
+  ]
 
   // Add buttonDefs
   addButtons(webserialConnDefs, buttonsContainer);
   addButtons(bleConnDefs, buttonsContainer);
   addFields(wifiIPDefs, buttonsContainer);
   addButtons(wifiConnDefs, buttonsContainer);
-  addFields(wifiPWDefs, buttonsContainer);
+  // addFields(wifiPWDefs, buttonsContainer);
   addButtons(buttonDefs, buttonsContainer);
 
   infoColumns.appendChild(buttonsContainer);

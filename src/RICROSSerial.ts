@@ -127,7 +127,8 @@ export class ROSCameraData {
     imageHeight: number,
     imageFormat: number,
     imageQuality: number,
-    frameTimeMs: number
+    frameTimeMs: number,
+    imageCount: number
   } = {
     unixTimeMs: 0,
     sinceStartMs: 0,
@@ -136,7 +137,8 @@ export class ROSCameraData {
     imageHeight: 0,
     imageFormat: 0,
     imageQuality: 0,
-    frameTimeMs: 0
+    frameTimeMs: 0,
+    imageCount: 0
   };
 }
 
@@ -443,7 +445,8 @@ export class RICROSSerial {
     const imageHeight = RICUtils.getBEUint16FromBuf(buf, 14);
     const imageFormat = RICUtils.getBEUint8FromBuf(buf, 16);
     const imageQuality = RICUtils.getBEUint8FromBuf(buf, 17);
-    const imageData = buf.slice(18);
+    const imageCount = RICUtils.getBEUint32FromBuf(buf, 18);
+    const imageData = buf.slice(22);
     return { cameraData: 
       { 
         unixTimeMs: unixTime, 
@@ -453,7 +456,8 @@ export class RICROSSerial {
         imageFormat: imageFormat,
         imageQuality: imageQuality,
         imageData: imageData,
-        frameTimeMs: frameTimeMs
+        frameTimeMs: frameTimeMs,
+        imageCount: imageCount
       } 
     };
   }  

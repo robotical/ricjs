@@ -22,7 +22,8 @@
 
 import RICLog from "./RICLog";
 import RICMsgHandler from "./RICMsgHandler";
-import { RICHWElemList_Min, RICReportMsg, RICServoFaultFlags, RICStateInfo } from "./RICTypes";
+import { RICHWElemList_Min, RICReportMsg, RICServoFaultFlags } from "./RICTypes";
+import { RICStateInfo } from "./RICStateInfo";
 
 export default class RICServoFaultDetector {
     private _ricMsgHandler: RICMsgHandler;

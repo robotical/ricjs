@@ -13,14 +13,6 @@ import { RICMsgTrackInfo } from './RICMsgTrackInfo';
 import RICLog from './RICLog';
 import RICUtils from './RICUtils';
 import {
-  RICROSSerial,
-  ROSSerialIMU,
-  ROSSerialSmartServos,
-  ROSSerialPowerStatus,
-  ROSSerialAddOnStatusList,
-  ROSSerialRobotStatus,
-} from './RICROSSerial';
-import {
   RICSERIAL_MSG_NUM_POS,
   RICSERIAL_PAYLOAD_POS,
   RICSERIAL_PROTOCOL_POS,
@@ -33,7 +25,7 @@ import {
 } from './RICProtocolDefs';
 import RICMiniHDLC from './RICMiniHDLC';
 import RICAddOnManager from './RICAddOnManager';
-import { RICReportMsg } from './RICTypes';
+import { RICBridgeSetupResp, RICReportMsg } from './RICTypes';
 
 // Protocol enums
 export enum RICRESTElemCode {
@@ -798,5 +790,13 @@ export default class RICMsgHandler {
       RICLog.warn(`RICMsgHandler sendStreamBlock error${error}`);
     }
     return false;
+  }
+
+  async createCommsBridge(bridgeSource: string, bridgeName: string, idleCloseSecs = 0): Promise<RICBridgeSetupResp> {
+
+    // Establish a bridge
+    return await this.sendRICRESTURL<RICBridgeSetupResp>(
+      `commandserial/bridge/setup?port=${bridgeSource}&name=${bridgeName}&idleCloseSecs=${idleCloseSecs}`,
+    )
   }
 }

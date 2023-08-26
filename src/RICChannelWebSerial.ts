@@ -11,17 +11,69 @@
 import RICChannel from "./RICChannel";
 import RICMsgHandler from "./RICMsgHandler";
 import RICLog from "./RICLog";
-//import RICUtils from "./RICUtils";
-
-//import SerialPort from "@types/w3c-web-serial";
 import { RICConnEvent, RICConnEventFn } from "./RICConnEvents";
+
+type TWebParityType = 'none' | 'even' | 'odd';
+type TWebFlowControlType = 'none' | 'hardware';
+
+interface TWebSerialOptions {
+  baudRate: number;
+  dataBits?: number | undefined;
+  stopBits?: number | undefined;
+  parity?: TWebParityType | undefined;
+  bufferSize?: number | undefined;
+  flowControl?: TWebFlowControlType | undefined;
+}
+
+declare class TWebSerialPort extends EventTarget {
+  readonly readable: ReadableStream<Uint8Array> | null;
+  readonly writable: WritableStream<Uint8Array> | null;
+
+  open(options: TWebSerialOptions): Promise<void>;
+  close(): Promise<void>;
+  forget(): Promise<void>;
+
+  addEventListener(
+      type: 'connect' | 'disconnect',
+      listener: (this: this, ev: Event) => any,
+      useCapture?: boolean): void;
+  addEventListener(
+      type: string,
+      listener: EventListenerOrEventListenerObject | null,
+      options?: boolean | AddEventListenerOptions): void;
+  removeEventListener(
+      type: 'connect' | 'disconnect',
+      callback: (this: this, ev: Event) => any,
+      useCapture?: boolean): void;
+  removeEventListener(
+      type: string,
+      callback: EventListenerOrEventListenerObject | null,
+      options?: EventListenerOptions | boolean): void;
+}
+
+interface TWebSerialPortFilter {
+  usbVendorId?: number | undefined;
+  usbProductId?: number | undefined;
+}
+
+interface TWebSerialPortRequestOptions {
+  filters?: TWebSerialPortFilter[] | undefined;
+}
+
+declare class TWebSerial extends EventTarget {
+  requestPort(options?: TWebSerialPortRequestOptions): Promise<TWebSerialPort>;
+}
+
+interface NavigatorWithSerial {
+  readonly serial: TWebSerial;
+}
 
 export default class RICChannelWebSerial implements RICChannel {
 
   // Message handler
   private _ricMsgHandler: RICMsgHandler | null = null;
 
-  private _port: SerialPort | null = null;
+  private _port: TWebSerialPort | null = null;
   private _reader?: ReadableStreamDefaultReader<Uint8Array>;
 
   // Last message tx time
@@ -87,13 +139,15 @@ export default class RICChannelWebSerial implements RICChannel {
     }
   
     try {
-      if (!this._port || locator != "reusePort"){
-        const port = await navigator.serial.requestPort();
+      if (('serial' in navigator) && (!this._port || locator != "reusePort")){
+        const port = await (navigator as NavigatorWithSerial).serial.requestPort();
         this._port = port;
       }
       // Connect
-      await this._port.open({ baudRate: 115200 });
+      if (!this._port)
+        return false;
 
+      await this._port.open({ baudRate: 115200 });
       this._isConnected = true;
 
       // start read loop

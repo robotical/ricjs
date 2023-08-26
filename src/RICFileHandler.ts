@@ -14,7 +14,6 @@ import
   RICRESTElemCode,
 } from './RICMsgHandler';
 import {
-  RICBridgeSetupResp,
   RICFileDownloadResult,
   RICFileDownloadStartResp,
   RICFileSendType,
@@ -438,9 +437,7 @@ export default class RICFileHandler {
 
       // Establish a bridge
       const martycamSerialPort = "Serial" + fileSource.slice(bridgeSerialPrefix.length);
-      const cmdResp = await this._msgHandler.sendRICRESTURL<RICBridgeSetupResp>(
-        `commandserial/bridge/setup?port=${martycamSerialPort}&name=fileSource`,
-      )
+      const cmdResp = await this._msgHandler.createCommsBridge(martycamSerialPort, "fileSource");
       if (cmdResp.rslt != "ok") {
         RICLog.error(`fileReceive - failed to setup bridge ${cmdResp.rslt}`);
         return new RICFileDownloadResult();

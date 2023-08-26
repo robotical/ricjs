@@ -8,6 +8,7 @@ import { RICRoboticalAddOns } from "@robotical/ricjs-robotical-addons";
 declare global {
     var ricConnector: RICConnector;
     var ricPrevData: Dictionary<string>;
+    var currentBridgeID: number | null;
 }
 
 export function checkNewData(name: string, data: object) {

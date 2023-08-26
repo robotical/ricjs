@@ -23,7 +23,7 @@ async function getBleDevice(): Promise<BluetoothDevice | null> {
     }
   }
 
-export async function connectBLE(params: Array<string>): Promise<void> {
+export async function connectBLE(/*params: Array<string>*/): Promise<void> {
     const dev = await getBleDevice();
     if (await globalThis.ricConnector.connect("WebBLE", dev)) {
         RICLog.info("connectBLE - connected to device " + dev.name);
@@ -33,23 +33,23 @@ export async function connectBLE(params: Array<string>): Promise<void> {
     }
 }
 
-export async function disconnect(params: Array<string>): Promise<void> {
+export async function disconnect(/*params: Array<string>*/): Promise<void> {
     globalThis.ricConnector.disconnect();
 }
 
-export async function connectWiFi(params: Array<string>): Promise<void> {
+export async function connectWiFi(/*params: Array<string>*/): Promise<void> {
   const wifiIP = document.getElementById("wifi-ip") as HTMLInputElement;
-  const wifiPw = document.getElementById("wifi-pw") as HTMLInputElement;
+  // const wifiPw = document.getElementById("wifi-pw") as HTMLInputElement;
   const wifiIPAddr = wifiIP.value;
-  const wifiPwStr = wifiPw.value;
+  // const wifiPwStr = wifiPw.value;
   globalThis.ricConnector.connect("wifi", wifiIPAddr);
 }
 
-export async function connectWebSerial(params: Array<string>): Promise<void> {
+export async function connectWebSerial(/*params: Array<string>*/): Promise<void> {
   globalThis.ricConnector.connect("WebSerial", "");
 }
 
-export async function startCheckCorrectRIC(params: Array<string>): Promise<void> {
+export async function startCheckCorrectRIC(/*params: Array<string>*/): Promise<void> {
   const availableColours = [
     { led: "#202000", lcd: "#FFFF00" },
     { led: "#880000", lcd: "#FF0000" },
@@ -60,10 +60,10 @@ export async function startCheckCorrectRIC(params: Array<string>): Promise<void>
   globalThis.ricConnector.checkCorrectRICStart(availableColours);
 }
 
-export async function acceptCheckCorrectRIC(params: Array<string>): Promise<void> {
+export async function acceptCheckCorrectRIC(/*params: Array<string>*/): Promise<void> {
   globalThis.ricConnector.checkCorrectRICStop(true);
 }
 
-export async function rejectCheckCorrectRIC(params: Array<string>): Promise<void> {
+export async function rejectCheckCorrectRIC(/*params: Array<string>*/): Promise<void> {
   globalThis.ricConnector.checkCorrectRICStop(false);
 }
