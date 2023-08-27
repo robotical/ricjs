@@ -47,8 +47,7 @@ export default class RICConnector {
 
   // Message handler
   private _ricMsgHandler: RICMsgHandler = new RICMsgHandler(
-    this._commsStats,
-    this._addOnManager,
+    this._commsStats
   );
 
   // RICSystem

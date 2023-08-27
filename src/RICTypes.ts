@@ -9,13 +9,6 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 import { RICConnEvent } from './RICConnEvents';
-import {
-  ROSSerialSmartServos,
-  ROSSerialIMU,
-  ROSSerialPowerStatus,
-  ROSSerialAddOnStatusList,
-  ROSSerialRobotStatus,
-} from './RICROSSerial';
 import { RICUpdateEvent } from './RICUpdateEvents';
 
 export enum RICPublishEvent {

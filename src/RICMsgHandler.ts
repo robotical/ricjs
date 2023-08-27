@@ -24,7 +24,6 @@ import {
   RICREST_BRIDGE_ID_POS,
 } from './RICProtocolDefs';
 import RICMiniHDLC from './RICMiniHDLC';
-import RICAddOnManager from './RICAddOnManager';
 import { RICBridgeSetupResp, RICReportMsg } from './RICTypes';
 
 // Protocol enums
@@ -108,13 +107,9 @@ export default class RICMsgHandler {
   // RICMiniHDLC - handles part of RICSerial protocol
   private _miniHDLC: RICMiniHDLC;
 
-  // Add-on manager
-  private _addOnManager: RICAddOnManager;
-
   // Constructor
-  constructor(commsStats: RICCommsStats, addOnManager: RICAddOnManager) {
+  constructor(commsStats: RICCommsStats) {
     this._commsStats = commsStats;
-    this._addOnManager = addOnManager;
     RICLog.debug('RICMsgHandler constructor');
 
     // Message tracking
