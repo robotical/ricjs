@@ -98,7 +98,7 @@ export default class RICConnector {
   constructor() {
 
     // Setup log level
-    RICLog.setLogLevel(RICLogLevel.VERBOSE);
+    RICLog.setLogLevel(RICLogLevel.INFO);
 
     // Debug
     RICLog.debug('RICConnector starting up');
