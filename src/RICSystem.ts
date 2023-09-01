@@ -179,10 +179,22 @@ export default class RICSystem {
   async calibrate(
     cmd: string,
     jointList: Array<string>,
-    jointNames: { [key: string]: string }
+    jointNames: { [key: string]: string },
+    servoControllers: {[key: string]: string} = {
+      "LeftHip": "LeftHip",
+      "LeftTwist": "LeftHip",
+      "LeftKnee": "LeftHip",
+      "RightHip": "RightHip",
+      "RightTwist": "RightHip",
+      "RightKnee": "RightHip",
+      "LeftArm": "LeftArm",
+      "RightArm": "LeftArm",
+      "Eyes": "LeftArm"
+    }
   ) {
     let overallResult = true;
     if (cmd === "set") {
+      const controllerArray: Array<string> = [];
       // Set calibration
       for (const jnt of jointList) {
         try {
@@ -194,8 +206,10 @@ export default class RICSystem {
           // saving the calibration... (For the new servo boards it is necessary
           // to send a "save" command after the calibration ones or any servo
           // parameter changes in order to save any changes made into nonvolatile storage)
-          const saveCalibCmd = `elem/${jnt}/saveparams`;
-          await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(saveCalibCmd);
+          // log it now, and we'll do the saveparams commands once we've updated all the joints
+          // the saveparams function is not instant as the flash write takes a few ms
+          if (jnt in servoControllers && !controllerArray.includes(servoControllers[jnt]))
+            controllerArray.push(servoControllers[jnt])
           if (rsl.rslt != "ok") overallResult = false;
         } catch (error) {
           console.log(`calibrate failed on joint ${jnt}`, error);
@@ -204,6 +218,14 @@ export default class RICSystem {
         // Wait as writing to flash blocks servo access
         // as of v0.0.113 of firmware, the pause is no longer required
         //await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+
+      // on newer (batch4+) robots with stm32 servo controllers it is necessary to send a saveparams command once per servo controller
+      for (const cID in controllerArray){
+        const saveCalibCmd = `elem/${controllerArray[cID]}/saveparams`;
+        const rslt = await this._ricMsgHandler.sendRICRESTURL<RICOKFail>(saveCalibCmd);
+        if (rslt.rslt != "ok") overallResult = false;
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
 
       // ensure all joints are enabled
