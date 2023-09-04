@@ -117,50 +117,56 @@ export default class RICChannelWebBLE implements RICChannel {
         for (let connRetry = 0; connRetry < this._maxConnRetries; connRetry++) {
 
           // Connect
-          await RICUtils.withTimeout(2000, this._bleDevice.gatt.connect());
-          RICLog.debug(`RICChannelWebBLE.connect - ${this._bleDevice.gatt.connected ? "OK" : "FAILED"} connection to device ${this._bleDevice.name}`);
+          await RICUtils.withTimeout(3000, this._bleDevice.gatt.connect());
+          RICLog.debug(`RICChannelWebBLE.connect - ${this._bleDevice.gatt.connected ? "OK" : "FAILED"} attempt ${connRetry+1} connection to device ${this._bleDevice.name}`);
 
-          // Get service
-          try {
+          if (this._bleDevice.gatt.connected) {
 
-            const service = await this._bleDevice.gatt.getPrimaryService(RICChannelWebBLE.RICServiceUUID);
-            RICLog.debug(`RICChannelWebBLE.connect - found service: ${service.uuid}`);
+            // Delay a bit
+            await new Promise(resolve => setTimeout(resolve, 100));
 
+            // Get service
             try {
-              // Get Tx and Rx characteristics
-              this._characteristicTx = await service.getCharacteristic(RICChannelWebBLE.RICCmdUUID);
-              RICLog.debug(`RICChannelWebBLE.connect - found char ${this._characteristicTx.uuid}`);
-              this._characteristicRx = await service.getCharacteristic(RICChannelWebBLE.RICRespUUID);
-              RICLog.debug(`RICChannelWebBLE.connect - found char ${this._characteristicRx.uuid}`);
 
-              // Notifications of received messages
+              const service = await this._bleDevice.gatt.getPrimaryService(RICChannelWebBLE.RICServiceUUID);
+              RICLog.debug(`RICChannelWebBLE.connect - found service: ${service.uuid}`);
+
               try {
-                await this._characteristicRx.startNotifications();
-                RICLog.debug('RICChannelWebBLE.connect - notifications started');
-                this._characteristicRx.addEventListener('characteristicvaluechanged', this._onMsgRx.bind(this));
+                // Get Tx and Rx characteristics
+                this._characteristicTx = await service.getCharacteristic(RICChannelWebBLE.RICCmdUUID);
+                RICLog.debug(`RICChannelWebBLE.connect - found char ${this._characteristicTx.uuid}`);
+                this._characteristicRx = await service.getCharacteristic(RICChannelWebBLE.RICRespUUID);
+                RICLog.debug(`RICChannelWebBLE.connect - found char ${this._characteristicRx.uuid}`);
+
+                // Notifications of received messages
+                try {
+                  await this._characteristicRx.startNotifications();
+                  RICLog.debug('RICChannelWebBLE.connect - notifications started');
+                  this._characteristicRx.addEventListener('characteristicvaluechanged', this._onMsgRx.bind(this));
+                } catch (error) {
+                  RICLog.debug('RICChannelWebBLE.connnect - addEventListener failed ' + error);
+                }
+
+                // Connected ok
+                RICLog.debug(`RICChannelWebBLE.connect ${this._bleDevice.name}`);
+
+                // Add disconnect listener
+                this._eventListenerFn = this.onDisconnected.bind(this);
+                this._bleDevice.addEventListener('gattserverdisconnected', this._eventListenerFn);
+
+                // Connected
+                this._isConnected = true;
+                return true;
+
               } catch (error) {
-                RICLog.debug('RICChannelWebBLE.connnect - addEventListener failed ' + error);
+                RICLog.error(`RICChannelWebBLE.connect - cannot find characteristic: ${error}`);
               }
-
-              // Connected ok
-              RICLog.debug(`RICChannelWebBLE.connect ${this._bleDevice.name}`);
-
-              // Add disconnect listener
-              this._eventListenerFn = this.onDisconnected.bind(this);
-              this._bleDevice.addEventListener('gattserverdisconnected', this._eventListenerFn);
-
-              // Connected
-              this._isConnected = true;
-              return true;
-
             } catch (error) {
-              RICLog.error(`RICChannelWebBLE.connect - cannot find characteristic: ${error}`);
-            }
-          } catch (error) {
-            if (connRetry === this._maxConnRetries - 1) {
-              RICLog.error(`RICChannelWebBLE.connect - cannot get service ${error}`);
-            } else {
-              RICLog.debug(`RICChannelWebBLE.connect - cannot get service - retryIdx ${connRetry} ${error}`);
+              if (connRetry === this._maxConnRetries - 1) {
+                RICLog.error(`RICChannelWebBLE.connect - cannot get primary service ${error} - attempt #${connRetry+1} - giving up`);
+              } else {
+                RICLog.debug(`RICChannelWebBLE.connect - cannot get primary service - attempt #${connRetry+1} ${error}`);
+              }
             }
           }
         }
