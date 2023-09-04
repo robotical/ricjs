@@ -436,18 +436,18 @@ export default class RICMsgHandler {
     // Wrap if bridged
     if (bridgeID !== undefined) {
       framedMsg = this.bridgeCommsMsg(framedMsg, bridgeID);
-      RICLog.info(`sendMsgAndWaitForReply - bridged idx ${bridgeID}`)
+      // RICLog.debug(`sendMsgAndWaitForReply - bridged idx ${bridgeID}`)
     } else {
-      RICLog.info(`sendMsgAndWaitForReply - not bridged`)
+      // RICLog.debug(`sendMsgAndWaitForReply - not bridged`)
     }
 
     // Encode like HDLC
     const encodedMsg = this._miniHDLC.encode(framedMsg);
 
     // Debug
-    RICLog.info(
-      `sendMsgAndWaitForReply ${RICUtils.bufferToHex(encodedMsg)}`,
-    );
+    // RICLog.debug(
+    //   `sendMsgAndWaitForReply ${RICUtils.bufferToHex(encodedMsg)}`,
+    // );
 
     // Return a promise that will be resolved when a reply is received or timeout occurs
     const promise = new Promise<T>((resolve, reject) => {
@@ -527,14 +527,11 @@ export default class RICMsgHandler {
     );
 
     // Debug
-    RICLog.verbose(
-      `msgTrackingTxCmdMsg msgNum ${this._currentMsgNumber
-      } msg ${RICUtils.bufferToHex(msgFrame)} sanityCheck ${this._msgTrackInfos[this._currentMsgNumber].msgOutstanding
+    RICLog.debug(
+      `msgTrackingTxCmdMsg msgNum ${this._currentMsgNumber} bridgeID ${bridgeID} msg ${
+              RICUtils.bufferToHex(msgFrame)} msgOutstanding ${this._msgTrackInfos[this._currentMsgNumber].msgOutstanding
       }`,
     );
-    // RICLog.debug(
-    //   `msgTrackingTxCmdMsg msgNum ${this._currentMsgNumber} msgLen ${msgFrame.length}}`,
-    // );
 
     // Stats
     this._commsStats.msgTx();
