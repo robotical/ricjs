@@ -40,6 +40,7 @@ export default class RICChannelWebBLE implements RICChannel {
   // Connected flag and retries
   private _isConnected = false;
   private readonly _maxConnRetries = 3;
+  private _disconnectRequested = false;
 
   // Event listener fn
   private _eventListenerFn: ((event: Event) => void) | null = null;
@@ -76,7 +77,7 @@ export default class RICChannelWebBLE implements RICChannel {
 
   // isConnected
   isConnected(): boolean {
-    return (this._bleDevice !== null) && this._isConnected;
+    return (this._bleDevice !== null) && this._isConnected && !this._disconnectRequested;
   }
 
   // Set onConnEvent handler
@@ -90,6 +91,7 @@ export default class RICChannelWebBLE implements RICChannel {
     RICLog.debug(`RICChannelWebBLE.onDisconnected ${device.name}`);
     if (this._bleDevice) {
       this._bleDevice.removeEventListener('gattserverdisconnected', this._eventListenerFn);
+      this._bleDevice = null;
     }
     this._isConnected = false;
     if (this._onConnEvent) {
@@ -106,6 +108,7 @@ export default class RICChannelWebBLE implements RICChannel {
   async connect(locator: string | object): Promise<boolean> {
 
     // RICLog.debug(`Selected device: ${deviceID}`);
+    this._disconnectRequested = false;
     this._bleDevice = locator as BluetoothDevice;
     if (this._bleDevice && this._bleDevice.gatt) {
       try {
@@ -166,8 +169,9 @@ export default class RICChannelWebBLE implements RICChannel {
       }
 
       // Disconnect
-      if (this._bleDevice && this._bleDevice.gatt && this._bleDevice.gatt.connected) {
+      if (this._bleDevice && this._bleDevice.gatt && this._bleDevice.gatt.connected && !this._disconnectRequested) {
         try {
+          this._disconnectRequested = true;
           await this._bleDevice.gatt.disconnect();
         } catch (error) {
           RICLog.warn(`RICChannelWebBLE.connect - cannot disconnect ${error}`);
@@ -180,7 +184,8 @@ export default class RICChannelWebBLE implements RICChannel {
 
   // Disconnect
   async disconnect(): Promise<void> {
-    if (this._bleDevice && this._bleDevice.gatt) {
+    if (this._bleDevice && this._bleDevice.gatt && !this._disconnectRequested) {
+      this._disconnectRequested = true;
       try {
         RICLog.debug(`RICChannelWebBLE.disconnect GATT`);
         await this._bleDevice.gatt.disconnect();
@@ -219,7 +224,7 @@ export default class RICChannelWebBLE implements RICChannel {
 //    _sendWithResponse: boolean
   ): Promise<boolean> {
     // Check valid
-    if (this._bleDevice === null) {
+    if (this._bleDevice === null || this._disconnectRequested) {
       return false;
     }
 
@@ -260,7 +265,7 @@ export default class RICChannelWebBLE implements RICChannel {
   ): Promise<boolean> {
 
     // Check valid
-    if (this._bleDevice === null) {
+    if (this._bleDevice === null || this._disconnectRequested) {
       return false;
     }
 

@@ -794,4 +794,12 @@ export default class RICMsgHandler {
       `commandserial/bridge/setup?port=${bridgeSource}&name=${bridgeName}&idleCloseSecs=${idleCloseSecs}`,
     )
   }
+
+  async removeCommsBridge(bridgeID: number): Promise<boolean> {
+
+    // Remove a bridge
+    return await this.sendRICRESTURL<boolean>(
+      `commandserial/bridge/remove?id=${bridgeID}`,
+    )
+  }
 }

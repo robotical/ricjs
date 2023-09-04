@@ -283,7 +283,7 @@ export default class RICConnector {
     this._retryIfLostIsConnected = false;
     if (this._ricChannel) {
       // await this.sendRICRESTMsg("bledisc", {});
-      this._ricChannel.disconnect();
+      await this._ricChannel.disconnect();
     }
   }
 
