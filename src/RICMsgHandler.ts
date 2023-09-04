@@ -599,7 +599,7 @@ export default class RICMsgHandler {
     const resolve = this._msgTrackInfos[msgNum].resolve;
     if (resolve) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      RICLog.debug(`_msgCompleted result ${msgRsltCode.toString()} ${JSON.stringify(msgRsltObj)}`);
+      RICLog.debug(`_msgCompleted msgNum ${msgNum} result ${msgRsltCode.toString()} ${JSON.stringify(msgRsltObj)}`);
       (resolve as ((arg: object | null) => void))(msgRsltObj);
     }
     // } else {
