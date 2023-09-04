@@ -10,7 +10,7 @@
 
 export class RICMsgTrackInfo {
   static readonly MAX_MSG_NUM = 255;
-  static readonly MSG_RESPONSE_TIMEOUT_MS = 5000;
+  static readonly MSG_RESPONSE_TIMEOUT_MS = 2000;
   static readonly MSG_RETRY_COUNT = 5;
   msgOutstanding = false;
   msgFrame: Uint8Array = new Uint8Array();

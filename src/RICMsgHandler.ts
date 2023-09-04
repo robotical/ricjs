@@ -641,7 +641,7 @@ export default class RICMsgHandler {
         }
 
         // Check for timeout (or never sent)
-        if ((this._msgTrackInfos[checkIdx].retryCount === 0) || (Date.now() > this._msgTrackInfos[checkIdx].msgSentMs + msgTimeoutMs)) {
+        if ((this._msgTrackInfos[checkIdx].retryCount === 0) || (Date.now() > this._msgTrackInfos[checkIdx].msgSentMs + (msgTimeoutMs * (this._msgTrackInfos[checkIdx].retryCount)))) {
 
           // Debug
           RICLog.debug(`msgTrackTimer msgNum ${checkIdx} ${this._msgTrackInfos[checkIdx].retryCount === 0 ? 'first send' : 'timeout - retrying'} ${RICUtils.bufferToHex(this._msgTrackInfos[checkIdx].msgFrame)}`);
