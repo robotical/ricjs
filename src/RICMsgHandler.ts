@@ -644,7 +644,7 @@ export default class RICMsgHandler {
         if ((this._msgTrackInfos[checkIdx].retryCount === 0) || (Date.now() > this._msgTrackInfos[checkIdx].msgSentMs + msgTimeoutMs)) {
 
           // Debug
-          RICLog.debug(`msgTrackTimer msgNum ${checkIdx} ${this._msgTrackInfos[checkIdx].retryCount === 0 ? 'first send' : 'timeout - retrying'}`);
+          RICLog.debug(`msgTrackTimer msgNum ${checkIdx} ${this._msgTrackInfos[checkIdx].retryCount === 0 ? 'first send' : 'timeout - retrying'} ${RICUtils.bufferToHex(this._msgTrackInfos[checkIdx].msgFrame)}`);
           // RICLog.verbose(`msgTrackTimer msg ${RICUtils.bufferToHex(this._msgTrackInfos[i].msgFrame)}`);
     
           // Handle timeout (or first send)
@@ -656,7 +656,7 @@ export default class RICMsgHandler {
               if (!await this._msgSender.sendTxMsg(
                 this._msgTrackInfos[checkIdx].msgFrame,
                 this._msgTrackInfos[checkIdx].withResponse)) {
-                RICLog.warn(`msgTrackTimer Message send failed msgNum ${checkIdx}`);
+                RICLog.warn(`msgTrackTimer Message send failed msgNum ${checkIdx} ${RICUtils.bufferToHex(this._msgTrackInfos[checkIdx].msgFrame)}`);
                 this._msgCompleted(checkIdx, RICMsgResultCode.MESSAGE_RESULT_FAIL, null);
                 this._commsStats.recordMsgNoConnection();
               }
@@ -671,7 +671,7 @@ export default class RICMsgHandler {
             this._msgTrackInfos[checkIdx].msgSentMs = Date.now();
           } else {
             RICLog.warn(
-              `msgTrackTimer TIMEOUT msgNum ${checkIdx} after ${RICMsgTrackInfo.MSG_RETRY_COUNT} retries`,
+              `msgTrackTimer TIMEOUT msgNum ${checkIdx} after ${RICMsgTrackInfo.MSG_RETRY_COUNT} retries ${RICUtils.bufferToHex(this._msgTrackInfos[checkIdx].msgFrame)}`,
             );
             this._msgCompleted(checkIdx, RICMsgResultCode.MESSAGE_RESULT_TIMEOUT, null);
             this._commsStats.recordMsgTimeout();
