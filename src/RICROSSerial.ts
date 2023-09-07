@@ -438,7 +438,7 @@ export class RICROSSerial {
   }
 
   static extractCameraData(buf: Uint8Array, frameTimeMs: number): ROSCameraData {
-    RICLog.debug(`CameraData ${buf.length} ${RICUtils.bufferToHex(buf.slice(0,30))}`);
+    RICLog.verbose(`CameraData ${buf.length} ${RICUtils.bufferToHex(buf.slice(0,30))}`);
     const unixTime = RICUtils.getBEUint64FromBuf(buf, 0);
     const sinceStartMs = RICUtils.getBEUint32FromBuf(buf, 8);
     const imageWidth = RICUtils.getBEUint16FromBuf(buf, 12);
