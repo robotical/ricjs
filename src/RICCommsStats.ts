@@ -28,24 +28,28 @@ export default class RICCommsStats {
 
   _msgSmartServos = 0;
   _msgIMU = 0;
+  _msgMagneto = 0;
   _msgPowerStatus = 0;
   _msgAddOnPub = 0;
   _msgRobotStatus = 0;
 
   _msgSmartServosPS = 0;
   _msgIMUPS = 0;
+  _msgMagnetoPS = 0;
   _msgPowerStatusPS = 0;
   _msgAddOnPubPS = 0;
   _msgRobotStatusPS = 0;
 
   _msgSmartServosCountInWindow = 0;
   _msgIMUCountInWindow = 0;
+  _msgMagnetoCountInWindow = 0;
   _msgPowerStatusCountInWindow = 0;
   _msgAddOnPubCountInWindow = 0;
   _msgRobotStatusCountInWindow = 0;
 
   _msgSmartServosLastCalcMs = 0;
   _msgIMULastCalcMs = 0;
+  _msgMagnetoLastCalcMs = 0;
   _msgPowerStatusLastCalcMs = 0;
   _msgAddOnPubLastCalcMs = 0;
   _msgRobotStatusLastCalcMs = 0;
@@ -74,21 +78,25 @@ export default class RICCommsStats {
     this._msgRetry = 0;
     this._msgSmartServos = 0;
     this._msgIMU = 0;
+    this._msgMagneto = 0;
     this._msgPowerStatus = 0;
     this._msgAddOnPub = 0;
     this._msgRobotStatus = 0;
     this._msgSmartServosPS = 0;
     this._msgIMUPS = 0;
+    this._msgMagnetoPS = 0;
     this._msgPowerStatusPS = 0;
     this._msgAddOnPubPS = 0;
     this._msgRobotStatusPS = 0;
     this._msgSmartServosCountInWindow = 0;
     this._msgIMUCountInWindow = 0;
+    this._msgMagnetoCountInWindow = 0;
     this._msgPowerStatusCountInWindow = 0;
     this._msgAddOnPubCountInWindow = 0;
     this._msgRobotStatusCountInWindow = 0;
     this._msgSmartServosLastCalcMs = Date.now();
     this._msgIMULastCalcMs = Date.now();
+    this._msgMagnetoLastCalcMs = Date.now();
     this._msgPowerStatusLastCalcMs = Date.now();
     this._msgAddOnPubLastCalcMs = Date.now();
     this._msgRobotStatusLastCalcMs = Date.now();
@@ -154,6 +162,17 @@ export default class RICCommsStats {
       this._msgIMUCountInWindow = 0;
     }
     return this._msgIMUPS;
+  }
+
+  getMagnetoRate(): number {
+    if (this._msgMagnetoLastCalcMs + 1000 < Date.now()) {
+      this._msgMagnetoPS =
+        (1000.0 * this._msgMagnetoCountInWindow) /
+        (Date.now() - this._msgMagnetoLastCalcMs);
+      this._msgMagnetoLastCalcMs = Date.now();
+      this._msgMagnetoCountInWindow = 0;
+    }
+    return this._msgMagnetoPS;
   }
 
   getPowerStatusRate(): number {
@@ -243,6 +262,12 @@ export default class RICCommsStats {
     this._msgIMU++;
     this._msgIMUCountInWindow++;
     // Don't call msgRx() as double counting msgs with smartServos
+  }
+
+  recordMagneto(): void {
+    this._msgMagneto++;
+    this._msgMagnetoCountInWindow++;
+    // NT: Not sure if we should call msgRx() here or not (like with IMU above)
   }
 
   recordPowerStatus(): void {

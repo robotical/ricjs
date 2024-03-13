@@ -15,6 +15,7 @@ import {
   ROSSerialPowerStatus,
   ROSSerialAddOnStatusList,
   ROSSerialRobotStatus,
+  ROSSerialMagneto,
 } from './RICROSSerial';
 import { RICUpdateEvent } from './RICUpdateEvents';
 
@@ -147,6 +148,8 @@ export class RICStateInfo {
   smartServosValidMs = 0;
   imuData: ROSSerialIMU = new ROSSerialIMU();
   imuDataValidMs = 0;
+  magnetoData: ROSSerialMagneto = new ROSSerialMagneto();
+  magnetoDataValidMs = 0;
   power: ROSSerialPowerStatus = new ROSSerialPowerStatus();
   powerValidMs = 0;
   addOnInfo: ROSSerialAddOnStatusList = new ROSSerialAddOnStatusList();

@@ -26,7 +26,8 @@
         "ts-node": "ts-node",
         "docs": "typedoc --entryPoints src/main.ts",
         "build": "tsc -p tsconfig.json",
-        "build-all": "npm run clean && npm run build"
+        "build-all": "npm run clean && npm run build",
+        "watch": "tsc -p tsconfig.json --watch"
     },
     "devDependencies": {
         "@types/jest": "^27.4.0",

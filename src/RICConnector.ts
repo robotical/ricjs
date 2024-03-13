@@ -20,7 +20,7 @@ import RICAddOnManager from "./RICAddOnManager";
 import RICSystem from "./RICSystem";
 import RICFileHandler from "./RICFileHandler";
 import RICStreamHandler from "./RICStreamHandler";
-import { ROSSerialAddOnStatusList, ROSSerialIMU, ROSSerialPowerStatus, ROSSerialRobotStatus, ROSSerialSmartServos } from "./RICROSSerial";
+import { ROSSerialAddOnStatusList, ROSSerialIMU, ROSSerialMagneto, ROSSerialPowerStatus, ROSSerialRobotStatus, ROSSerialSmartServos } from "./RICROSSerial";
 import RICUtils from "./RICUtils";
 import RICLog from "./RICLog";
 import { RICConnEvent, RICConnEventNames } from "./RICConnEvents";
@@ -356,6 +356,12 @@ export default class RICConnector {
     // RICLog.verbose(`onRxIMU ${JSON.stringify(imuData)}`);
     this._ricStateInfo.imuData = imuData;
     this._ricStateInfo.imuDataValidMs = Date.now();
+  }
+
+  onRxMagneto(magnetoData: ROSSerialMagneto): void {
+    // RICLog.verbose(`onRxMagneto ${JSON.stringify(magnetoData)}`);
+    this._ricStateInfo.magnetoData = magnetoData;
+    this._ricStateInfo.magnetoDataValidMs = Date.now();
   }
 
   onRxPowerStatus(powerStatus: ROSSerialPowerStatus): void {

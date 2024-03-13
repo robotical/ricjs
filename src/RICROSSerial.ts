@@ -30,6 +30,14 @@ export class ROSSerialIMU {
   } = { x: 0, y: 0, z: 0 };
 }
 
+export class ROSSerialMagneto {
+  magneto: {
+    x: number;
+    y: number;
+    z: number;
+  } = { x: 0, y: 0, z: 0 };
+}
+
 export class ROSSerialPowerStatus {
   powerStatus: {
     battRemainCapacityPercent: number;
@@ -44,18 +52,18 @@ export class ROSSerialPowerStatus {
     powerUSBIsValid: boolean;
     powerFlags: number;
   } = {
-    battRemainCapacityPercent: 0,
-    battTempDegC: 0,
-    battRemainCapacityMAH: 0,
-    battFullCapacityMAH: 0,
-    battCurrentMA: 0,
-    power5VOnTimeSecs: 0,
-    power5VIsOn: false,
-    powerUSBIsConnected: false,
-    battInfoValid: false,
-    powerUSBIsValid: false,
-    powerFlags: 0,
-  };
+      battRemainCapacityPercent: 0,
+      battTempDegC: 0,
+      battRemainCapacityMAH: 0,
+      battFullCapacityMAH: 0,
+      battCurrentMA: 0,
+      power5VOnTimeSecs: 0,
+      power5VIsOn: false,
+      powerUSBIsConnected: false,
+      battInfoValid: false,
+      powerUSBIsValid: false,
+      powerFlags: 0,
+    };
 }
 
 export class ROSSerialAddOnStatus {
@@ -64,7 +72,7 @@ export class ROSSerialAddOnStatus {
   whoAmI = "";
   name = "";
   status = 0;
-  vals: { [key: string]: number | boolean | string} = {};
+  vals: { [key: string]: number | boolean | string } = {};
 }
 
 export class ROSSerialAddOnStatusList {
@@ -102,24 +110,25 @@ export class ROSSerialRobotStatus {
     wifiRSSI: number;
     bleRSSI: number;
   } = {
-    flags: 0,
-    isMoving: false,
-    isPaused: false,
-    isFwUpdating: false,
-    workQCount: 0,
-    heapFree: 0,
-    heapMin: 0,
-    pixRGBT: [],
-    loopMsAvg: 0,
-    loopMsMax: 0,
-    wifiRSSI: 0,
-    bleRSSI: 0,
-  };
+      flags: 0,
+      isMoving: false,
+      isPaused: false,
+      isFwUpdating: false,
+      workQCount: 0,
+      heapFree: 0,
+      heapMin: 0,
+      pixRGBT: [],
+      loopMsAvg: 0,
+      loopMsMax: 0,
+      wifiRSSI: 0,
+      bleRSSI: 0,
+    };
 }
 
 export type ROSSerialMsg =
   | ROSSerialSmartServos
   | ROSSerialIMU
+  | ROSSerialMagneto
   | ROSSerialPowerStatus
   | ROSSerialAddOnStatusList
   | ROSSerialRobotStatus;
@@ -134,7 +143,7 @@ export class RICROSSerial {
   ): void {
     // Payload may contain multiple ROSSerial messages
     let msgPos = startPos;
-    for (;;) {
+    for (; ;) {
       const remainingMsgLen = rosSerialMsg.length - msgPos;
 
       // ROSSerial ROSTopics
@@ -143,6 +152,7 @@ export class RICROSSerial {
       const ROSTOPIC_V2_POWER_STATUS = 122;
       const ROSTOPIC_V2_ADDONS = 123;
       const ROSTOPIC_V2_ROBOT_STATUS = 124;
+      const ROSTOPIC_V2_MAGNETOMETER = 125;
 
       // ROSSerial message format
       const RS_MSG_MIN_LENGTH = 8;
@@ -187,7 +197,7 @@ export class RICROSSerial {
         // we need to register the static addons here in case
         // marty only has static addons (and so the rostopic_v2_addons case
         // never runs)
-        let allAdons: ROSSerialAddOnStatusList = {addons: []};
+        let allAdons: ROSSerialAddOnStatusList = { addons: [] };
         const staticAddons = addOnManager.getProcessedStaticAddons();
         for (const staticAddon of staticAddons) {
           allAdons.addons.push(staticAddon);
@@ -228,6 +238,11 @@ export class RICROSSerial {
             // Robot Status
             RICMessageResult.onRobotStatus(this.extractRobotStatus(payload));
             commsStats.recordRobotStatus();
+            break;
+          case ROSTOPIC_V2_MAGNETOMETER:
+            // Magnetometer
+            RICMessageResult.onRxMagneto(this.extractMagneto(payload));
+            commsStats.recordMagneto();
             break;
           default:
             // Unknown topic
@@ -274,6 +289,20 @@ export class RICROSSerial {
     const y = RICUtils.getBEFloatFromBuf(buf.slice(4));
     const z = RICUtils.getBEFloatFromBuf(buf.slice(8));
     return { accel: { x: x / 1024, y: y / 1024, z: z / 1024 } };
+  }
+
+  static extractMagneto(buf: Uint8Array): ROSSerialMagneto {
+    // V2 ROSTOPIC MAGNETOMETER message layout
+    // const ROS_MAGNETOMETER_BYTES = 13
+    // const ROS_MAGNETOMETER_POS_X = 0
+    // const ROS_MAGNETOMETER_POS_Y = 4
+    // const ROS_MAGNETOMETER_POS_Z = 8
+    // const ROS_MAGNETOMETER_POS_IDNO = 12
+    // Three magnetometer floats
+    const x = RICUtils.getBEFloatFromBuf(buf);
+    const y = RICUtils.getBEFloatFromBuf(buf.slice(4));
+    const z = RICUtils.getBEFloatFromBuf(buf.slice(8));
+    return { magneto: { x: x, y: y, z: z } };
   }
 
   static extractPowerStatus(buf: Uint8Array): ROSSerialPowerStatus {

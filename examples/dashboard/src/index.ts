@@ -1,6 +1,6 @@
 import { acceptCheckCorrectRIC, connectBLE, connectWiFi, connectWebSerial, disconnect, rejectCheckCorrectRIC, startCheckCorrectRIC } from './connect';
 import { sendREST, streamSoundFile } from './stream';
-import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest, setReconnect, pixGetColourStr, commsStatusFormat, powerStatusFormat, addonValListFormat } from './system';
+import { imuStatusFormat, robotStatusFormat, servoStatusFormat, addonListFormat, tableFormat, sysInfoGet, connPerfTest, setReconnect, pixGetColourStr, commsStatusFormat, powerStatusFormat, addonValListFormat, magnetoStatusFormat } from './system';
 import { RICConnEvent } from '../../../src/RICConnEvents';
 import { RICUpdateEvent } from '../../../src/RICUpdateEvents';
 import RICConnector from '../../../src/RICConnector';
@@ -50,6 +50,7 @@ globalThis.ricConnector = new RICConnector();
 if (globalThis.ricConnector) {
   globalThis.ricConnector.setupUpdateManager("2.0.0", 
               `https://updates.robotical.io/live/martyv2/rev{HWRevNo}/current_version.json`, 
+              "",
               fileDownloader);
   globalThis.ricConnector.setEventListener(eventListener);
 }
@@ -100,6 +101,7 @@ function updateStatus() {
   formatStatus("robotStatus", ricState.robotStatus, ricState.robotStatusValidMs, robotStatusFormat, "robot-status-container");
   formatStatus("powerStatus", ricState.power, ricState.powerValidMs, powerStatusFormat, "power-status-container");
   formatStatus("imuStatus", ricState.imuData, ricState.imuDataValidMs, imuStatusFormat, "imu-status-container");
+  formatStatus("magnetoStatus", ricState.magnetoData, ricState.magnetoDataValidMs, magnetoStatusFormat, "magneto-status-container");
   formatStatus("servoStatus", ricState.smartServos, ricState.smartServosValidMs, servoStatusFormat, "servo-status-container");
   formatStatus("sysInfoStatus", ricSystem.getCachedSystemInfo(), ricSystem.getCachedSystemInfo()?.validMs, tableFormat, "sysinfo-list-container");
   formatStatus("addonsStatus", ricSystem.getCachedAddOnList(), null, addonListFormat, "addon-list-container");
@@ -174,6 +176,7 @@ function component() {
   genStatusBlock('robot-status-container', 'info-status-container', statusContainer);
   genStatusBlock('power-status-container', 'info-status-container', statusContainer);
   genStatusBlock('imu-status-container', 'info-status-container', statusContainer);
+  genStatusBlock('magneto-status-container', 'info-status-container', statusContainer);
   genStatusBlock('servo-status-container', 'info-status-container', statusContainer);
   genStatusBlock('sysinfo-list-container', 'info-status-container', statusContainer);
   genStatusBlock('addon-list-container', 'info-status-container', statusContainer);
