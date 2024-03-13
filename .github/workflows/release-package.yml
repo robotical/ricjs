@@ -2,11 +2,20 @@ name: Publish Package to npmjs
 on:
   release:
     types: [created]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'The branch to checkout'
+        required: false
+        default: 'master'
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.branch || 'master' }}
+
       # Setup .npmrc file to publish to npm
       - uses: actions/setup-node@v2
         with:
