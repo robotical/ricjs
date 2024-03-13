@@ -1,6 +1,6 @@
 {
     "name": "@robotical/ricjs",
-    "version": "magnetometer--1.0.0",
+    "version": "1.0.0-magnetometer",
     "description": "Javascript/TS library for Robotical RIC",
     "author": "Rob Dobson <rob@dobson.com>",
     "repository": {
