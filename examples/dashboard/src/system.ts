@@ -1,7 +1,7 @@
 import RICCommsStats from "../../../src/RICCommsStats";
 import RICConnector from "../../../src/RICConnector";
 import RICLog from "../../../src/RICLog";
-import { ROSSerialAddOnStatus, ROSSerialIMU, ROSSerialPowerStatus, ROSSerialRGBT, ROSSerialRobotStatus, ROSSerialSmartServos } from "../../../src/RICROSSerial";
+import { ROSSerialAddOnStatus, ROSSerialIMU, ROSSerialMagneto, ROSSerialPowerStatus, ROSSerialRGBT, ROSSerialRobotStatus, ROSSerialSmartServos } from "../../../src/RICROSSerial";
 import { Dictionary, RICHWElem } from "../../../src/RICTypes";
 import { RICRoboticalAddOns } from "@robotical/ricjs-robotical-addons";
 
@@ -133,6 +133,17 @@ export function imuStatusFormat(name:string, imuStatus:ROSSerialIMU): string {
   return statusStr;
 }
 
+export function magnetoStatusFormat(name:string, magnetoStatus:ROSSerialMagneto): string {
+  
+    const innerStatus = magnetoStatus.magneto;
+    let statusStr = "";
+    statusStr += `<div class="flag-info">X ${innerStatus.x.toFixed(2)}</div>`;
+    statusStr += `<div class="flag-info">Y ${innerStatus.y.toFixed(2)}</div>`;
+    statusStr += `<div class="flag-info">Z ${innerStatus.z.toFixed(2)}ms</div>`;
+  
+    return statusStr;
+  }
+
 export function servoStatusFormat(name:string, servoStatus:ROSSerialSmartServos): string {
   if (!checkNewData(name, servoStatus)) {
     return "";
@@ -246,6 +257,7 @@ export function commsStatusFormat(name:string, commsStats:RICCommsStats): string
   commsStats.getSmartServosRate();
   commsStats.getAddOnPubRate();
   commsStats.getIMURate();
+  commsStats.getMagnetoRate();
   commsStats.getPowerStatusRate();
   commsStats.getRobotStatusRate();
 
@@ -269,6 +281,8 @@ export function commsStatusFormat(name:string, commsStats:RICCommsStats): string
     "SmartServosRate": commsStats._msgSmartServosPS.toFixed(2),
     "IMU": commsStats._msgIMU,
     "IMURate": commsStats._msgIMUPS.toFixed(2),
+    "Magneto": commsStats._msgMagneto,
+    "MagnetoRate": commsStats._msgMagnetoPS.toFixed(2),
     "PowerStatus": commsStats._msgPowerStatus,
     "PowerStatusRate": commsStats._msgPowerStatusPS.toFixed(2), 
     "AddOnPub": commsStats._msgAddOnPub,

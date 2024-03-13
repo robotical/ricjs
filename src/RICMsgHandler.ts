@@ -19,6 +19,7 @@ import {
   ROSSerialPowerStatus,
   ROSSerialAddOnStatusList,
   ROSSerialRobotStatus,
+  ROSSerialMagneto,
 } from './RICROSSerial';
 import {
   PROTOCOL_RICREST,
@@ -71,6 +72,7 @@ export interface RICMessageResult {
   onRxUnnumberedMsg(msgRsltJsonObj: object): void;
   onRxSmartServo(smartServos: ROSSerialSmartServos): void;
   onRxIMU(imuData: ROSSerialIMU): void;
+  onRxMagneto(magnetoData: ROSSerialMagneto): void;
   onRxPowerStatus(powerStatus: ROSSerialPowerStatus): void;
   onRxAddOnPub(addOnInfo: ROSSerialAddOnStatusList): void;
   onRobotStatus(robotStatus: ROSSerialRobotStatus): void;
