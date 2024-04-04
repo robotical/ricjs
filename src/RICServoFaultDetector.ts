@@ -24,6 +24,45 @@ import RICLog from "./RICLog";
 import RICMsgHandler from "./RICMsgHandler";
 import { RICHWElemList_Min, RICReportMsg, RICServoFaultFlags, RICStateInfo } from "./RICTypes";
 
+
+class HWStatusLastReported {
+    // a class that holds the last reported hw status for 30 seconds
+    // this is to prevent overloading marty with hwstatus requests
+    // when spurious reports are received
+    private static instance: HWStatusLastReported;
+    private lastReported: RICHWElemList_Min | null;
+    private lastReportedTime: number;
+    private static readonly MAX_TIME = 30000; // 30 seconds
+
+    private constructor() {
+        this.lastReported = null;
+        this.lastReportedTime = 0;
+    }
+
+    public static getInstance() {
+        if (!HWStatusLastReported.instance) {
+            HWStatusLastReported.instance = new HWStatusLastReported();
+        }
+        return HWStatusLastReported.instance;
+    }
+
+    public setLastReported(hwStatus: RICHWElemList_Min | string) {
+        // only set the last reported if it is not a string
+        if (typeof hwStatus === "string") {
+            return;
+        }
+        this.lastReported = hwStatus;
+        this.lastReportedTime = Date.now();
+    }
+
+    public getLastReported() {
+        if (Date.now() - this.lastReportedTime > HWStatusLastReported.MAX_TIME) {
+            return null;
+        }
+        return this.lastReported;
+    }
+}
+
 export default class RICServoFaultDetector {
     private _ricMsgHandler: RICMsgHandler;
     private static expirationDate: Date = new Date();
@@ -37,10 +76,17 @@ export default class RICServoFaultDetector {
 
     private async getAllServos(): Promise<void> {
         RICServoFaultDetector._servoList = [];
-        const response = await this._ricMsgHandler.sendRICRESTURL<RICHWElemList_Min>("hwstatus/minstat?filterByType=SmartServo");
-        if (!response || !response.hw) {
-            RICLog.warn("RICServoFaultDetector: Error getting servo list");
-            return;
+        const cachedHwstatus = HWStatusLastReported.getInstance().getLastReported();
+        let response;
+        if (cachedHwstatus) {
+            response = cachedHwstatus;
+        } else {
+            response = await this._ricMsgHandler.sendRICRESTURL<RICHWElemList_Min>("hwstatus/minstat?filterByType=SmartServo");
+            if (!response || !response.hw) {
+                RICLog.warn("RICServoFaultDetector: Error getting servo list");
+                return;
+            }
+            HWStatusLastReported.getInstance().setLastReported(response);
         }
         const servosWithIdAndName = response.hw.map((smartServo) => ({ id: smartServo.I, name: smartServo.n }));
         // filter only the servos that they have enabled the fault bit in their status byte
@@ -138,6 +184,4 @@ export default class RICServoFaultDetector {
         // Check if the 6th bit (from the right) is enabled
         return Boolean(num & 64);
     }
-
-
 }
