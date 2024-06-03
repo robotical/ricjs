@@ -1,6 +1,6 @@
 {
     "name": "@robotical/ricjs",
-    "version": "1.16.0",
+    "version": "1.16.8",
     "description": "Javascript/TS library for Robotical RIC",
     "author": "Rob Dobson <rob@dobson.com>",
     "repository": {
@@ -33,7 +33,7 @@
         "@types/jest": "^27.4.0",
         "@types/node": "^17.0.18",
         "@types/semver": "^7.3.9",
-        "@types/web-bluetooth": "^0.0.14",
+        "@types/web-bluetooth": "^0.0.20",
         "@typescript-eslint/eslint-plugin": "^5.12.0",
         "@typescript-eslint/parser": "^5.12.0",
         "eslint": "^8.9.0",
@@ -46,7 +46,7 @@
     },
     "dependencies": {
         "@types/w3c-web-serial": "^1.0.3",
-        "axios": "^0.26.0",
+        "axios": "^1.7.2",
         "buffer": "^6.0.3",
         "isomorphic-ws": "^4.0.1",
         "semver": "^7.3.5"

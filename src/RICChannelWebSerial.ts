@@ -147,7 +147,18 @@ export default class RICChannelWebSerial implements RICChannel {
       if (!this._port)
         return false;
 
-      await this._port.open({ baudRate: 115200 });
+      try {
+        RICLog.info("opening port");
+        await this._port.open({ baudRate: 115200 });
+      } catch (err: any) {
+        if (err.name == "InvalidStateError") {
+          RICLog.debug(`Opening port failed - already open ${err}`);
+        } else {
+          RICLog.error(`Opening port failed: ${err}`);
+          throw err;
+        }
+      }
+
       this._isConnected = true;
 
       // start read loop
